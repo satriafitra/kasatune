@@ -187,18 +187,6 @@ export function useAudioVisualizer(
     return () => clearInterval(interval);
   }, [isPlaying]);
 
-  // High-precision playback time sync loop (50ms interval ensures millisecond-sharp lyrics reaction without lag)
-  useEffect(() => {
-    if (!isPlaying) return;
-    const interval = setInterval(() => {
-      const audio = audioRef.current;
-      if (audio && !audio.paused) {
-        setCurrentTime(audio.currentTime);
-      }
-    }, 50);
-    return () => clearInterval(interval);
-  }, [isPlaying]);
-
   // Clean Track Switcher: Guarantees 100% synchronization on track skip
   const loadTrack = useCallback((url: string, newBpm: number, durationSec: number, autoPlay: boolean = true) => {
     const audio = audioRef.current;

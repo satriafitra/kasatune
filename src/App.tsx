@@ -80,16 +80,22 @@ export const App: React.FC = () => {
     }
   );
 
-  // Synchronous Track Change Handler: Guarantees audio & lyrics stay 100% in sync
+  // Synchronous Track Change Handler: Guarantees audio & lyrics stay 100% in sync and AUTOPLAYS
   const handleSelectTrack = useCallback((track: BackendRadioheadTrack) => {
-    selectTrack(track);
-    loadTrack(
-      track.previewUrl,
-      track.bpm,
-      track.durationMs > 0 ? track.durationMs / 1000 : 238,
-      isPlaying // keep current playing state
-    );
-  }, [selectTrack, loadTrack, isPlaying]);
+    if (track.id === activeTrack.id) {
+      if (!isPlaying) {
+        togglePlay();
+      }
+    } else {
+      selectTrack(track);
+      loadTrack(
+        track.previewUrl,
+        track.bpm,
+        track.durationMs > 0 ? track.durationMs / 1000 : 238,
+        true // Immediately start playing on click!
+      );
+    }
+  }, [activeTrack.id, isPlaying, togglePlay, selectTrack, loadTrack]);
 
   const handleNextTrack = useCallback(() => {
     if (tracks.length === 0) return;
@@ -103,9 +109,9 @@ export const App: React.FC = () => {
       nextTrk.previewUrl,
       nextTrk.bpm,
       nextTrk.durationMs > 0 ? nextTrk.durationMs / 1000 : 238,
-      isPlaying
+      true // Immediately play on next
     );
-  }, [tracks, activeTrack.id, isShuffle, selectTrack, loadTrack, isPlaying]);
+  }, [tracks, activeTrack.id, isShuffle, selectTrack, loadTrack]);
 
   const handlePrevTrack = useCallback(() => {
     if (tracks.length === 0) return;
@@ -122,9 +128,9 @@ export const App: React.FC = () => {
       prevTrk.previewUrl,
       prevTrk.bpm,
       prevTrk.durationMs > 0 ? prevTrk.durationMs / 1000 : 238,
-      isPlaying
+      true // Immediately play on prev
     );
-  }, [tracks, activeTrack.id, audioCurrentTimeSec, seekToSeconds, selectTrack, loadTrack, isPlaying]);
+  }, [tracks, activeTrack.id, audioCurrentTimeSec, seekToSeconds, selectTrack, loadTrack]);
 
   // Keyboard Shortcuts: Space (Play/Pause), ArrowRight (Next), ArrowLeft (Prev)
   useEffect(() => {
