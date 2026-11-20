@@ -157,6 +157,33 @@ export const App: React.FC = () => {
             seekToSeconds(friendPlayback.progressMs / 1000);
           }
           return;
+        } else {
+          // Dynamic live track from friend that isn't in preloaded list
+          const dynamicTrack: BackendRadioheadTrack = {
+            id: friendPlayback.track.id,
+            title: friendPlayback.track.title,
+            artist: friendPlayback.track.artist,
+            album: friendPlayback.track.album,
+            year: new Date().getFullYear(),
+            coverUrl: friendPlayback.track.coverUrl || '',
+            previewUrl: friendPlayback.track.previewUrl || '',
+            durationMs: friendPlayback.track.durationMs || 235000,
+            bpm: 120,
+            mood: 'Spotify Live Presence',
+            syncedLyrics: friendPlayback.track.syncedLyrics || '',
+            spotifyUrl: friendPlayback.track.spotifyUrl || '',
+          };
+          selectTrack(dynamicTrack);
+          loadTrack(
+            dynamicTrack.previewUrl,
+            dynamicTrack.bpm,
+            dynamicTrack.durationMs > 0 ? dynamicTrack.durationMs / 1000 : 235,
+            friendPlayback.isPlaying
+          );
+          if (friendPlayback.progressMs > 0) {
+            seekToSeconds(friendPlayback.progressMs / 1000);
+          }
+          return;
         }
       }
     }

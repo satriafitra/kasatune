@@ -17,6 +17,7 @@ export interface BackendRadioheadTrack {
   syncedLyrics?: string;
   plainLyrics?: string;
   dominantColors?: string[];
+  spotifyUrl?: string;
 }
 
 export interface BackendApiResponse<T> {
