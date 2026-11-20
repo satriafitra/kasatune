@@ -34,8 +34,49 @@ export interface FriendPlaybackState {
   track: FriendTrack | null;
   simulated: boolean;
   friendName: string;
+  friendUsername?: string;
+  avatarUrl?: string;
   playlistName: string;
   clientId: string;
+}
+
+export interface DiscordFriendPreset {
+  id: string;
+  name: string;
+  username: string;
+  tag: string;
+  avatarUrl: string;
+}
+
+export const KNOWN_FRIENDS: DiscordFriendPreset[] = [
+  {
+    id: '519781597155950602',
+    name: 'Len',
+    username: 'funja',
+    tag: 'Teman B (Aktif)',
+    avatarUrl: 'https://cdn.discordapp.com/avatars/519781597155950602/80e5c9286fadd38829ddb29d97cccf57.png',
+  },
+  {
+    id: '759609270974414848',
+    name: 'JuraganBengkel',
+    username: 'deriana_',
+    tag: 'Teman A',
+    avatarUrl: 'https://cdn.discordapp.com/avatars/759609270974414848/a_684063b40cb4d9f4d546b0d17220b8d6.png',
+  },
+  {
+    id: '852533226252664852',
+    name: 'NeoNekooo',
+    username: 'syrelg',
+    tag: 'Teman C',
+    avatarUrl: 'https://cdn.discordapp.com/avatars/852533226252664852/ccd7e944a2e26c2f42ad76153ab06877.png',
+  },
+];
+
+export interface FriendLiveInfo {
+  isListening: boolean;
+  song?: string;
+  artist?: string;
+  album?: string;
 }
 
 function getSpotifyRedirectUri() {
@@ -49,17 +90,28 @@ function getSpotifyRedirectUri() {
 // Dynamic preview audio finder from iTunes Search API (CORS friendly, instant)
 const audioPreviewCache = new Map<string, string>();
 async function getPreviewAudio(artist: string, title: string): Promise<string> {
-  const key = `${artist}-${title}`.toLowerCase();
+  const cleanTitle = title.replace(/\([^)]*\)/g, '').trim();
+  const primaryArtist = artist.split(';')[0].split(',')[0].trim();
+  const key = `${primaryArtist}-${cleanTitle}`.toLowerCase();
   if (audioPreviewCache.has(key)) return audioPreviewCache.get(key)!;
 
   try {
-    const q = encodeURIComponent(`${artist} ${title}`);
+    const q = encodeURIComponent(`${primaryArtist} ${cleanTitle}`);
     const res = await fetch(`https://itunes.apple.com/search?term=${q}&entity=song&limit=1`);
     if (res.ok) {
       const data = await res.json();
       if (data.results && data.results.length > 0 && data.results[0].previewUrl) {
         audioPreviewCache.set(key, data.results[0].previewUrl);
         return data.results[0].previewUrl;
+      }
+    }
+    // Fallback: search title only
+    const resTitle = await fetch(`https://itunes.apple.com/search?term=${encodeURIComponent(cleanTitle)}&entity=song&limit=1`);
+    if (resTitle.ok) {
+      const dataTitle = await resTitle.json();
+      if (dataTitle.results && dataTitle.results.length > 0 && dataTitle.results[0].previewUrl) {
+        audioPreviewCache.set(key, dataTitle.results[0].previewUrl);
+        return dataTitle.results[0].previewUrl;
       }
     }
   } catch {
@@ -71,11 +123,12 @@ async function getPreviewAudio(artist: string, title: string): Promise<string> {
 // Dynamic synced lyrics finder from LRCLIB
 const lyricsCache = new Map<string, string>();
 async function getSyncedLyrics(artist: string, title: string): Promise<string> {
-  const key = `${artist}-${title}`.toLowerCase();
+  const primaryArtist = artist.split(';')[0].split(',')[0].trim();
+  const key = `${primaryArtist}-${title}`.toLowerCase();
   if (lyricsCache.has(key)) return lyricsCache.get(key)!;
 
   try {
-    const qArtist = encodeURIComponent(artist);
+    const qArtist = encodeURIComponent(primaryArtist);
     const qTitle = encodeURIComponent(title);
     const res = await fetch(`https://lrclib.net/api/get?artist_name=${qArtist}&track_name=${qTitle}`);
     if (res.ok) {
@@ -93,15 +146,18 @@ async function getSyncedLyrics(artist: string, title: string): Promise<string> {
 
 export function useFriendSpotify() {
   const [playbackState, setPlaybackState] = useState<FriendPlaybackState | null>(null);
-  const [liveProgressMs, setLiveProgressMs] = useState<number>(43000);
+  const [liveProgressMs, setLiveProgressMs] = useState<number>(0);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isConnecting, setIsConnecting] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Friend Discord ID for Lanyard Real-Time Broadcast
+  // Friend Discord ID for Lanyard Real-Time Broadcast (Default: Friend B - Len)
   const [discordUserId, setDiscordUserIdState] = useState<string>(() => {
-    return localStorage.getItem('kasatune_discord_user_id') || '759609270974414848';
+    return localStorage.getItem('kasatune_discord_user_id') || '519781597155950602';
   });
+
+  // Live status map for all known friends
+  const [friendsLiveMap, setFriendsLiveMap] = useState<Record<string, FriendLiveInfo>>({});
 
   const setDiscordUserId = useCallback((id: string) => {
     const cleaned = id.trim();
@@ -111,6 +167,42 @@ export function useFriendSpotify() {
     } else {
       localStorage.removeItem('kasatune_discord_user_id');
     }
+  }, []);
+
+  // Poll status for all known friends periodically so UI shows live status indicators
+  useEffect(() => {
+    const pollAllFriends = async () => {
+      const results: Record<string, FriendLiveInfo> = {};
+      await Promise.all(
+        KNOWN_FRIENDS.map(async (friend) => {
+          try {
+            const res = await fetch(`https://api.lanyard.rest/v1/users/${friend.id}`);
+            if (res.ok) {
+              const j = await res.json();
+              if (j.success && j.data) {
+                const sp = j.data.spotify;
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                const act = j.data.activities?.find((a: any) => a.name === 'Spotify');
+                const isListening = Boolean(j.data.listening_to_spotify || act);
+                results[friend.id] = {
+                  isListening,
+                  song: sp?.song || act?.details,
+                  artist: sp?.artist || act?.state,
+                  album: sp?.album || act?.assets?.large_text,
+                };
+              }
+            }
+          } catch {
+            // Ignore individual fetch failure
+          }
+        })
+      );
+      setFriendsLiveMap(results);
+    };
+
+    pollAllFriends();
+    const interval = setInterval(pollAllFriends, 3500);
+    return () => clearInterval(interval);
   }, []);
 
   const lastFetchTimeRef = useRef<number>(Date.now());
@@ -218,6 +310,12 @@ export function useFriendSpotify() {
           syncedLyrics: syncedLyrics,
         };
 
+        const avatarHash = d?.discord_user?.avatar;
+        const userId = d?.discord_user?.id;
+        const avatarUrl = avatarHash && userId
+          ? `https://cdn.discordapp.com/avatars/${userId}/${avatarHash}.${avatarHash.startsWith('a_') ? 'gif' : 'png'}`
+          : undefined;
+
         const state: FriendPlaybackState = {
           isConnected: true,
           isPlaying: true,
@@ -225,7 +323,9 @@ export function useFriendSpotify() {
           timestamp: Date.now(),
           deviceName: 'Spotify on Desktop (Discord Live)',
           deviceType: 'Computer',
-          friendName: d.discord_user?.global_name || d.discord_user?.username || 'deriana_',
+          friendName: d.discord_user?.global_name || d.discord_user?.username || 'Len',
+          friendUsername: d.discord_user?.username,
+          avatarUrl: avatarUrl,
           playlistName: 'Discord Live Session',
           clientId: DEFAULT_CLIENT_ID,
           simulated: false,
@@ -240,9 +340,32 @@ export function useFriendSpotify() {
         setError(null);
         setIsLoading(false);
       } else {
-        // Paused or not listening on Spotify
-        setPlaybackState((prev) => (prev ? { ...prev, isPlaying: false } : null));
+        // Condition 2: Friend Idle / Standby / Not listening to Spotify (e.g. Friend C)
+        isUsingLanyardRef.current = true;
+        const friendName = d?.discord_user?.global_name || d?.discord_user?.username || 'Teman';
+        const avatarHash = d?.discord_user?.avatar;
+        const userId = d?.discord_user?.id;
+        const avatarUrl = avatarHash && userId
+          ? `https://cdn.discordapp.com/avatars/${userId}/${avatarHash}.${avatarHash.startsWith('a_') ? 'gif' : 'png'}`
+          : undefined;
+
+        setPlaybackState({
+          isConnected: true,
+          isPlaying: false,
+          progressMs: 0,
+          timestamp: Date.now(),
+          deviceName: 'Spotify (Standby)',
+          deviceType: 'Computer',
+          friendName: friendName,
+          friendUsername: d?.discord_user?.username,
+          avatarUrl: avatarUrl,
+          playlistName: 'Discord Standby',
+          clientId: DEFAULT_CLIENT_ID,
+          simulated: false,
+          track: null,
+        });
         isPlayingRef.current = false;
+        setIsLoading(false);
       }
     };
 
@@ -489,6 +612,7 @@ export function useFriendSpotify() {
     error,
     discordUserId,
     setDiscordUserId,
+    friendsLiveMap,
     fetchNowPlaying,
     connectSpotify,
     toggleFriendPlayback,

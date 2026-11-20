@@ -95,6 +95,7 @@ export const App: React.FC = () => {
     isConnecting: isConnectingFriend,
     discordUserId,
     setDiscordUserId,
+    friendsLiveMap,
     connectSpotify: connectFriendSpotify,
     fetchNowPlaying: refetchFriendSpotify,
     toggleFriendPlayback,
@@ -406,7 +407,10 @@ export const App: React.FC = () => {
         isLoading={isLoadingSong}
         searchQuery={searchFilter}
         onSearchChange={setSearchFilter}
-        friendTrackTitle={friendPlayback?.track?.title}
+        friendTrackTitle={
+          friendPlayback?.track?.title ||
+          (friendPlayback?.friendName ? `${friendPlayback.friendName} (Standby)` : undefined)
+        }
         isFriendConnected={friendPlayback?.isConnected}
         onConnectFriendSpotify={connectFriendSpotify}
       />
@@ -440,6 +444,7 @@ export const App: React.FC = () => {
             onListenAlong={handleListenAlong}
             isFriendSyncConnected={isFriendSyncConnected}
             discordUserId={discordUserId}
+            friendsLiveMap={friendsLiveMap}
             onSetDiscordUserId={setDiscordUserId}
             onToggleFriendSync={() => setIsFriendSyncConnected((prev) => !prev)}
           />
@@ -457,6 +462,11 @@ export const App: React.FC = () => {
               isPlaying={isPlaying}
               onTogglePlay={togglePlay}
               onSelectTrack={handleSelectTrack}
+              friendStandbyInfo={{
+                friendName: friendPlayback?.friendName || 'Teman',
+                avatarUrl: friendPlayback?.avatarUrl,
+                isStandby: Boolean(friendPlayback && !friendPlayback.isPlaying && !friendPlayback.track),
+              }}
             />
           </div>
 

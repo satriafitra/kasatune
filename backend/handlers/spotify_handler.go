@@ -17,7 +17,8 @@ func NewSpotifyHandler(spotifyService *services.SpotifyService) *SpotifyHandler 
 
 // GetFriendNowPlaying returns real-time playback & playtime from friend's Spotify account
 func (h *SpotifyHandler) GetFriendNowPlaying(w http.ResponseWriter, r *http.Request) {
-	state := h.spotifyService.GetNowPlaying()
+	userID := r.URL.Query().Get("user_id")
+	state := h.spotifyService.GetNowPlayingForUser(userID)
 	WriteJSON(w, http.StatusOK, models.ApiResponse{
 		Success: true,
 		Message: "Real-time friend playback state retrieved",

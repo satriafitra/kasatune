@@ -17,7 +17,7 @@ import {
 } from 'lucide-react';
 import type { BackendRadioheadTrack } from '../api/backend';
 import type { AlbumFilterType } from './DiscordServerRail';
-import type { FriendPlaybackState } from '../hooks/useFriendSpotify';
+import type { FriendPlaybackState, FriendLiveInfo } from '../hooks/useFriendSpotify';
 import { FriendSpotifyCard } from './FriendSpotifyCard';
 
 interface TrackListSidebarProps {
@@ -34,6 +34,7 @@ interface TrackListSidebarProps {
   isConnectingFriend?: boolean;
   isFriendSyncConnected?: boolean;
   discordUserId?: string;
+  friendsLiveMap?: Record<string, FriendLiveInfo>;
   onSetDiscordUserId?: (id: string) => void;
   onConnectFriendSpotify?: () => void;
   onRefreshFriendSpotify?: () => void;
@@ -54,6 +55,7 @@ export const TrackListSidebar: React.FC<TrackListSidebarProps> = ({
   isConnectingFriend = false,
   isFriendSyncConnected = true,
   discordUserId = '',
+  friendsLiveMap = {},
   onSetDiscordUserId = () => {},
   onConnectFriendSpotify = () => {},
   onRefreshFriendSpotify = () => {},
@@ -198,6 +200,7 @@ export const TrackListSidebar: React.FC<TrackListSidebarProps> = ({
         isConnecting={isConnectingFriend}
         isConnected={isFriendSyncConnected}
         discordUserId={discordUserId}
+        friendsLiveMap={friendsLiveMap}
         onSetDiscordUserId={onSetDiscordUserId}
         onConnectSpotify={onConnectFriendSpotify}
         onRefresh={onRefreshFriendSpotify}

@@ -20,6 +20,11 @@ interface AlbumShowcaseProps {
   isPlaying: boolean;
   onTogglePlay: () => void;
   onSelectTrack: (track: BackendRadioheadTrack) => void;
+  friendStandbyInfo?: {
+    friendName: string;
+    avatarUrl?: string;
+    isStandby: boolean;
+  };
 }
 
 export const AlbumShowcase: React.FC<AlbumShowcaseProps> = ({
@@ -30,6 +35,7 @@ export const AlbumShowcase: React.FC<AlbumShowcaseProps> = ({
   isPlaying,
   onTogglePlay,
   onSelectTrack,
+  friendStandbyInfo,
 }) => {
   const title = track?.title || 'HOLLOW HUNGER';
   const artist = track?.artist || 'OxT';
@@ -61,6 +67,36 @@ export const AlbumShowcase: React.FC<AlbumShowcaseProps> = ({
           background: `linear-gradient(180deg, rgba(${r}, ${g}, ${b}, 0.35) 0%, rgba(${r}, ${g}, ${b}, 0.12) 50%, rgba(20, 22, 25, 0.98) 90%, #141619 100%)`,
         }}
       >
+        {friendStandbyInfo?.isStandby && (
+          <div className="mb-4 p-2.5 rounded-lg bg-[#0E1013]/90 border border-[#E89B5B]/50 flex items-center justify-between gap-3 shadow-md z-20 backdrop-blur-sm">
+            <div className="flex items-center gap-2.5 min-w-0">
+              {friendStandbyInfo.avatarUrl ? (
+                <img
+                  src={friendStandbyInfo.avatarUrl}
+                  alt={friendStandbyInfo.friendName}
+                  className="w-8 h-8 rounded-full border border-[#5865F2] object-cover flex-shrink-0"
+                />
+              ) : (
+                <div className="w-8 h-8 rounded-full bg-[#5865F2] flex items-center justify-center font-bold text-xs text-white flex-shrink-0">
+                  {friendStandbyInfo.friendName.slice(0, 1)}
+                </div>
+              )}
+              <div className="min-w-0">
+                <p className="text-xs font-bold text-white flex items-center gap-1.5 truncate">
+                  <span className="w-2 h-2 rounded-full bg-[#E89B5B]" />
+                  <span>{friendStandbyInfo.friendName} sedang Standby (Tidak Memutar Lagu)</span>
+                </p>
+                <p className="text-[11px] text-[#A0A5AD] truncate">
+                  Kasatune terhubung via Discord Lanyard dan siap sinkron otomatis saat musik diputar di Spotify.
+                </p>
+              </div>
+            </div>
+            <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-[#1C1E22] text-[#BFE7EA] border border-[#282B32] flex-shrink-0">
+              Standby Ready
+            </span>
+          </div>
+        )}
+
         <div className="flex flex-col sm:flex-row items-center sm:items-end gap-6 z-10">
           {/* Vinyl + Album Cover Assembly */}
           <div className="relative flex items-center flex-shrink-0 group">
