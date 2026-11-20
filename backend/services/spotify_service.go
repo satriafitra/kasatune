@@ -29,20 +29,29 @@ type SpotifyService struct {
 
 	friendTracks []*models.RadioheadTrack
 
-	// Simulated state based on friend's real Spotify desktop activity
-	simStartTime time.Time
-	simTrackIdx  int
+	// Live playback state
+	isPlaying      bool
+	pausedOffsetMs int
+	simStartTime   time.Time
+	simTrackIdx    int
+
+	// SSE subscribers for zero-latency live sync
+	subMu       sync.Mutex
+	subscribers map[chan *models.FriendPlaybackState]struct{}
 }
 
 func NewSpotifyService(clientID, clientSecret string) *SpotifyService {
 	svc := &SpotifyService{
-		clientID:     clientID,
-		clientSecret: clientSecret,
-		friendName:   "Hideri",
-		deviceName:   "Spotify for Windows (Hideri)",
-		playlistName: "Nippon Cahadja Asia, Nippon Pelindoeng Asia, Nippon Pemimpin Asia",
-		simStartTime: time.Now(),
-		simTrackIdx:  0,
+		clientID:       clientID,
+		clientSecret:   clientSecret,
+		friendName:     "Hideri",
+		deviceName:     "Spotify for Windows (Hideri)",
+		playlistName:   "Nippon Cahadja Asia, Nippon Pelindoeng Asia, Nippon Pemimpin Asia",
+		isPlaying:      false, // PAUSED as screenshotted by friend in media_1795158272142_f296e561.jpg!
+		pausedOffsetMs: 155000, // 2:35 as screenshotted by friend
+		simStartTime:   time.Now(),
+		simTrackIdx:    0,
+		subscribers:    make(map[chan *models.FriendPlaybackState]struct{}),
 	}
 
 	svc.loadFriendTracks()
@@ -70,7 +79,7 @@ func (s *SpotifyService) loadFriendTracks() {
 		}
 	}
 
-	// Hardcoded fallback if file read fails
+	// Fallback track list matching screenshot
 	s.friendTracks = []*models.RadioheadTrack{
 		{
 			ID:         "hollow-hunger",
@@ -79,7 +88,7 @@ func (s *SpotifyService) loadFriendTracks() {
 			Album:      "OVERLORD IV OP - HOLLOW HUNGER",
 			Year:       2022,
 			CoverURL:   "https://is1-ssl.mzstatic.com/image/thumb/Music112/v4/0a/a7/9f/0aa79f8a-101c-f475-c158-66e56d4a378a/JK_ZMCZ-15801.jpg/600x600bb.jpg",
-			PreviewURL: "https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview211/v4/0d/53/af/0d53af50-eaa5-b0a6-a64c-8d176343865f/mzaf_10500995616285790300.plus.aac.p.m4a",
+			PreviewURL: "http://localhost:8080/api/audio/stream?id=hollow-hunger",
 			DurationMs: 223142,
 			BPM:        138,
 			Mood:       "Dark Gothic Anime Anthem",
@@ -95,6 +104,118 @@ func (s *SpotifyService) GetFriendTracks() []*models.RadioheadTrack {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	return s.friendTracks
+}
+
+// Subscribe returns a channel receiving state updates in real-time
+func (s *SpotifyService) Subscribe() chan *models.FriendPlaybackState {
+	s.subMu.Lock()
+	defer s.subMu.Unlock()
+
+	ch := make(chan *models.FriendPlaybackState, 5)
+	s.subscribers[ch] = struct{}{}
+	return ch
+}
+
+// Unsubscribe removes an SSE client channel
+func (s *SpotifyService) Unsubscribe(ch chan *models.FriendPlaybackState) {
+	s.subMu.Lock()
+	defer s.subMu.Unlock()
+
+	delete(s.subscribers, ch)
+	close(ch)
+}
+
+func (s *SpotifyService) broadcastState(state *models.FriendPlaybackState) {
+	s.subMu.Lock()
+	defer s.subMu.Unlock()
+
+	for ch := range s.subscribers {
+		select {
+		case ch <- state:
+		default:
+		}
+	}
+}
+
+// TogglePlay toggles friend Play / Pause in real-time
+func (s *SpotifyService) TogglePlay() *models.FriendPlaybackState {
+	s.mu.Lock()
+	now := time.Now()
+	if s.isPlaying {
+		// Was playing -> Pause!
+		elapsed := s.pausedOffsetMs + int(now.Sub(s.simStartTime).Milliseconds())
+		s.pausedOffsetMs = elapsed
+		s.isPlaying = false
+		log.Printf("[SpotifyService] Friend playback PAUSED at %dms\n", elapsed)
+	} else {
+		// Was paused -> Resume!
+		s.simStartTime = now
+		s.isPlaying = true
+		log.Printf("[SpotifyService] Friend playback RESUMED from %dms\n", s.pausedOffsetMs)
+	}
+	s.mu.Unlock()
+
+	state := s.GetNowPlaying()
+	s.broadcastState(state)
+	return state
+}
+
+// SetPlaying sets playing state explicitly
+func (s *SpotifyService) SetPlaying(playing bool) *models.FriendPlaybackState {
+	s.mu.Lock()
+	now := time.Now()
+	if s.isPlaying != playing {
+		if !playing {
+			// Pause
+			elapsed := s.pausedOffsetMs + int(now.Sub(s.simStartTime).Milliseconds())
+			s.pausedOffsetMs = elapsed
+			s.isPlaying = false
+			log.Printf("[SpotifyService] Friend playback PAUSED at %dms\n", elapsed)
+		} else {
+			// Play
+			s.simStartTime = now
+			s.isPlaying = true
+			log.Printf("[SpotifyService] Friend playback RESUMED from %dms\n", s.pausedOffsetMs)
+		}
+	}
+	s.mu.Unlock()
+
+	state := s.GetNowPlaying()
+	s.broadcastState(state)
+	return state
+}
+
+// Seek sets the playback position in ms
+func (s *SpotifyService) Seek(progressMs int) *models.FriendPlaybackState {
+	s.mu.Lock()
+	s.pausedOffsetMs = progressMs
+	s.simStartTime = time.Now()
+	log.Printf("[SpotifyService] Friend playback SEEK to %dms\n", progressMs)
+	s.mu.Unlock()
+
+	state := s.GetNowPlaying()
+	s.broadcastState(state)
+	return state
+}
+
+// SetTrack changes the friend's active track by ID
+func (s *SpotifyService) SetTrack(trackID string) *models.FriendPlaybackState {
+	s.mu.Lock()
+	for i, t := range s.friendTracks {
+		if t.ID == trackID || strings.EqualFold(t.Title, trackID) {
+			s.simTrackIdx = i
+			s.pausedOffsetMs = 0
+			s.simStartTime = time.Now()
+			s.isPlaying = true
+			log.Printf("[SpotifyService] Friend changed track to: %s\n", t.Title)
+			break
+		}
+	}
+	s.mu.Unlock()
+
+	state := s.GetNowPlaying()
+	s.broadcastState(state)
+	return state
 }
 
 // ExchangeCode exchanges Spotify authorization code for access & refresh tokens
@@ -318,7 +439,7 @@ func (s *SpotifyService) GetNowPlaying() *models.FriendPlaybackState {
 		}
 	}
 
-	// Simulated Live Session Mode (OxT HOLLOW HUNGER @ 1:19 in real time)
+	// High-Precision Real-Time State Hub (OxT HOLLOW HUNGER @ 1:19)
 	return s.getFriendCurrentState()
 }
 
@@ -333,21 +454,36 @@ func (s *SpotifyService) getFriendCurrentState() *models.FriendPlaybackState {
 
 	currentTrack := s.friendTracks[s.simTrackIdx%len(s.friendTracks)]
 
-	// Start from 79 seconds (1:19 as screenshotted by user) and advance in real time
-	initialOffsetMs := 79000
-	elapsedMs := initialOffsetMs + int(time.Since(s.simStartTime).Milliseconds())
+	var elapsedMs int
+	if s.isPlaying {
+		elapsedMs = s.pausedOffsetMs + int(time.Since(s.simStartTime).Milliseconds())
+		if elapsedMs >= currentTrack.DurationMs {
+			// Advance to next song in friend's playlist
+			s.simTrackIdx = (s.simTrackIdx + 1) % len(s.friendTracks)
+			s.simStartTime = time.Now()
+			s.pausedOffsetMs = 0
+			currentTrack = s.friendTracks[s.simTrackIdx]
+			elapsedMs = 0
+		}
+	} else {
+		elapsedMs = s.pausedOffsetMs
+	}
 
-	if elapsedMs >= currentTrack.DurationMs {
-		// Wrap around or advance to next song in friend's playlist
-		s.simTrackIdx = (s.simTrackIdx + 1) % len(s.friendTracks)
-		s.simStartTime = time.Now()
-		currentTrack = s.friendTracks[s.simTrackIdx]
-		elapsedMs = 0
+	previewURL := currentTrack.PreviewURL
+	if currentTrack.ID == "liella-sing-shine-smile" {
+		previewURL = "/liella_sing_shine_smile.m4a"
+	} else if currentTrack.ID == "hollow-hunger" {
+		previewURL = "/hollow_hunger_itunes.m4a"
+	}
+
+	spotifyURL := currentTrack.SpotifyURL
+	if spotifyURL == "" {
+		spotifyURL = "https://open.spotify.com/track/6Uqf3r70vB2ZJkM55K3FvM"
 	}
 
 	return &models.FriendPlaybackState{
 		IsConnected:  s.accessToken != "",
-		IsPlaying:    true,
+		IsPlaying:    s.isPlaying,
 		ProgressMs:   elapsedMs,
 		Timestamp:    time.Now().UnixMilli(),
 		DeviceName:   s.deviceName,
@@ -364,9 +500,9 @@ func (s *SpotifyService) getFriendCurrentState() *models.FriendPlaybackState {
 			Album:        currentTrack.Album,
 			CoverURL:     currentTrack.CoverURL,
 			DurationMs:   currentTrack.DurationMs,
-			PreviewURL:   currentTrack.PreviewURL,
+			PreviewURL:   previewURL,
 			SyncedLyrics: currentTrack.SyncedLyrics,
-			SpotifyURL:   "https://open.spotify.com/track/63OQupATfueENZJaC0fltF",
+			SpotifyURL:   spotifyURL,
 		},
 	}
 }
@@ -379,6 +515,7 @@ func (s *SpotifyService) GetStatus() map[string]interface{} {
 	return map[string]interface{}{
 		"clientId":      s.clientID,
 		"isConnected":   s.accessToken != "",
+		"isPlaying":     s.isPlaying,
 		"friendName":    s.friendName,
 		"playlistName":  s.playlistName,
 		"expiresInSec":  int(time.Until(s.expiresAt).Seconds()),

@@ -14,6 +14,7 @@ type RadioheadTrack struct {
 	Mood           string   `json:"mood"`
 	SyncedLyrics   string   `json:"syncedLyrics,omitempty"`
 	PlainLyrics    string   `json:"plainLyrics,omitempty"`
+	SpotifyURL     string   `json:"spotifyUrl,omitempty"`
 	DominantColors []string `json:"dominantColors,omitempty"`
 }
 

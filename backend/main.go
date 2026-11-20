@@ -2,8 +2,11 @@ package main
 
 import (
 	"fmt"
+	"io"
 	"log"
 	"net/http"
+	"os"
+	"path/filepath"
 	"webtify-be/handlers"
 	"webtify-be/services"
 )
@@ -46,8 +49,55 @@ func main() {
 	// Real-Time Friend Spotify Endpoints
 	mux.HandleFunc("/api/spotify/friend/now-playing", spotifyHandler.GetFriendNowPlaying)
 	mux.HandleFunc("/api/spotify/friend/tracks", spotifyHandler.GetFriendTracks)
+	mux.HandleFunc("/api/spotify/friend/toggle", spotifyHandler.ToggleFriendPlayback)
+	mux.HandleFunc("/api/spotify/friend/pause", spotifyHandler.PauseFriendPlayback)
+	mux.HandleFunc("/api/spotify/friend/play", spotifyHandler.PlayFriendPlayback)
+	mux.HandleFunc("/api/spotify/friend/seek", spotifyHandler.SeekFriendPlayback)
+	mux.HandleFunc("/api/spotify/friend/track", spotifyHandler.SetFriendTrack)
+	mux.HandleFunc("/api/spotify/friend/events", spotifyHandler.StreamFriendEvents)
 	mux.HandleFunc("/api/spotify/auth/exchange", spotifyHandler.ExchangeAuthCode)
 	mux.HandleFunc("/api/spotify/status", spotifyHandler.GetSpotifyStatus)
+
+	// Audio Streaming & Proxy Endpoint (Cross-Origin clean audio/mp4 stream)
+	mux.HandleFunc("/api/audio/stream", func(w http.ResponseWriter, r *http.Request) {
+		trackID := r.URL.Query().Get("id")
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Accept-Ranges", "bytes")
+
+		var filePath string
+		if trackID == "liella-sing-shine-smile" {
+			filePath = "services/liella_sing_shine_smile.m4a"
+		} else if trackID == "hollow-hunger" {
+			filePath = "services/hollow_hunger.m4a"
+		}
+
+		if filePath != "" {
+			if _, err := os.Stat(filePath); err == nil {
+				w.Header().Set("Content-Type", "audio/mp4")
+				http.ServeFile(w, r, filePath)
+				return
+			}
+			altPath := filepath.Join("C:/webtify/public", filepath.Base(filePath))
+			if _, err := os.Stat(altPath); err == nil {
+				w.Header().Set("Content-Type", "audio/mp4")
+				http.ServeFile(w, r, altPath)
+				return
+			}
+		}
+
+		proxyURL := r.URL.Query().Get("url")
+		if proxyURL != "" {
+			resp, err := http.Get(proxyURL)
+			if err == nil {
+				defer resp.Body.Close()
+				w.Header().Set("Content-Type", "audio/mp4")
+				io.Copy(w, resp.Body)
+				return
+			}
+		}
+
+		http.Error(w, "Audio stream not found", http.StatusNotFound)
+	})
 
 	// Root welcome endpoint
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {

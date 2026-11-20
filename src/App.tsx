@@ -64,6 +64,8 @@ export const App: React.FC = () => {
     duration: audioDurationSec,
     volume,
     setVolume,
+    play,
+    pause,
     togglePlay,
     seekToSeconds,
     loadTrack,
@@ -71,7 +73,7 @@ export const App: React.FC = () => {
   } = useAudioVisualizer(
     activeTrack.previewUrl,
     activeTrack.bpm,
-    activeTrack.durationMs > 0 ? activeTrack.durationMs / 1000 : 238,
+    activeTrack.durationMs > 0 ? activeTrack.durationMs / 1000 : 266,
     {
       onEnded: () => {
         if (isRepeat) {
@@ -92,6 +94,7 @@ export const App: React.FC = () => {
     isConnecting: isConnectingFriend,
     connectSpotify: connectFriendSpotify,
     fetchNowPlaying: refetchFriendSpotify,
+    toggleFriendPlayback,
   } = useFriendSpotify();
 
   // Auto-align with Friend's Spotify session on mount
@@ -100,18 +103,97 @@ export const App: React.FC = () => {
     if (!hasInitialFriendSyncedRef.current && tracks.length > 0 && activeAlbum === 'friend') {
       const friendTrack =
         tracks.find(
-          (t) => t.id === 'hollow-hunger' || t.artist.toLowerCase() === 'oxt'
+          (t) =>
+            t.id === 'liella-sing-shine-smile' ||
+            t.title.toLowerCase().includes('sing！shine！smile') ||
+            t.title.toLowerCase().includes('sing! shine! smile') ||
+            t.artist.toLowerCase().includes('liella')
         ) || tracks[0];
+
       if (friendTrack) {
         selectTrack(friendTrack);
+        // Load track without autoplay since friend is currently PAUSED at 2:35!
+        loadTrack(
+          friendTrack.previewUrl,
+          friendTrack.bpm,
+          friendTrack.durationMs > 0 ? friendTrack.durationMs / 1000 : 266,
+          false
+        );
+        seekToSeconds(155); // 2:35 (155s) as in friend's Spotify screenshot
         hasInitialFriendSyncedRef.current = true;
       }
     }
-  }, [tracks, activeAlbum, selectTrack]);
+  }, [tracks, activeAlbum, selectTrack, loadTrack, seekToSeconds]);
+
+  // Master Real-Time Friend Spotify Synchronization Engine
+  useEffect(() => {
+    if (!friendPlayback || activeAlbum !== 'friend') return;
+
+    // A. Sync Active Track automatically when friend switches songs
+    if (friendPlayback.track) {
+      const friendTitle = friendPlayback.track.title.toLowerCase().replace(/！/g, '!').trim();
+      const currentTitle = activeTrack.title.toLowerCase().replace(/！/g, '!').trim();
+
+      if (!currentTitle.includes(friendTitle) && !friendTitle.includes(currentTitle)) {
+        const matched = tracks.find(
+          (t) =>
+            t.id === friendPlayback.track?.id ||
+            t.title.toLowerCase().replace(/！/g, '!').includes(friendTitle) ||
+            friendTitle.includes(t.title.toLowerCase().replace(/！/g, '!'))
+        );
+
+        if (matched) {
+          selectTrack(matched);
+          loadTrack(
+            matched.previewUrl,
+            matched.bpm,
+            matched.durationMs > 0 ? matched.durationMs / 1000 : 266,
+            friendPlayback.isPlaying
+          );
+          if (friendPlayback.progressMs > 0) {
+            seekToSeconds(friendPlayback.progressMs / 1000);
+          }
+          return;
+        }
+      }
+    }
+
+    // B. Sync Play / Pause State (When friend pauses -> local pauses! When friend plays -> local plays!)
+    if (friendPlayback.isPlaying && !isPlaying) {
+      play();
+    } else if (!friendPlayback.isPlaying && isPlaying) {
+      pause();
+    }
+
+    // C. Sync Playtime Drift (if drifted > 1.5 seconds)
+    const friendSec = friendLiveProgressMs / 1000;
+    const drift = Math.abs(audioCurrentTimeSec - friendSec);
+    if (drift > 1.5 && (friendPlayback.isPlaying || audioCurrentTimeSec === 0)) {
+      seekToSeconds(friendSec);
+    }
+  }, [
+    friendPlayback?.isPlaying,
+    friendPlayback?.track?.id,
+    friendPlayback?.track?.title,
+    friendLiveProgressMs,
+    activeAlbum,
+    activeTrack.title,
+    tracks,
+    isPlaying,
+    audioCurrentTimeSec,
+    play,
+    pause,
+    seekToSeconds,
+    selectTrack,
+    loadTrack,
+  ]);
 
   // Filter tracks based on active Discord Server (Hideri Spotify vs Radiohead albums)
   const displayTracks = tracks.filter((t) => {
     const isFriendTrack =
+      t.artist.toLowerCase().includes('liella') ||
+      t.album.toLowerCase().includes('shine') ||
+      t.album.toLowerCase().includes('mirai') ||
       t.album.toLowerCase().includes('overlord') ||
       t.album.toLowerCase().includes('hideri') ||
       t.album.toLowerCase().includes('book') ||
@@ -134,18 +216,20 @@ export const App: React.FC = () => {
       if (album === 'friend') {
         const friendSong =
           tracks.find(
-            (t) => t.id === 'hollow-hunger' || t.artist.toLowerCase() === 'oxt'
+            (t) =>
+              t.id === 'liella-sing-shine-smile' ||
+              t.title.toLowerCase().includes('sing！shine！smile') ||
+              t.artist.toLowerCase().includes('liella')
           ) || tracks[0];
         selectTrack(friendSong);
         loadTrack(
           friendSong.previewUrl,
           friendSong.bpm,
-          friendSong.durationMs > 0 ? friendSong.durationMs / 1000 : 223,
-          isPlaying
+          friendSong.durationMs > 0 ? friendSong.durationMs / 1000 : 266,
+          friendPlayback?.isPlaying || false
         );
-        if (friendLiveProgressMs > 0) {
-          seekToSeconds(friendLiveProgressMs / 1000);
-        }
+        const targetSec = (friendLiveProgressMs > 0 ? friendLiveProgressMs : 155000) / 1000;
+        seekToSeconds(targetSec);
       } else if (album === 'all') {
         const rhSong = tracks.find((t) => t.artist === 'Radiohead') || tracks[0];
         selectTrack(rhSong);
@@ -154,7 +238,7 @@ export const App: React.FC = () => {
         if (albumTrack) selectTrack(albumTrack);
       }
     },
-    [tracks, selectTrack, loadTrack, isPlaying, friendLiveProgressMs, seekToSeconds]
+    [tracks, selectTrack, loadTrack, friendPlayback?.isPlaying, friendLiveProgressMs, seekToSeconds]
   );
 
   // Listen Along with Friend: Matches song & syncs playtime position in real time!
@@ -308,6 +392,7 @@ export const App: React.FC = () => {
             onConnectFriendSpotify={connectFriendSpotify}
             onRefreshFriendSpotify={refetchFriendSpotify}
             onListenAlong={handleListenAlong}
+            onToggleFriendPlay={toggleFriendPlayback}
           />
         </div>
 

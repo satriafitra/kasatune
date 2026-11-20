@@ -2,8 +2,8 @@
  * Custom Hook: useAudioVisualizer
  * High-performance Web Audio API Visualizer Engine.
  * Features:
- * - Full-length track support with instantaneous track-switching logic
- * - Zero desynchronization on skip (synchronous time reset to 0:00)
+ * - Direct audible sound delivery: unmuted, resilient fallback against CORS and autoplay restrictions
+ * - Continuous playback engine: loops audio preview seamlessly across full track duration (e.g. 266s)
  * - Mathematically locked Rhythmic Beat Engine (4/4 time signature) for both active playback and idle tempo
  */
 
@@ -44,8 +44,8 @@ interface UseAudioVisualizerOptions {
 
 export function useAudioVisualizer(
   initialUrl: string | null | undefined,
-  initialBpm: number = 92,
-  initialDurationSec: number = 238,
+  initialBpm: number = 128,
+  initialDurationSec: number = 266,
   options?: UseAudioVisualizerOptions
 ): AudioVisualizerControls {
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -58,6 +58,10 @@ export function useAudioVisualizer(
   const [duration, setDuration] = useState<number>(initialDurationSec);
   const [volume, setVolumeState] = useState<number>(0.85);
   const [currentBpm, setCurrentBpm] = useState<number>(initialBpm);
+
+  const durationRef = useRef<number>(initialDurationSec);
+  const currentTimeRef = useRef<number>(0);
+  const isPlayingRef = useRef<boolean>(false);
 
   const onEndedRef = useRef(options?.onEnded);
   useEffect(() => {
@@ -81,42 +85,49 @@ export function useAudioVisualizer(
     const audio = audioRef.current;
     if (!audio) return;
 
-    if (!audioContextRef.current) {
-      const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
-      const ctx = new AudioCtx();
-      const analyser = ctx.createAnalyser();
-      analyser.fftSize = 256;
-      analyser.smoothingTimeConstant = 0.82;
+    try {
+      if (!audioContextRef.current) {
+        const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+        const ctx = new AudioCtx();
+        const analyser = ctx.createAnalyser();
+        analyser.fftSize = 256;
+        analyser.smoothingTimeConstant = 0.82;
 
-      try {
-        const source = ctx.createMediaElementSource(audio);
-        source.connect(analyser);
-        analyser.connect(ctx.destination);
-        sourceNodeRef.current = source;
-      } catch {
-        // Media element already connected
+        try {
+          const source = ctx.createMediaElementSource(audio);
+          source.connect(analyser);
+          analyser.connect(ctx.destination);
+          sourceNodeRef.current = source;
+        } catch {
+          // Fallback if media element already bound
+        }
+
+        audioContextRef.current = ctx;
+        analyserRef.current = analyser;
       }
 
-      audioContextRef.current = ctx;
-      analyserRef.current = analyser;
-    }
-
-    if (audioContextRef.current && audioContextRef.current.state === 'suspended') {
-      audioContextRef.current.resume().catch(() => {});
+      if (audioContextRef.current && audioContextRef.current.state === 'suspended') {
+        audioContextRef.current.resume().catch(() => {});
+      }
+    } catch {
+      // Direct audio element fallback
     }
   }, []);
 
-  // High-precision playback time sync loop (50ms interval ensures millisecond-sharp lyrics reaction without lag)
+  // Unlock audio context on any user interaction
   useEffect(() => {
-    if (!isPlaying) return;
-    const interval = setInterval(() => {
-      const audio = audioRef.current;
-      if (audio && !audio.paused) {
-        setCurrentTime(audio.currentTime);
+    const unlockAudio = () => {
+      if (audioContextRef.current && audioContextRef.current.state === 'suspended') {
+        audioContextRef.current.resume().catch(() => {});
       }
-    }, 50);
-    return () => clearInterval(interval);
-  }, [isPlaying]);
+    };
+    window.addEventListener('click', unlockAudio, { once: true });
+    window.addEventListener('keydown', unlockAudio, { once: true });
+    return () => {
+      window.removeEventListener('click', unlockAudio);
+      window.removeEventListener('keydown', unlockAudio);
+    };
+  }, []);
 
   // Initialize HTMLAudioElement
   useEffect(() => {
@@ -125,32 +136,32 @@ export function useAudioVisualizer(
     audio.preload = 'auto';
     audioRef.current = audio;
 
-    const handleTimeUpdate = () => {
-      setCurrentTime(audio.currentTime);
-      if (audio.duration && !isNaN(audio.duration) && audio.duration > 0) {
-        setDuration(audio.duration);
-      }
-    };
-
-    const handleLoadedMetadata = () => {
-      if (audio.duration && !isNaN(audio.duration) && audio.duration > 0) {
-        setDuration(audio.duration);
-      }
-    };
-
     const handleEnded = () => {
-      setIsPlaying(false);
-      setCurrentTime(0);
-      if (onEndedRef.current) {
-        onEndedRef.current();
+      // If full song duration hasn't been reached, loop audio seamlessly so it doesn't stop!
+      if (currentTimeRef.current < durationRef.current - 1 && isPlayingRef.current) {
+        audio.currentTime = 0;
+        audio.play().catch(() => {});
+      } else {
+        setIsPlaying(false);
+        isPlayingRef.current = false;
+        setCurrentTime(0);
+        currentTimeRef.current = 0;
+        if (onEndedRef.current) {
+          onEndedRef.current();
+        }
       }
     };
 
-    const handlePause = () => setIsPlaying(false);
-    const handlePlay = () => setIsPlaying(true);
+    const handlePause = () => {
+      setIsPlaying(false);
+      isPlayingRef.current = false;
+    };
 
-    audio.addEventListener('timeupdate', handleTimeUpdate);
-    audio.addEventListener('loadedmetadata', handleLoadedMetadata);
+    const handlePlay = () => {
+      setIsPlaying(true);
+      isPlayingRef.current = true;
+    };
+
     audio.addEventListener('ended', handleEnded);
     audio.addEventListener('pause', handlePause);
     audio.addEventListener('play', handlePlay);
@@ -161,8 +172,6 @@ export function useAudioVisualizer(
     }
 
     return () => {
-      audio.removeEventListener('timeupdate', handleTimeUpdate);
-      audio.removeEventListener('loadedmetadata', handleLoadedMetadata);
       audio.removeEventListener('ended', handleEnded);
       audio.removeEventListener('pause', handlePause);
       audio.removeEventListener('play', handlePlay);
@@ -174,16 +183,29 @@ export function useAudioVisualizer(
     };
   }, []);
 
-
-  // High-precision playback time sync loop (50ms interval ensures millisecond-sharp lyrics reaction without lag)
+  // High-precision clock ticker (ticks every 50ms)
   useEffect(() => {
     if (!isPlaying) return;
+
+    let lastTick = performance.now();
     const interval = setInterval(() => {
-      const audio = audioRef.current;
-      if (audio && !audio.paused) {
-        setCurrentTime(audio.currentTime);
+      const now = performance.now();
+      const deltaSec = (now - lastTick) / 1000;
+      lastTick = now;
+
+      currentTimeRef.current = Math.min(
+        durationRef.current,
+        currentTimeRef.current + deltaSec
+      );
+      setCurrentTime(currentTimeRef.current);
+
+      if (currentTimeRef.current >= durationRef.current) {
+        setIsPlaying(false);
+        isPlayingRef.current = false;
+        if (onEndedRef.current) onEndedRef.current();
       }
     }, 50);
+
     return () => clearInterval(interval);
   }, [isPlaying]);
 
@@ -192,29 +214,31 @@ export function useAudioVisualizer(
     const audio = audioRef.current;
     if (!audio) return;
 
-    // 1. Immediately reset time states synchronously so lyrics & scrubber go to 0:00 without delay
+    // Reset clock
     setCurrentTime(0);
-    setDuration(durationSec > 0 ? durationSec : 238);
-    setCurrentBpm(newBpm > 0 ? newBpm : 92);
+    currentTimeRef.current = 0;
+    setDuration(durationSec > 0 ? durationSec : 266);
+    durationRef.current = durationSec > 0 ? durationSec : 266;
+    setCurrentBpm(newBpm > 0 ? newBpm : 128);
 
-    // 2. Pause and configure audio element
     audio.pause();
     audio.currentTime = 0;
     audio.src = url;
     audio.load();
 
-    // 3. Connect audio context
     setupWebAudio();
 
-    // 4. Autoplay if requested
     if (autoPlay) {
       audio.play().then(() => {
         setIsPlaying(true);
+        isPlayingRef.current = true;
       }).catch(() => {
         setIsPlaying(false);
+        isPlayingRef.current = false;
       });
     } else {
       setIsPlaying(false);
+      isPlayingRef.current = false;
     }
   }, [setupWebAudio]);
 
@@ -226,18 +250,6 @@ export function useAudioVisualizer(
     }
   }, []);
 
-  // High-precision playback time sync loop (50ms interval ensures millisecond-sharp lyrics reaction without lag)
-  useEffect(() => {
-    if (!isPlaying) return;
-    const interval = setInterval(() => {
-      const audio = audioRef.current;
-      if (audio && !audio.paused) {
-        setCurrentTime(audio.currentTime);
-      }
-    }, 50);
-    return () => clearInterval(interval);
-  }, [isPlaying]);
-
   const play = useCallback(async () => {
     const audio = audioRef.current;
     if (!audio || !audio.src) return;
@@ -247,8 +259,10 @@ export function useAudioVisualizer(
     try {
       await audio.play();
       setIsPlaying(true);
+      isPlayingRef.current = true;
     } catch {
       setIsPlaying(false);
+      isPlayingRef.current = false;
     }
   }, [setupWebAudio]);
 
@@ -256,20 +270,9 @@ export function useAudioVisualizer(
     if (audioRef.current) {
       audioRef.current.pause();
       setIsPlaying(false);
+      isPlayingRef.current = false;
     }
   }, []);
-
-  // High-precision playback time sync loop (50ms interval ensures millisecond-sharp lyrics reaction without lag)
-  useEffect(() => {
-    if (!isPlaying) return;
-    const interval = setInterval(() => {
-      const audio = audioRef.current;
-      if (audio && !audio.paused) {
-        setCurrentTime(audio.currentTime);
-      }
-    }, 50);
-    return () => clearInterval(interval);
-  }, [isPlaying]);
 
   const togglePlay = useCallback(async () => {
     if (isPlaying) {
@@ -281,24 +284,15 @@ export function useAudioVisualizer(
 
   const seekToSeconds = useCallback((seconds: number) => {
     const audio = audioRef.current;
-    if (audio) {
-      const targetSec = Math.max(0, seconds);
-      audio.currentTime = targetSec;
-      setCurrentTime(targetSec);
+    const clampedSec = Math.max(0, Math.min(durationRef.current, seconds));
+    currentTimeRef.current = clampedSec;
+    setCurrentTime(clampedSec);
+
+    if (audio && audio.duration && !isNaN(audio.duration) && audio.duration > 0) {
+      // Map to audio element duration cleanly
+      audio.currentTime = clampedSec % audio.duration;
     }
   }, []);
-
-  // High-precision playback time sync loop (50ms interval ensures millisecond-sharp lyrics reaction without lag)
-  useEffect(() => {
-    if (!isPlaying) return;
-    const interval = setInterval(() => {
-      const audio = audioRef.current;
-      if (audio && !audio.paused) {
-        setCurrentTime(audio.currentTime);
-      }
-    }, 50);
-    return () => clearInterval(interval);
-  }, [isPlaying]);
 
   // 60 FPS Beat Engine & Spectrum Analyser Loop
   useEffect(() => {
@@ -307,29 +301,25 @@ export function useAudioVisualizer(
     const dataArray = new Uint8Array(bufferLength);
 
     const renderLoop = (timestamp: number) => {
-      const safeBpm = currentBpm > 0 ? currentBpm : 92;
+      const safeBpm = currentBpm > 0 ? currentBpm : 128;
       const beatIntervalSec = 60 / safeBpm;
       const beatIntervalMs = beatIntervalSec * 1000;
-      const barIntervalMs = beatIntervalMs * 4; // 4/4 Bar
+      const barIntervalMs = beatIntervalMs * 4;
 
-      // Timing source: uses real audio position when playing, or wall-clock timestamp when paused/idle
-      const audioTimeMs = audioRef.current && isPlaying
-        ? audioRef.current.currentTime * 1000
+      const audioTimeMs = isPlaying
+        ? currentTimeRef.current * 1000
         : timestamp;
 
-      // 4/4 Meter calculations
-      const beatPhase = (audioTimeMs % beatIntervalMs) / beatIntervalMs; // 0..1 within quarter note
-      const barPhase = (audioTimeMs % barIntervalMs) / barIntervalMs;   // 0..1 within 4-beat bar
-      const beatNumber = Math.floor((audioTimeMs % barIntervalMs) / beatIntervalMs); // 0, 1, 2, 3
+      const beatPhase = (audioTimeMs % beatIntervalMs) / beatIntervalMs;
+      const barPhase = (audioTimeMs % barIntervalMs) / barIntervalMs;
+      const beatNumber = Math.floor((audioTimeMs % barIntervalMs) / beatIntervalMs);
 
-      // Sharp exponential kick impulse on Beats 1 & 3
       const isKickBeat = beatNumber === 0 || beatNumber === 2;
-      const kickWeight = beatNumber === 0 ? 1.0 : 0.85; // Beat 1 is strongest
+      const kickWeight = beatNumber === 0 ? 1.0 : 0.85;
       const kickImpulse = isKickBeat
         ? Math.pow(Math.max(0, 1 - beatPhase * 1.6), 2.5) * kickWeight
         : Math.pow(Math.max(0, 1 - beatPhase * 2.0), 3.0) * 0.35;
 
-      // Snare accent impulse on Beats 2 & 4 (classic rock/pop backbeat)
       const isSnareBeat = beatNumber === 1 || beatNumber === 3;
       const snareImpulse = isSnareBeat
         ? Math.pow(Math.max(0, 1 - beatPhase * 1.8), 2.4) * 0.9
@@ -340,7 +330,6 @@ export function useAudioVisualizer(
       let activeTreble = 0;
 
       if (isPlaying && analyserRef.current) {
-        // Read live audio frequencies from Web Audio Analyser
         analyserRef.current.getByteFrequencyData(dataArray);
 
         let bassSum = 0;
@@ -355,19 +344,16 @@ export function useAudioVisualizer(
         for (let i = 36; i <= 80; i++) trebleSum += dataArray[i];
         activeTreble = trebleSum / (45 * 255);
 
-        // Fuse frequency spectrum with rhythmic kick/snare pulse for authentic musical punch
         activeBass = Math.min(1, activeBass * 0.8 + kickImpulse * 0.35);
         activeMid = Math.min(1, activeMid * 0.8 + snareImpulse * 0.25);
       } else {
-        // Idle Beat Mode: locked strictly to current track's tempo BPM!
-        // Gentle rhythmic breathing that speeds up or slows down per track
         activeBass = kickImpulse * 0.8;
-        activeMid = (0.2 + snareImpulse * 0.5);
-        activeTreble = (0.15 + 0.15 * Math.cos(audioTimeMs * 0.006 * (safeBpm / 90)));
+        activeMid = 0.2 + snareImpulse * 0.5;
+        activeTreble = 0.15 + 0.15 * Math.cos(audioTimeMs * 0.006 * (safeBpm / 90));
 
         for (let i = 0; i < bufferLength; i++) {
           const freqNorm = i / bufferLength;
-          const wave1 = Math.sin((audioTimeMs * 0.003 * (safeBpm / 90)) + i * 0.16);
+          const wave1 = Math.sin(audioTimeMs * 0.003 * (safeBpm / 90) + i * 0.16);
           const beatContribution = kickImpulse * Math.exp(-i * 0.07) * 180 + snareImpulse * Math.exp(-Math.abs(i - 20) * 0.1) * 120;
           const val = Math.max(0, wave1 * 35 + 40 + beatContribution) * (1 - freqNorm * 0.35);
           dataArray[i] = Math.min(255, Math.max(0, Math.round(val)));

@@ -1,12 +1,26 @@
 [
   {
+    "id": "liella-sing-shine-smile",
+    "title": "Sing！Shine！Smile！",
+    "artist": "Liella!",
+    "album": "Sing！Shine！Smile！ / 未来の音が聴こえる",
+    "year": 2022,
+    "coverUrl": "https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/ad/ed/ce/adedceeb-f365-19c7-c751-aeb2d94f8912/4540774243150.png/600x600bb.jpg",
+    "previewUrl": "/liella_sing_shine_smile.m4a",
+    "durationMs": 266870,
+    "bpm": 128,
+    "mood": "J-Pop Anime Idol Anthem",
+    "syncedLyrics": "[00:08.70] Sing！いっしょに歌おう Smile！心結んで\n[00:17.08] Shine！煌めかせよう Smile！笑顔の星を\n[00:25.95] もしも過去と未来\n[00:29.42] どこへだって行けてもきっと\n[00:34.40] ここにいるよずっと\n[00:37.75] この瞬間君と噛みしめるんだ\n[00:44.81] ちいさい瞬きが\n[00:48.07] ひとつまたひとつめぐり逢い\n[00:52.21] 楽しいを越えて\n[00:54.46] 傷ついて知った\n[00:57.88] もっと楽しいって気持ち\n[01:03.39] 夢みてるんだ ただ夢中さ\n[01:07.48] 眠るのも忘れちゃうほど\n[01:11.71] 好きに理由なんかいらないよ\n[01:16.84] 気付いたんだ\n[01:19.91] なにも見えない夜が来ても\n[01:24.11] 勇気だして笑ってみよう\n[01:28.28] その煌めきは伝わるはずさ\n[01:33.60] 笑顔きらり ほらみんなきらり\n[01:40.08] \n[01:48.35] 君に教えたくて\n[01:51.85] ペンをサラリ走らせたら\n[01:56.65] まるで今初めて\n[02:00.15] 出会ったみたいに世界が笑ってた\n[02:07.18] 遠い輝きも\n[02:10.62] 掴める気がして手伸ばすよ\n[02:14.63] なんかおかしくて\n[02:16.83] 吹きだしたフッとね\n[02:20.38] どんな時も眩しいよ\n[02:25.63] もっとできる そうさできる\n[02:29.90] どうしようもなく高鳴るね\n[02:34.02] 忘れないよ つながる嬉しさ\n[02:39.23] 笑顔きらり さあ君もきらり\n[02:48.24] \n[03:03.48] 僕ら魔法にかかった\n[03:07.57] 夢という名の魔法に\n[03:11.85] 時が過ぎても終わらない\n[03:17.69] 叶う日まで解けないよ\n[03:25.23] 誰にももう止められない\n[03:29.47] 僕らはそう夢みてるんだ\n[03:33.66] 好きに理由なんかいらないと\n[03:38.75] 気付いたから\n[03:42.03] なにも見えない夜が来ても\n[03:46.25] 勇気だして笑ってみよう\n[03:50.24] その煌めきは伝わるはずさ\n[03:55.50] 笑顔きらり ほらみんなきらり\n[04:01.56] Sing！いっしょに歌おう Smile！心結んで\n[04:09.77] Shine！煌めかせよう Smile！笑顔の星を\n[04:18.31] ",
+    "spotifyUrl": "https://open.spotify.com/track/6Uqf3r70vB2ZJkM55K3FvM"
+  },
+  {
     "id": "hollow-hunger",
     "title": "HOLLOW HUNGER",
     "artist": "OxT",
     "album": "OVERLORD IV OP - HOLLOW HUNGER",
     "year": 2022,
     "coverUrl": "https://is1-ssl.mzstatic.com/image/thumb/Music112/v4/0a/a7/9f/0aa79f8a-101c-f475-c158-66e56d4a378a/JK_ZMCZ-15801.jpg/600x600bb.jpg",
-    "previewUrl": "https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview211/v4/0d/53/af/0d53af50-eaa5-b0a6-a64c-8d176343865f/mzaf_10500995616285790300.plus.aac.p.m4a",
+    "previewUrl": "/hollow_hunger_itunes.m4a",
     "durationMs": 223142,
     "bpm": 138,
     "mood": "Dark Gothic Anime Anthem",

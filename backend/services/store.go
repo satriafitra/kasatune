@@ -18,13 +18,75 @@ func NewStore() *Store {
 	store := &Store{
 		tracks: []models.RadioheadTrack{
 			{
+				ID:         "liella-sing-shine-smile",
+				Title:      "Sing！Shine！Smile！",
+				Artist:     "Liella!",
+				Album:      "Sing！Shine！Smile！ / 未来の音が聴こえる",
+				Year:       2022,
+				CoverURL:   "https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/ad/ed/ce/adedceeb-f365-19c7-c751-aeb2d94f8912/4540774243150.png/600x600bb.jpg",
+				PreviewURL: "/liella_sing_shine_smile.m4a",
+				DurationMs: 266870,
+				BPM:        128,
+				Mood:       "J-Pop Anime Idol Anthem",
+				SyncedLyrics: `[00:08.70] Sing！いっしょに歌おう Smile！心結んで
+[00:17.08] Shine！煌めかせよう Smile！笑顔の星を
+[00:25.95] もしも過去と未来
+[00:29.42] どこへだって行けてもきっと
+[00:34.40] ここにいるよずっと
+[00:37.75] この瞬間君と噛みしめるんだ
+[00:44.81] ちいさい瞬きが
+[00:48.07] ひとつまたひとつめぐり逢い
+[00:52.21] 楽しいを越えて
+[00:54.46] 傷ついて知った
+[00:57.88] もっと楽しいって気持ち
+[01:03.39] 夢みてるんだ ただ夢中さ
+[01:07.48] 眠るのも忘れちゃうほど
+[01:11.71] 好きに理由なんかいらないよ
+[01:16.84] 気付いたんだ
+[01:19.91] なにも見えない夜が来ても
+[01:24.11] 勇気だして笑ってみよう
+[01:28.28] その煌めきは伝わるはずさ
+[01:33.60] 笑顔きらり ほらみんなきらり
+[01:40.08] 
+[01:48.35] 君に教えたくて
+[01:51.85] ペンをサラリ走らせたら
+[01:56.65] まるで今初めて
+[02:00.15] 出会ったみたいに世界が笑ってた
+[02:07.18] 遠い輝きも
+[02:10.62] 掴める気がして手伸ばすよ
+[02:14.63] なんかおかしくて
+[02:16.83] 吹きだしたフッとね
+[02:20.38] どんな時も眩しいよ
+[02:25.63] もっとできる そうさできる
+[02:29.90] どうしようもなく高鳴るね
+[02:34.02] 忘れないよ つながる嬉しさ
+[02:39.23] 笑顔きらり さあ君もきらり
+[02:48.24] 
+[03:03.48] 僕ら魔法にかかった
+[03:07.57] 夢という名の魔法に
+[03:11.85] 時が過ぎても終わらない
+[03:17.69] 叶う日まで解けないよ
+[03:25.23] 誰にももう止められない
+[03:29.47] 僕らはそう夢みてるんだ
+[03:33.66] 好きに理由なんかいらないと
+[03:38.75] 気付いたから
+[03:42.03] なにも見えない夜が来ても
+[03:46.25] 勇気だして笑ってみよう
+[03:50.24] その煌めきは伝わるはずさ
+[03:55.50] 笑顔きらり ほらみんなきらり
+[04:01.56] Sing！いっしょに歌おう Smile！心結んで
+[04:09.77] Shine！煌めかせよう Smile！笑顔の星を
+[04:18.31] `,
+				DominantColors: []string{"#3962A4", "#BFE7EA", "#E89B5B"},
+			},
+			{
 				ID:         "hollow-hunger",
 				Title:      "HOLLOW HUNGER",
 				Artist:     "OxT",
 				Album:      "OVERLORD IV OP - HOLLOW HUNGER",
 				Year:       2022,
 				CoverURL:   "https://is1-ssl.mzstatic.com/image/thumb/Music112/v4/0a/a7/9f/0aa79f8a-101c-f475-c158-66e56d4a378a/JK_ZMCZ-15801.jpg/600x600bb.jpg",
-				PreviewURL: "https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview211/v4/0d/53/af/0d53af50-eaa5-b0a6-a64c-8d176343865f/mzaf_10500995616285790300.plus.aac.p.m4a",
+				PreviewURL: "/hollow_hunger_itunes.m4a",
 				DurationMs: 223142,
 				BPM:        138,
 				Mood:       "Dark Gothic Anime Anthem",
