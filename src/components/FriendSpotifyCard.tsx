@@ -1,10 +1,11 @@
 /**
- * FriendSpotifyCard Component (Discord Spotify Rich Presence & Real-Time Playtime Hub)
- * Real-time detection of friend's live Spotify playback with synchronized playtime slider & live play/pause sync.
+ * FriendSpotifyCard Component (Discord Spotify Rich Presence & Real-Time Sync Hub)
+ * Pure passive listener view: displays friend's live Spotify playback in real time.
+ * Features a dedicated "Connected" state button with zero remote control interference.
  */
 
 import React from 'react';
-import { Headphones, ExternalLink, Sparkles, RefreshCw, Play, Pause } from 'lucide-react';
+import { ExternalLink, Sparkles, RefreshCw, CheckCircle2 } from 'lucide-react';
 import type { FriendPlaybackState } from '../hooks/useFriendSpotify';
 import { formatTime } from '../utils/lrcParser';
 
@@ -13,10 +14,10 @@ interface FriendSpotifyCardProps {
   liveProgressMs: number;
   isLoading: boolean;
   isConnecting: boolean;
+  isConnected: boolean;
   onConnectSpotify: () => void;
   onRefresh: () => void;
-  onListenAlong: (trackTitle: string, progressMs: number) => void;
-  onToggleFriendPlay?: () => void;
+  onToggleConnect: () => void;
 }
 
 export const FriendSpotifyCard: React.FC<FriendSpotifyCardProps> = ({
@@ -24,13 +25,12 @@ export const FriendSpotifyCard: React.FC<FriendSpotifyCardProps> = ({
   liveProgressMs,
   isLoading,
   isConnecting,
+  isConnected,
   onConnectSpotify,
   onRefresh,
-  onListenAlong,
-  onToggleFriendPlay,
+  onToggleConnect,
 }) => {
   const track = playbackState?.track;
-  const isConnected = Boolean(playbackState?.isConnected);
   const isPlaying = Boolean(playbackState?.isPlaying);
   const durationMs = track?.durationMs || 266870;
   const progressRatio = Math.max(0, Math.min(1, liveProgressMs / durationMs));
@@ -40,23 +40,35 @@ export const FriendSpotifyCard: React.FC<FriendSpotifyCardProps> = ({
       {/* Top Header: Discord Activity Title & Spotify Badge */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-1.5">
-          {/* Spotify Green Pulsing Activity Dot */}
+          {/* Spotify Activity Indicator */}
           <span className="relative flex h-2 w-2">
-            {isPlaying && (
+            {isPlaying && isConnected && (
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#1DB954] opacity-75" />
             )}
             <span
               className={`relative inline-flex rounded-full h-2 w-2 ${
-                isPlaying ? 'bg-[#1DB954]' : 'bg-[#E89B5B]'
+                !isConnected
+                  ? 'bg-[#656A74]'
+                  : isPlaying
+                  ? 'bg-[#1DB954]'
+                  : 'bg-[#E89B5B]'
               }`}
             />
           </span>
           <span
             className={`text-[10px] font-black uppercase tracking-wider ${
-              isPlaying ? 'text-[#1DB954]' : 'text-[#E89B5B]'
+              !isConnected
+                ? 'text-[#656A74]'
+                : isPlaying
+                ? 'text-[#1DB954]'
+                : 'text-[#E89B5B]'
             }`}
           >
-            {isPlaying ? 'Spotify Live (Playing)' : 'Spotify Live (Paused)'}
+            {!isConnected
+              ? 'Spotify Disconnected'
+              : isPlaying
+              ? 'Friend Playing'
+              : 'Friend Paused'}
           </span>
         </div>
 
@@ -71,23 +83,29 @@ export const FriendSpotifyCard: React.FC<FriendSpotifyCardProps> = ({
 
           <span
             className={`text-[9px] font-mono px-1.5 py-0.5 rounded font-bold ${
-              isPlaying
+              !isConnected
+                ? 'bg-[#282B32] text-[#A0A5AD]'
+                : isPlaying
                 ? 'bg-[#1DB954]/20 text-[#1DB954] border border-[#1DB954]/40'
                 : 'bg-[#E89B5B]/20 text-[#E89B5B] border border-[#E89B5B]/40'
             }`}
           >
-            {isPlaying ? 'ACTIVE' : 'PAUSED'}
+            {!isConnected ? 'OFFLINE' : isPlaying ? 'PLAYING' : 'PAUSED'}
           </span>
         </div>
       </div>
 
-      {/* Friend Profile & Playback Target */}
+      {/* Friend Profile & Playback Device */}
       <div className="flex items-center gap-2">
         <div className="relative w-7 h-7 rounded-lg bg-[#141619] border border-[#282B32] flex items-center justify-center text-xs font-black text-[#1DB954] flex-shrink-0">
           <span>SP</span>
           <span
             className={`absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full border border-[#0B0C0E] ${
-              isPlaying ? 'bg-[#1DB954]' : 'bg-[#E89B5B]'
+              !isConnected
+                ? 'bg-[#656A74]'
+                : isPlaying
+                ? 'bg-[#1DB954]'
+                : 'bg-[#E89B5B]'
             }`}
           />
         </div>
@@ -97,7 +115,11 @@ export const FriendSpotifyCard: React.FC<FriendSpotifyCardProps> = ({
             {playbackState?.friendName || 'Hideri'}
           </span>
           <span className="text-[10px] text-[#A0A5AD] truncate leading-none pt-0.5">
-            {isPlaying ? `Listening to ${track?.artist || 'Music'}` : 'Paused on Spotify (Desktop)'}
+            {!isConnected
+              ? 'Sync Disconnected'
+              : isPlaying
+              ? `Listening on ${playbackState?.deviceName || 'Spotify'}`
+              : `Paused on ${playbackState?.deviceName || 'Spotify'}`}
           </span>
         </div>
       </div>
@@ -142,7 +164,9 @@ export const FriendSpotifyCard: React.FC<FriendSpotifyCardProps> = ({
             <div className="w-full h-1 bg-[#282B32] rounded-md overflow-hidden relative">
               <div
                 className={`h-full transition-all duration-200 ${
-                  isPlaying
+                  !isConnected
+                    ? 'bg-[#656A74]'
+                    : isPlaying
                     ? 'bg-gradient-to-r from-[#1DB954] to-[#BFE7EA]'
                     : 'bg-[#E89B5B]'
                 }`}
@@ -150,7 +174,7 @@ export const FriendSpotifyCard: React.FC<FriendSpotifyCardProps> = ({
               />
             </div>
             <div className="flex items-center justify-between text-[10px] font-mono text-[#656A74]">
-              <span className={isPlaying ? 'text-[#BFE7EA] font-semibold' : 'text-[#E89B5B] font-semibold'}>
+              <span className={!isConnected ? 'text-[#656A74]' : isPlaying ? 'text-[#BFE7EA] font-semibold' : 'text-[#E89B5B] font-semibold'}>
                 {formatTime(liveProgressMs)}
               </span>
               <span>{formatTime(durationMs)}</span>
@@ -163,52 +187,26 @@ export const FriendSpotifyCard: React.FC<FriendSpotifyCardProps> = ({
         </div>
       )}
 
-      {/* Action Buttons: Play/Pause Toggle + Listen Along */}
-      <div className="flex items-center gap-1.5 pt-0.5">
-        {onToggleFriendPlay && (
+      {/* Primary Connection State Button (Requested: Button Connected) */}
+      <div className="pt-0.5">
+        {isConnected ? (
           <button
-            onClick={onToggleFriendPlay}
-            className={`h-7 px-3 rounded-lg text-[11px] font-bold flex items-center justify-center gap-1.5 transition-all shadow-sm border ${
-              isPlaying
-                ? 'bg-[#1C1E22] text-[#BFE7EA] border-[#282B32] hover:bg-[#282B32]'
-                : 'bg-[#1DB954] text-black border-transparent hover:bg-[#1ed760]'
-            }`}
-            title={isPlaying ? "Simulate Friend Pause" : "Simulate Friend Play"}
+            onClick={onToggleConnect}
+            className="w-full h-8 px-3 rounded-lg bg-[#1DB954]/20 border border-[#1DB954]/50 hover:bg-[#1DB954]/30 text-[#1DB954] text-xs font-bold flex items-center justify-center gap-2 transition-all shadow-sm group"
+            title="Sesi Spotify teman tersambung secara real-time. Klik untuk disconnect."
           >
-            {isPlaying ? (
-              <>
-                <Pause className="w-3 h-3 fill-current" />
-                <span>Pause</span>
-              </>
-            ) : (
-              <>
-                <Play className="w-3 h-3 fill-current" />
-                <span>Play</span>
-              </>
-            )}
+            <CheckCircle2 className="w-3.5 h-3.5 text-[#1DB954] group-hover:scale-110 transition-transform" />
+            <span>Connected (Live Sync)</span>
           </button>
-        )}
-
-        {track && (
-          <button
-            onClick={() => onListenAlong(track.title, liveProgressMs)}
-            className="flex-1 h-7 px-2 rounded-lg bg-[#1C1E22] hover:bg-[#1DB954] text-white hover:text-black text-[11px] font-bold flex items-center justify-center gap-1.5 transition-all shadow-sm border border-[#282B32] hover:border-transparent group"
-            title="Listen along with friend at this exact playtime"
-          >
-            <Headphones className="w-3 h-3 group-hover:scale-110 transition-transform" />
-            <span>Sync Player</span>
-          </button>
-        )}
-
-        {!isConnected && (
+        ) : (
           <button
             onClick={onConnectSpotify}
             disabled={isConnecting}
-            className="h-7 px-2 rounded-lg bg-gradient-to-r from-[#E89B5B] to-[#D46743] hover:from-[#f0a667] hover:to-[#df734f] text-white text-[10px] font-bold flex items-center justify-center gap-1 transition-all shadow-sm flex-shrink-0"
-            title="Connect Spotify Developer App"
+            className="w-full h-8 px-3 rounded-lg bg-[#1DB954] hover:bg-[#1ed760] text-black text-xs font-extrabold flex items-center justify-center gap-2 transition-all shadow-md active:scale-95"
+            title="Sambungkan ke akun Spotify teman"
           >
-            <Sparkles className="w-3 h-3" />
-            <span>{isConnecting ? '...' : 'OAuth'}</span>
+            <Sparkles className="w-3.5 h-3.5 fill-current" />
+            <span>{isConnecting ? 'Connecting...' : 'Connect to Friend'}</span>
           </button>
         )}
       </div>

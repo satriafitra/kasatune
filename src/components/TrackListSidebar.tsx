@@ -32,10 +32,11 @@ interface TrackListSidebarProps {
   friendLiveProgressMs?: number;
   isLoadingFriend?: boolean;
   isConnectingFriend?: boolean;
+  isFriendSyncConnected?: boolean;
   onConnectFriendSpotify?: () => void;
   onRefreshFriendSpotify?: () => void;
   onListenAlong?: (trackTitle: string, progressMs: number) => void;
-  onToggleFriendPlay?: () => void;
+  onToggleFriendSync?: () => void;
 }
 
 export const TrackListSidebar: React.FC<TrackListSidebarProps> = ({
@@ -49,10 +50,11 @@ export const TrackListSidebar: React.FC<TrackListSidebarProps> = ({
   friendLiveProgressMs = 0,
   isLoadingFriend = false,
   isConnectingFriend = false,
+  isFriendSyncConnected = true,
   onConnectFriendSpotify = () => {},
   onRefreshFriendSpotify = () => {},
   onListenAlong = () => {},
-  onToggleFriendPlay,
+  onToggleFriendSync = () => {},
 }) => {
   const filteredTracks = tracks.filter((t) => {
     const isFriendTrack =
@@ -185,10 +187,10 @@ export const TrackListSidebar: React.FC<TrackListSidebarProps> = ({
         liveProgressMs={friendLiveProgressMs}
         isLoading={isLoadingFriend}
         isConnecting={isConnectingFriend}
+        isConnected={isFriendSyncConnected}
         onConnectSpotify={onConnectFriendSpotify}
         onRefresh={onRefreshFriendSpotify}
-        onListenAlong={onListenAlong}
-        onToggleFriendPlay={onToggleFriendPlay}
+        onToggleConnect={onToggleFriendSync}
       />
 
       {/* Discord User Presence Footer */}

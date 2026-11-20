@@ -26,6 +26,7 @@ export const App: React.FC = () => {
   const [showLyrics, setShowLyrics] = useState(true);
   const [searchFilter, setSearchFilter] = useState('');
   const [activeAlbum, setActiveAlbum] = useState<AlbumFilterType>('friend');
+  const [isFriendSyncConnected, setIsFriendSyncConnected] = useState<boolean>(true);
 
   // 1. Spotify PKCE Auth
   const {
@@ -127,7 +128,7 @@ export const App: React.FC = () => {
 
   // Master Real-Time Friend Spotify Synchronization Engine
   useEffect(() => {
-    if (!friendPlayback || activeAlbum !== 'friend') return;
+    if (!isFriendSyncConnected || !friendPlayback || activeAlbum !== 'friend') return;
 
     // A. Sync Active Track automatically when friend switches songs
     if (friendPlayback.track) {
@@ -401,7 +402,8 @@ export const App: React.FC = () => {
             onConnectFriendSpotify={connectFriendSpotify}
             onRefreshFriendSpotify={refetchFriendSpotify}
             onListenAlong={handleListenAlong}
-            onToggleFriendPlay={toggleFriendPlayback}
+            isFriendSyncConnected={isFriendSyncConnected}
+            onToggleFriendSync={() => setIsFriendSyncConnected((prev) => !prev)}
           />
         </div>
 
