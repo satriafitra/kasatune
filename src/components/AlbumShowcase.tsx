@@ -31,11 +31,11 @@ export const AlbumShowcase: React.FC<AlbumShowcaseProps> = ({
   onTogglePlay,
   onSelectTrack,
 }) => {
-  const title = track?.title || 'Creep';
-  const artist = track?.artist || 'Radiohead';
-  const album = track?.album || 'Pablo Honey';
-  const year = track?.year || 1993;
-  const imageUrl = track?.coverUrl || 'https://upload.wikimedia.org/wikipedia/en/0/0f/Radiohead.pablohoney.albumart.jpg';
+  const title = track?.title || 'HOLLOW HUNGER';
+  const artist = track?.artist || 'OxT';
+  const album = track?.album || 'OVERLORD IV OP - HOLLOW HUNGER';
+  const year = track?.year || 2022;
+  const imageUrl = track?.coverUrl || 'https://is1-ssl.mzstatic.com/image/thumb/Music112/v4/0a/a7/9f/0aa79f8a-101c-f475-c158-66e56d4a378a/JK_ZMCZ-15801.jpg/600x600bb.jpg';
 
   const [isLiked, setIsLiked] = useState(false);
   const [hoveredTrackId, setHoveredTrackId] = useState<string | null>(null);

@@ -14,8 +14,10 @@ import {
   triggerBackendScrape,
   type BackendRadioheadTrack,
 } from '../api/backend';
+import friendTracksData from '../data/friend_tracks.json';
 
 export const DEFAULT_RADIOHEAD_TRACKS: BackendRadioheadTrack[] = [
+  ...(friendTracksData as unknown as BackendRadioheadTrack[]),
   {
     id: 'rh-creep',
     title: 'Creep',

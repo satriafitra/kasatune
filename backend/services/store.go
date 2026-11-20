@@ -1,6 +1,8 @@
 package services
 
 import (
+	"encoding/json"
+	"os"
 	"sync"
 	"webtify-be/models"
 )
@@ -11,10 +13,22 @@ type Store struct {
 	tracks []models.RadioheadTrack
 }
 
-// NewStore initializes the store with curated full-length Radiohead discography
+// NewStore initializes the store with curated full-length Radiohead discography and friend playlist
 func NewStore() *Store {
-	return &Store{
+	store := &Store{
 		tracks: []models.RadioheadTrack{
+			{
+				ID:         "hollow-hunger",
+				Title:      "HOLLOW HUNGER",
+				Artist:     "OxT",
+				Album:      "OVERLORD IV OP - HOLLOW HUNGER",
+				Year:       2022,
+				CoverURL:   "https://is1-ssl.mzstatic.com/image/thumb/Music112/v4/0a/a7/9f/0aa79f8a-101c-f475-c158-66e56d4a378a/JK_ZMCZ-15801.jpg/600x600bb.jpg",
+				PreviewURL: "https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview211/v4/0d/53/af/0d53af50-eaa5-b0a6-a64c-8d176343865f/mzaf_10500995616285790300.plus.aac.p.m4a",
+				DurationMs: 223142,
+				BPM:        138,
+				Mood:       "Dark Gothic Anime Anthem",
+			},
 			{
 				ID:         "rh-creep",
 				Title:      "Creep",
@@ -432,6 +446,8 @@ func NewStore() *Store {
 			},
 		},
 	}
+	store.loadFriendTracks()
+	return store
 }
 
 // GetAll returns all Radiohead tracks
@@ -460,4 +476,24 @@ func (s *Store) SetTracks(newTracks []models.RadioheadTrack) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.tracks = newTracks
+}
+
+func (s *Store) loadFriendTracks() {
+	paths := []string{
+		"services/friend_tracks.json",
+		"friend_tracks.json",
+		"C:/webtify-be/services/friend_tracks.json",
+		"C:/webtify/src/data/friend_tracks.json",
+	}
+
+	for _, p := range paths {
+		data, err := os.ReadFile(p)
+		if err == nil {
+			var fTracks []models.RadioheadTrack
+			if err := json.Unmarshal(data, &fTracks); err == nil && len(fTracks) > 0 {
+				s.tracks = append(fTracks, s.tracks[1:]...)
+				return
+			}
+		}
+	}
 }

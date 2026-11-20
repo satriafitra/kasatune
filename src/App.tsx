@@ -8,7 +8,7 @@
  * - Persistent Bottom Dock with Kasatune Warm Sunset Palette (#FFEAD3, #BFE7EA, #E89B5B, #D46743)
  */
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Navbar } from './components/Navbar';
 import { DiscordServerRail, type AlbumFilterType } from './components/DiscordServerRail';
 import { TrackListSidebar } from './components/TrackListSidebar';
@@ -25,7 +25,7 @@ import type { BackendRadioheadTrack } from './api/backend';
 export const App: React.FC = () => {
   const [showLyrics, setShowLyrics] = useState(true);
   const [searchFilter, setSearchFilter] = useState('');
-  const [activeAlbum, setActiveAlbum] = useState<AlbumFilterType>('all');
+  const [activeAlbum, setActiveAlbum] = useState<AlbumFilterType>('friend');
 
   // 1. Spotify PKCE Auth
   const {
@@ -93,6 +93,69 @@ export const App: React.FC = () => {
     connectSpotify: connectFriendSpotify,
     fetchNowPlaying: refetchFriendSpotify,
   } = useFriendSpotify();
+
+  // Auto-align with Friend's Spotify session on mount
+  const hasInitialFriendSyncedRef = useRef(false);
+  useEffect(() => {
+    if (!hasInitialFriendSyncedRef.current && tracks.length > 0 && activeAlbum === 'friend') {
+      const friendTrack =
+        tracks.find(
+          (t) => t.id === 'hollow-hunger' || t.artist.toLowerCase() === 'oxt'
+        ) || tracks[0];
+      if (friendTrack) {
+        selectTrack(friendTrack);
+        hasInitialFriendSyncedRef.current = true;
+      }
+    }
+  }, [tracks, activeAlbum, selectTrack]);
+
+  // Filter tracks based on active Discord Server (Hideri Spotify vs Radiohead albums)
+  const displayTracks = tracks.filter((t) => {
+    const isFriendTrack =
+      t.album.toLowerCase().includes('overlord') ||
+      t.album.toLowerCase().includes('hideri') ||
+      t.album.toLowerCase().includes('book') ||
+      t.album.toLowerCase().includes('負け犬') ||
+      t.artist.toLowerCase() === 'oxt' ||
+      t.artist.toLowerCase() === 'yorushika' ||
+      t.artist.toLowerCase().includes('kanaria') ||
+      t.artist.toLowerCase() === 'yoasobi' ||
+      t.artist.toLowerCase() === 'eve';
+
+    if (activeAlbum === 'friend') return isFriendTrack;
+    if (activeAlbum === 'all') return true;
+    return !isFriendTrack && t.album.toLowerCase() === activeAlbum.toLowerCase();
+  });
+
+  // Switch Discord Server category & automatically load the primary track
+  const handleSelectAlbum = useCallback(
+    (album: AlbumFilterType) => {
+      setActiveAlbum(album);
+      if (album === 'friend') {
+        const friendSong =
+          tracks.find(
+            (t) => t.id === 'hollow-hunger' || t.artist.toLowerCase() === 'oxt'
+          ) || tracks[0];
+        selectTrack(friendSong);
+        loadTrack(
+          friendSong.previewUrl,
+          friendSong.bpm,
+          friendSong.durationMs > 0 ? friendSong.durationMs / 1000 : 223,
+          isPlaying
+        );
+        if (friendLiveProgressMs > 0) {
+          seekToSeconds(friendLiveProgressMs / 1000);
+        }
+      } else if (album === 'all') {
+        const rhSong = tracks.find((t) => t.artist === 'Radiohead') || tracks[0];
+        selectTrack(rhSong);
+      } else {
+        const albumTrack = tracks.find((t) => t.album.toLowerCase() === album.toLowerCase());
+        if (albumTrack) selectTrack(albumTrack);
+      }
+    },
+    [tracks, selectTrack, loadTrack, isPlaying, friendLiveProgressMs, seekToSeconds]
+  );
 
   // Listen Along with Friend: Matches song & syncs playtime position in real time!
   const handleListenAlong = useCallback(
@@ -223,7 +286,7 @@ export const App: React.FC = () => {
         {/* Col 1: Discord Server Rail (72px) */}
         <DiscordServerRail
           activeAlbum={activeAlbum}
-          onSelectAlbum={setActiveAlbum}
+          onSelectAlbum={handleSelectAlbum}
           onRefreshBackend={refetchTracks}
           isBackendOnline={isBackendOnline}
         />
@@ -231,13 +294,13 @@ export const App: React.FC = () => {
         {/* Col 2: Discord Channel & Queue Drawer (260px hidden on mobile) */}
         <div className="h-full flex-shrink-0 hidden md:block">
           <TrackListSidebar
-            tracks={tracks}
+            tracks={displayTracks}
             activeTrackId={activeTrack.id}
             onSelectTrack={handleSelectTrack}
             isPlaying={isPlaying}
             searchFilter={searchFilter}
             activeAlbum={activeAlbum}
-            onSelectAlbum={setActiveAlbum}
+            onSelectAlbum={handleSelectAlbum}
             friendPlayback={friendPlayback}
             friendLiveProgressMs={friendLiveProgressMs}
             isLoadingFriend={isLoadingFriend}
@@ -254,7 +317,7 @@ export const App: React.FC = () => {
           <div className="flex-1 h-full min-w-0">
             <AlbumShowcase
               track={activeTrack}
-              tracks={tracks}
+              tracks={displayTracks}
               activeTrackId={activeTrack.id}
               colors={albumColors}
               isPlaying={isPlaying}

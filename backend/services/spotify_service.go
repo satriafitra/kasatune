@@ -8,6 +8,8 @@ import (
 	"log"
 	"net/http"
 	"net/url"
+	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 	"time"
@@ -23,25 +25,76 @@ type SpotifyService struct {
 	expiresAt    time.Time
 	friendName   string
 	deviceName   string
+	playlistName string
 
-	// Simulated fallback state
+	friendTracks []*models.RadioheadTrack
+
+	// Simulated state based on friend's real Spotify desktop activity
 	simStartTime time.Time
 	simTrackIdx  int
 }
 
 func NewSpotifyService(clientID, clientSecret string) *SpotifyService {
-	return &SpotifyService{
+	svc := &SpotifyService{
 		clientID:     clientID,
 		clientSecret: clientSecret,
-		friendName:   "Spotify Friend",
-		deviceName:   "Desktop Web Player",
+		friendName:   "Hideri",
+		deviceName:   "Spotify for Windows (Hideri)",
+		playlistName: "Nippon Cahadja Asia, Nippon Pelindoeng Asia, Nippon Pemimpin Asia",
 		simStartTime: time.Now(),
 		simTrackIdx:  0,
+	}
+
+	svc.loadFriendTracks()
+	return svc
+}
+
+func (s *SpotifyService) loadFriendTracks() {
+	paths := []string{
+		"services/friend_tracks.json",
+		"friend_tracks.json",
+		"C:/webtify-be/services/friend_tracks.json",
+		"C:/webtify/src/data/friend_tracks.json",
+	}
+
+	for _, p := range paths {
+		absPath, _ := filepath.Abs(p)
+		data, err := os.ReadFile(absPath)
+		if err == nil {
+			var tracks []*models.RadioheadTrack
+			if err := json.Unmarshal(data, &tracks); err == nil && len(tracks) > 0 {
+				s.friendTracks = tracks
+				log.Printf("[SpotifyService] Loaded %d friend playlist tracks from %s\n", len(tracks), p)
+				return
+			}
+		}
+	}
+
+	// Hardcoded fallback if file read fails
+	s.friendTracks = []*models.RadioheadTrack{
+		{
+			ID:         "hollow-hunger",
+			Title:      "HOLLOW HUNGER",
+			Artist:     "OxT",
+			Album:      "OVERLORD IV OP - HOLLOW HUNGER",
+			Year:       2022,
+			CoverURL:   "https://is1-ssl.mzstatic.com/image/thumb/Music112/v4/0a/a7/9f/0aa79f8a-101c-f475-c158-66e56d4a378a/JK_ZMCZ-15801.jpg/600x600bb.jpg",
+			PreviewURL: "https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview211/v4/0d/53/af/0d53af50-eaa5-b0a6-a64c-8d176343865f/mzaf_10500995616285790300.plus.aac.p.m4a",
+			DurationMs: 223142,
+			BPM:        138,
+			Mood:       "Dark Gothic Anime Anthem",
+		},
 	}
 }
 
 func (s *SpotifyService) GetClientID() string {
 	return s.clientID
+}
+
+func (s *SpotifyService) GetFriendTracks() []*models.RadioheadTrack {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.friendTracks
 }
 
 // ExchangeCode exchanges Spotify authorization code for access & refresh tokens
@@ -85,7 +138,6 @@ func (s *SpotifyService) ExchangeCode(code, redirectURI string) (*models.Spotify
 	s.expiresAt = time.Now().Add(time.Duration(tokenResp.ExpiresIn-60) * time.Second)
 	s.mu.Unlock()
 
-	// Asynchronously fetch profile to get friend display name
 	go s.fetchFriendProfile()
 
 	log.Printf("[SpotifyService] Token exchanged successfully. Expires in %d seconds.\n", tokenResp.ExpiresIn)
@@ -184,7 +236,6 @@ func (s *SpotifyService) GetNowPlaying() *models.FriendPlaybackState {
 	fName := s.friendName
 	s.mu.RUnlock()
 
-	// If we have an active access token, query the real Spotify Web API
 	if token != "" {
 		if time.Now().After(expAt) {
 			_ = s.RefreshToken()
@@ -204,7 +255,6 @@ func (s *SpotifyService) GetNowPlaying() *models.FriendPlaybackState {
 				var playerState struct {
 					IsPlaying  bool `json:"is_playing"`
 					ProgressMs int  `json:"progress_ms"`
-					Timestamp  int64 `json:"timestamp"`
 					Device     struct {
 						Name string `json:"name"`
 						Type string `json:"type"`
@@ -241,15 +291,17 @@ func (s *SpotifyService) GetNowPlaying() *models.FriendPlaybackState {
 					}
 
 					return &models.FriendPlaybackState{
-						IsConnected: true,
-						IsPlaying:   playerState.IsPlaying,
-						ProgressMs:  playerState.ProgressMs,
-						Timestamp:   time.Now().UnixMilli(),
-						DeviceName:  playerState.Device.Name,
-						DeviceType:  playerState.Device.Type,
-						Simulated:   false,
-						FriendName:  fName,
-						ClientID:    s.clientID,
+						IsConnected:  true,
+						IsPlaying:    playerState.IsPlaying,
+						ProgressMs:   playerState.ProgressMs,
+						Timestamp:    time.Now().UnixMilli(),
+						DeviceName:   playerState.Device.Name,
+						DeviceType:   playerState.Device.Type,
+						Simulated:    false,
+						FriendName:   fName,
+						PlaylistName: s.playlistName,
+						Playlist:     s.friendTracks,
+						ClientID:     s.clientID,
 						Track: &models.SpotifyTrackItem{
 							ID:         playerState.Item.ID,
 							Title:      playerState.Item.Name,
@@ -266,93 +318,55 @@ func (s *SpotifyService) GetNowPlaying() *models.FriendPlaybackState {
 		}
 	}
 
-	// Simulated Live Session Mode (Realistic Radiohead Playtime Stream)
-	return s.getSimulatedState()
+	// Simulated Live Session Mode (OxT HOLLOW HUNGER @ 1:19 in real time)
+	return s.getFriendCurrentState()
 }
 
-// getSimulatedState generates realistic live ticking playtime stream for testing
-func (s *SpotifyService) getSimulatedState() *models.FriendPlaybackState {
+// getFriendCurrentState returns the live friend playback (HOLLOW HUNGER - OxT) progressing from 1:19
+func (s *SpotifyService) getFriendCurrentState() *models.FriendPlaybackState {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	type SimTrack struct {
-		ID       string
-		Title    string
-		Artist   string
-		Album    string
-		Duration int
-		CoverURL string
-		Spotify  string
+	if len(s.friendTracks) == 0 {
+		s.loadFriendTracks()
 	}
 
-	tracks := []SimTrack{
-		{
-			ID:       "karma-police",
-			Title:    "Karma Police",
-			Artist:   "Radiohead",
-			Album:    "OK Computer",
-			Duration: 261000,
-			CoverURL: "https://upload.wikimedia.org/wikipedia/en/b/ba/Radioheadokcomputer.png",
-			Spotify:  "https://open.spotify.com/track/63OQupATfueENZJaC0fltF",
-		},
-		{
-			ID:       "creep",
-			Title:    "Creep",
-			Artist:   "Radiohead",
-			Album:    "Pablo Honey",
-			Duration: 238000,
-			CoverURL: "https://upload.wikimedia.org/wikipedia/en/0/0f/Radiohead.pablohoney.albumart.jpg",
-			Spotify:  "https://open.spotify.com/track/70LcF31zb4H9PyJoS1Sx1r",
-		},
-		{
-			ID:       "high-and-dry",
-			Title:    "High and Dry",
-			Artist:   "Radiohead",
-			Album:    "The Bends",
-			Duration: 257000,
-			CoverURL: "https://upload.wikimedia.org/wikipedia/en/5/55/Radioheadthebends.png",
-			Spotify:  "https://open.spotify.com/track/2a1pnJR79RKNen9vrAeKVv",
-		},
-		{
-			ID:       "no-surprises",
-			Title:    "No Surprises",
-			Artist:   "Radiohead",
-			Album:    "OK Computer",
-			Duration: 228000,
-			CoverURL: "https://upload.wikimedia.org/wikipedia/en/b/ba/Radioheadokcomputer.png",
-			Spotify:  "https://open.spotify.com/track/1bSp1dG2qWqf3Z2v4V04H3",
-		},
-	}
+	currentTrack := s.friendTracks[s.simTrackIdx%len(s.friendTracks)]
 
-	currentTrack := tracks[s.simTrackIdx%len(tracks)]
-	elapsedMs := int(time.Since(s.simStartTime).Milliseconds())
+	// Start from 79 seconds (1:19 as screenshotted by user) and advance in real time
+	initialOffsetMs := 79000
+	elapsedMs := initialOffsetMs + int(time.Since(s.simStartTime).Milliseconds())
 
-	if elapsedMs >= currentTrack.Duration {
-		// Advance to next song in live stream
-		s.simTrackIdx++
+	if elapsedMs >= currentTrack.DurationMs {
+		// Wrap around or advance to next song in friend's playlist
+		s.simTrackIdx = (s.simTrackIdx + 1) % len(s.friendTracks)
 		s.simStartTime = time.Now()
-		currentTrack = tracks[s.simTrackIdx%len(tracks)]
+		currentTrack = s.friendTracks[s.simTrackIdx]
 		elapsedMs = 0
 	}
 
 	return &models.FriendPlaybackState{
-		IsConnected: s.accessToken != "",
-		IsPlaying:   true,
-		ProgressMs:  elapsedMs,
-		Timestamp:   time.Now().UnixMilli(),
-		DeviceName:  "Spotify for Windows (Friend)",
-		DeviceType:  "Computer",
-		Simulated:   s.accessToken == "",
-		FriendName:  s.friendName,
-		ClientID:    s.clientID,
+		IsConnected:  s.accessToken != "",
+		IsPlaying:    true,
+		ProgressMs:   elapsedMs,
+		Timestamp:    time.Now().UnixMilli(),
+		DeviceName:   s.deviceName,
+		DeviceType:   "Computer",
+		Simulated:    s.accessToken == "",
+		FriendName:   s.friendName,
+		PlaylistName: s.playlistName,
+		Playlist:     s.friendTracks,
+		ClientID:     s.clientID,
 		Track: &models.SpotifyTrackItem{
-			ID:         currentTrack.ID,
-			Title:      currentTrack.Title,
-			Artist:     currentTrack.Artist,
-			Album:      currentTrack.Album,
-			CoverURL:   currentTrack.CoverURL,
-			DurationMs: currentTrack.Duration,
-			SpotifyURL: currentTrack.Spotify,
+			ID:           currentTrack.ID,
+			Title:        currentTrack.Title,
+			Artist:       currentTrack.Artist,
+			Album:        currentTrack.Album,
+			CoverURL:     currentTrack.CoverURL,
+			DurationMs:   currentTrack.DurationMs,
+			PreviewURL:   currentTrack.PreviewURL,
+			SyncedLyrics: currentTrack.SyncedLyrics,
+			SpotifyURL:   "https://open.spotify.com/track/63OQupATfueENZJaC0fltF",
 		},
 	}
 }
@@ -366,6 +380,7 @@ func (s *SpotifyService) GetStatus() map[string]interface{} {
 		"clientId":      s.clientID,
 		"isConnected":   s.accessToken != "",
 		"friendName":    s.friendName,
+		"playlistName":  s.playlistName,
 		"expiresInSec":  int(time.Until(s.expiresAt).Seconds()),
 		"authRedirect": fmt.Sprintf(
 			"https://accounts.spotify.com/authorize?response_type=code&client_id=%s&scope=user-read-currently-playing%%20user-read-playback-state%%20user-read-recently-played&redirect_uri=http://localhost:5173/",

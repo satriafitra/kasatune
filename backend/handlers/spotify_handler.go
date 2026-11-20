@@ -82,3 +82,14 @@ func (h *SpotifyHandler) GetSpotifyStatus(w http.ResponseWriter, r *http.Request
 		Data:    status,
 	})
 }
+
+// GetFriendTracks returns the friend's Spotify playlist tracks
+func (h *SpotifyHandler) GetFriendTracks(w http.ResponseWriter, r *http.Request) {
+	tracks := h.spotifyService.GetFriendTracks()
+	WriteJSON(w, http.StatusOK, models.ApiResponse{
+		Success: true,
+		Message: "Friend Spotify playlist retrieved",
+		Count:   len(tracks),
+		Data:    tracks,
+	})
+}

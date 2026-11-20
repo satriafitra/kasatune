@@ -45,6 +45,7 @@ func main() {
 
 	// Real-Time Friend Spotify Endpoints
 	mux.HandleFunc("/api/spotify/friend/now-playing", spotifyHandler.GetFriendNowPlaying)
+	mux.HandleFunc("/api/spotify/friend/tracks", spotifyHandler.GetFriendTracks)
 	mux.HandleFunc("/api/spotify/auth/exchange", spotifyHandler.ExchangeAuthCode)
 	mux.HandleFunc("/api/spotify/status", spotifyHandler.GetSpotifyStatus)
 

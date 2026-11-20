@@ -53,7 +53,24 @@ export const TrackListSidebar: React.FC<TrackListSidebarProps> = ({
   onListenAlong = () => {},
 }) => {
   const filteredTracks = tracks.filter((t) => {
-    const matchesAlbum = activeAlbum === 'all' || t.album.toLowerCase() === activeAlbum.toLowerCase();
+    const isFriendTrack =
+      t.album.toLowerCase().includes('overlord') ||
+      t.album.toLowerCase().includes('hideri') ||
+      t.album.toLowerCase().includes('book') ||
+      t.album.toLowerCase().includes('負け犬') ||
+      t.artist.toLowerCase() === 'oxt' ||
+      t.artist.toLowerCase() === 'yorushika' ||
+      t.artist.toLowerCase().includes('kanaria') ||
+      t.artist.toLowerCase() === 'yoasobi' ||
+      t.artist.toLowerCase() === 'eve';
+
+    const matchesAlbum =
+      activeAlbum === 'friend'
+        ? isFriendTrack
+        : activeAlbum === 'all'
+        ? true
+        : !isFriendTrack && t.album.toLowerCase() === activeAlbum.toLowerCase();
+
     const q = searchFilter.toLowerCase();
     const matchesSearch =
       !q ||
@@ -70,9 +87,19 @@ export const TrackListSidebar: React.FC<TrackListSidebarProps> = ({
       <div className="h-12 px-4 flex items-center justify-between border-b border-[#282B32] bg-[#141619] hover:bg-[#1C1E22] transition-colors cursor-pointer shadow-sm">
         <div className="flex items-center gap-1.5 min-w-0">
           <span className="font-extrabold text-sm text-white tracking-tight truncate">
-            {activeAlbum === 'all' ? 'Radiohead Masters' : activeAlbum}
+            {activeAlbum === 'friend'
+              ? "Hideri's Spotify (Live)"
+              : activeAlbum === 'all'
+              ? 'Radiohead Masters'
+              : activeAlbum}
           </span>
-          <span className="w-4 h-4 rounded-md bg-[#BFE7EA] text-[#0B0C0E] text-[10px] font-black flex items-center justify-center flex-shrink-0 shadow-[0_0_8px_#BFE7EA]">
+          <span
+            className={`w-4 h-4 rounded-md text-[10px] font-black flex items-center justify-center flex-shrink-0 ${
+              activeAlbum === 'friend'
+                ? 'bg-[#1DB954] text-black shadow-[0_0_8px_#1DB954]'
+                : 'bg-[#BFE7EA] text-[#0B0C0E] shadow-[0_0_8px_#BFE7EA]'
+            }`}
+          >
             ✓
           </span>
         </div>
