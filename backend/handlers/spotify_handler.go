@@ -54,7 +54,7 @@ func (h *SpotifyHandler) ExchangeAuthCode(w http.ResponseWriter, r *http.Request
 
 	redirectURI := req.RedirectURI
 	if redirectURI == "" {
-		redirectURI = "http://localhost:5173/"
+		redirectURI = "http://127.0.0.1:5174"
 	}
 
 	tokenResp, err := h.spotifyService.ExchangeCode(req.Code, redirectURI)

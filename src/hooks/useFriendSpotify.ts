@@ -39,6 +39,14 @@ export interface FriendPlaybackState {
   clientId: string;
 }
 
+function getSpotifyRedirectUri() {
+  const port = window.location.port || '5174';
+  if (port === '5173') {
+    return 'http://127.0.0.1:5173';
+  }
+  return 'http://127.0.0.1:5174';
+}
+
 export function useFriendSpotify() {
   const [playbackState, setPlaybackState] = useState<FriendPlaybackState | null>(null);
   const [liveProgressMs, setLiveProgressMs] = useState<number>(155000); // 2:35 paused
@@ -142,7 +150,7 @@ export function useFriendSpotify() {
 
     if (code) {
       setIsConnecting(true);
-      const redirectUri = window.location.origin + window.location.pathname;
+      const redirectUri = getSpotifyRedirectUri();
 
       window.history.replaceState({}, document.title, window.location.pathname);
 
@@ -238,7 +246,7 @@ export function useFriendSpotify() {
   // 7. Connect Friend Spotify (Redirects to Spotify OAuth)
   const connectSpotify = useCallback(() => {
     const clientId = playbackState?.clientId || DEFAULT_CLIENT_ID;
-    const redirectUri = encodeURIComponent(window.location.origin + window.location.pathname);
+    const redirectUri = encodeURIComponent(getSpotifyRedirectUri());
     const scopes = encodeURIComponent(
       'user-read-currently-playing user-read-playback-state user-read-recently-played'
     );
