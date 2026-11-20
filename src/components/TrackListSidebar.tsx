@@ -89,7 +89,7 @@ export const TrackListSidebar: React.FC<TrackListSidebarProps> = ({
                 onClick={() => onSelectTrack(track)}
                 className={`group flex items-center justify-between gap-2.5 px-2.5 py-2 rounded-md cursor-pointer transition-all ${
                   isActive
-                    ? 'bg-[#1C1E22] text-white border-l-2 border-[#BFE7EA] shadow-sm'
+                    ? 'bg-[#1C1E22] text-white shadow-sm'
                     : 'hover:bg-[#18191D] text-[#A0A5AD] hover:text-[#F2F3F5]'
                 }`}
               >

@@ -146,17 +146,6 @@ export const DynamicLyrics: React.FC<DynamicLyricsProps> = ({
                       : ''
                   }`}
                 >
-                  {/* Active Line Accent Pill */}
-                  {isActive && (
-                    <div
-                      className="w-1.5 h-7 rounded-sm flex-shrink-0 mr-3 animate-in fade-in zoom-in-75 duration-200"
-                      style={{
-                        backgroundColor: albumColorRgb,
-                        boxShadow: `0 0 14px ${albumColorGlow}`,
-                      }}
-                    />
-                  )}
-
                   <p
                     className={`leading-snug transition-all duration-200 ${
                       isActive

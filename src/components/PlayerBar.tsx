@@ -106,7 +106,7 @@ export const PlayerBar: React.FC<PlayerBarProps> = ({
           <span className="text-xs sm:text-sm font-bold text-white truncate hover:text-[#BFE7EA] cursor-pointer transition-colors">
             {trackTitle}
           </span>
-          <span className="text-[11px] text-[#A0A5AD] truncate hover:underline hover:text-white cursor-pointer">
+          <span className="text-[11px] text-[#A0A5AD] truncate hover:text-white cursor-pointer transition-colors">
             {artistName}
           </span>
         </div>

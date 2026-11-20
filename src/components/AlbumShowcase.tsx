@@ -116,7 +116,7 @@ export const AlbumShowcase: React.FC<AlbumShowcaseProps> = ({
             {/* Subtitle & Credits */}
             <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2 text-xs text-[#A0A5AD] pt-0.5">
               <span
-                className="font-extrabold hover:underline cursor-pointer transition-colors"
+                className="font-extrabold cursor-pointer transition-colors hover:text-white"
                 style={{ color: '#FFEAD3' }}
               >
                 {artist}
@@ -206,13 +206,6 @@ export const AlbumShowcase: React.FC<AlbumShowcaseProps> = ({
                     ? 'bg-[#1C1E22] shadow-sm'
                     : 'hover:bg-[#1E2025] text-[#A0A5AD]'
                 }`}
-                style={
-                  isActive
-                    ? {
-                        borderLeft: '3px solid #BFE7EA',
-                      }
-                    : {}
-                }
               >
                 {/* Index / Play Button */}
                 <div className="text-center text-xs font-semibold flex items-center justify-center">
@@ -249,7 +242,7 @@ export const AlbumShowcase: React.FC<AlbumShowcaseProps> = ({
                     >
                       {t.title}
                     </span>
-                    <span className="text-[11px] text-[#A0A5AD] hover:underline cursor-pointer truncate">
+                    <span className="text-[11px] text-[#A0A5AD] hover:text-white cursor-pointer truncate">
                       {t.artist}
                     </span>
                   </div>
