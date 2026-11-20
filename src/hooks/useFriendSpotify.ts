@@ -1,11 +1,9 @@
 /**
  * Custom Hook: useFriendSpotify
  * Real-time detection and playtime synchronization with friend's Spotify account
- * Powered by Go Backend Hub & Spotify Web API (Client ID: 272c12f48c18494fb5ac490cd10a8b2b)
- * Features:
- * - Sub-50ms instant synchronization via Server-Sent Events (SSE) + fast polling fallback
- * - Accurate play/pause detection: when friend pauses, time freezes at exact position (e.g. 2:35)
- * - Two-way control: trigger toggle, pause, play, seek, and track switch
+ * Dual Engine:
+ * 1. Discord Presence (Lanyard API + WebSocket) - 100% Real-Time & Free (No Spotify Premium required!)
+ * 2. Go Backend Hub & Spotify Web API (Client ID: 272c12f48c18494fb5ac490cd10a8b2b)
  */
 
 import { useState, useEffect, useRef, useCallback } from 'react';
@@ -47,19 +45,82 @@ function getSpotifyRedirectUri() {
   return 'http://127.0.0.1:5174';
 }
 
+// Dynamic preview audio finder from iTunes Search API (CORS friendly, instant)
+const audioPreviewCache = new Map<string, string>();
+async function getPreviewAudio(artist: string, title: string): Promise<string> {
+  const key = `${artist}-${title}`.toLowerCase();
+  if (audioPreviewCache.has(key)) return audioPreviewCache.get(key)!;
+
+  try {
+    const q = encodeURIComponent(`${artist} ${title}`);
+    const res = await fetch(`https://itunes.apple.com/search?term=${q}&entity=song&limit=1`);
+    if (res.ok) {
+      const data = await res.json();
+      if (data.results && data.results.length > 0 && data.results[0].previewUrl) {
+        audioPreviewCache.set(key, data.results[0].previewUrl);
+        return data.results[0].previewUrl;
+      }
+    }
+  } catch {
+    // Ignore fetch failure
+  }
+  return '';
+}
+
+// Dynamic synced lyrics finder from LRCLIB
+const lyricsCache = new Map<string, string>();
+async function getSyncedLyrics(artist: string, title: string): Promise<string> {
+  const key = `${artist}-${title}`.toLowerCase();
+  if (lyricsCache.has(key)) return lyricsCache.get(key)!;
+
+  try {
+    const qArtist = encodeURIComponent(artist);
+    const qTitle = encodeURIComponent(title);
+    const res = await fetch(`https://lrclib.net/api/get?artist_name=${qArtist}&track_name=${qTitle}`);
+    if (res.ok) {
+      const data = await res.json();
+      if (data.syncedLyrics) {
+        lyricsCache.set(key, data.syncedLyrics);
+        return data.syncedLyrics;
+      }
+    }
+  } catch {
+    // Ignore fetch failure
+  }
+  return '';
+}
+
 export function useFriendSpotify() {
   const [playbackState, setPlaybackState] = useState<FriendPlaybackState | null>(null);
-  const [liveProgressMs, setLiveProgressMs] = useState<number>(155000); // 2:35 paused
+  const [liveProgressMs, setLiveProgressMs] = useState<number>(43000);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isConnecting, setIsConnecting] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
 
-  const lastFetchTimeRef = useRef<number>(Date.now());
-  const baseProgressRef = useRef<number>(155000);
-  const isPlayingRef = useRef<boolean>(false);
+  // Friend Discord ID for Lanyard Real-Time Broadcast
+  const [discordUserId, setDiscordUserIdState] = useState<string>(() => {
+    return localStorage.getItem('kasatune_discord_user_id') || '';
+  });
 
-  // 1. Fetch friend's real-time now-playing state from Go Backend
+  const setDiscordUserId = useCallback((id: string) => {
+    const cleaned = id.trim();
+    setDiscordUserIdState(cleaned);
+    if (cleaned) {
+      localStorage.setItem('kasatune_discord_user_id', cleaned);
+    } else {
+      localStorage.removeItem('kasatune_discord_user_id');
+    }
+  }, []);
+
+  const lastFetchTimeRef = useRef<number>(Date.now());
+  const baseProgressRef = useRef<number>(43000);
+  const isPlayingRef = useRef<boolean>(true);
+  const isUsingLanyardRef = useRef<boolean>(false);
+
+  // 1. Fetch friend's real-time now-playing state from Go Backend Hub
   const fetchNowPlaying = useCallback(async () => {
+    if (isUsingLanyardRef.current) return; // Prioritize live Discord presence if active
+
     try {
       const res = await fetch(`${API_BASE}/api/spotify/friend/now-playing`);
       if (!res.ok) {
@@ -83,13 +144,151 @@ export function useFriendSpotify() {
     }
   }, []);
 
-  // 2. High-precision SSE (Server-Sent Events) Stream for zero-latency instant updates
+  // 2. Lanyard Real-Time Discord Activity Engine (WebSocket + REST Polling)
+  useEffect(() => {
+    if (!discordUserId) {
+      isUsingLanyardRef.current = false;
+      return;
+    }
+
+    let ws: WebSocket | null = null;
+    let heartbeatTimer: any = null;
+    let pollInterval: any = null;
+    let isSubscribed = true;
+
+    // Process incoming Lanyard Spotify payload
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const processLanyardPayload = async (d: any) => {
+      if (!isSubscribed) return;
+
+      if (d && d.listening_to_spotify && d.spotify) {
+        isUsingLanyardRef.current = true;
+        const sp = d.spotify;
+        const startMs = sp.timestamps?.start || Date.now();
+        const endMs = sp.timestamps?.end || startMs + 200000;
+        const durationMs = endMs - startMs;
+        const currentProgressMs = Math.max(0, Math.min(durationMs, Date.now() - startMs));
+
+        const [previewUrl, syncedLyrics] = await Promise.all([
+          getPreviewAudio(sp.artist, sp.song),
+          getSyncedLyrics(sp.artist, sp.song),
+        ]);
+
+        if (!isSubscribed) return;
+
+        const friendTrack: FriendTrack = {
+          id: sp.track_id || `${sp.artist}-${sp.song}`,
+          title: sp.song,
+          artist: sp.artist,
+          album: sp.album,
+          coverUrl: sp.album_art_url,
+          durationMs: durationMs,
+          spotifyUrl: `https://open.spotify.com/track/${sp.track_id}`,
+          previewUrl: previewUrl,
+          syncedLyrics: syncedLyrics,
+        };
+
+        const state: FriendPlaybackState = {
+          isConnected: true,
+          isPlaying: true,
+          progressMs: currentProgressMs,
+          timestamp: Date.now(),
+          deviceName: 'Spotify (Discord Live)',
+          deviceType: 'Computer',
+          friendName: d.discord_user?.global_name || d.discord_user?.username || 'deriana_',
+          playlistName: 'Discord Live Session',
+          clientId: DEFAULT_CLIENT_ID,
+          simulated: false,
+          track: friendTrack,
+        };
+
+        setPlaybackState(state);
+        baseProgressRef.current = currentProgressMs;
+        lastFetchTimeRef.current = Date.now();
+        isPlayingRef.current = true;
+        setLiveProgressMs(currentProgressMs);
+        setError(null);
+        setIsLoading(false);
+      } else if (d && !d.listening_to_spotify) {
+        // Paused or not listening on Spotify
+        setPlaybackState((prev) => (prev ? { ...prev, isPlaying: false } : null));
+        isPlayingRef.current = false;
+      }
+    };
+
+    // REST Polling as fallback
+    const pollLanyard = async () => {
+      try {
+        const res = await fetch(`https://api.lanyard.rest/v1/users/${discordUserId}`);
+        if (res.ok) {
+          const json = await res.json();
+          if (json.success && json.data) {
+            await processLanyardPayload(json.data);
+          }
+        }
+      } catch {
+        // Ignore poll error
+      }
+    };
+
+    pollLanyard();
+    pollInterval = setInterval(pollLanyard, 1200);
+
+    // WebSocket Connection
+    try {
+      ws = new WebSocket('wss://api.lanyard.rest/socket');
+
+      ws.onmessage = (event) => {
+        try {
+          const msg = JSON.parse(event.data);
+          if (msg.op === 1) {
+            // Hello -> Send Initialize Subscribe
+            ws?.send(
+              JSON.stringify({
+                op: 2,
+                d: { subscribe_to_id: discordUserId },
+              })
+            );
+
+            // Heartbeat
+            if (msg.d?.heartbeat_interval) {
+              heartbeatTimer = setInterval(() => {
+                if (ws?.readyState === WebSocket.OPEN) {
+                  ws.send(JSON.stringify({ op: 3 }));
+                }
+              }, msg.d.heartbeat_interval);
+            }
+          } else if (msg.op === 0 && msg.d) {
+            processLanyardPayload(msg.d);
+          }
+        } catch {
+          // Skip
+        }
+      };
+
+      ws.onerror = () => {
+        // WebSocket error -> polling continues
+      };
+    } catch {
+      // WS unsupported
+    }
+
+    return () => {
+      isSubscribed = false;
+      if (pollInterval) clearInterval(pollInterval);
+      if (heartbeatTimer) clearInterval(heartbeatTimer);
+      if (ws) ws.close();
+    };
+  }, [discordUserId]);
+
+  // 3. High-precision SSE from Go Backend if not using Discord Lanyard
   useEffect(() => {
     let eventSource: EventSource | null = null;
     try {
       eventSource = new EventSource(`${API_BASE}/api/spotify/friend/events`);
 
       eventSource.onmessage = (event) => {
+        if (isUsingLanyardRef.current) return;
         try {
           const data: FriendPlaybackState = JSON.parse(event.data);
           if (data && data.track) {
@@ -105,11 +304,10 @@ export function useFriendSpotify() {
       };
 
       eventSource.onerror = () => {
-        // Fallback gracefully to polling
         if (eventSource) eventSource.close();
       };
     } catch {
-      // EventSource unsupported or failed
+      // EventSource unsupported
     }
 
     return () => {
@@ -117,7 +315,7 @@ export function useFriendSpotify() {
     };
   }, []);
 
-  // 3. High-precision interpolated client-side playtime clock (advances ONLY if playing)
+  // 4. High-precision interpolated client-side playtime clock (advances ONLY if playing)
   useEffect(() => {
     const timer = setInterval(() => {
       if (isPlayingRef.current && playbackState?.track) {
@@ -128,7 +326,6 @@ export function useFriendSpotify() {
         );
         setLiveProgressMs(currentMs);
       } else {
-        // Paused: strictly locked to base progress
         setLiveProgressMs(baseProgressRef.current);
       }
     }, 100);
@@ -136,14 +333,14 @@ export function useFriendSpotify() {
     return () => clearInterval(timer);
   }, [playbackState?.track]);
 
-  // 4. Regular Fast Polling every 800ms to guarantee state sync
+  // 5. Regular Fast Polling every 1000ms
   useEffect(() => {
     fetchNowPlaying();
-    const pollInterval = setInterval(fetchNowPlaying, 800);
-    return () => clearInterval(pollInterval);
+    const poll = setInterval(fetchNowPlaying, 1000);
+    return () => clearInterval(poll);
   }, [fetchNowPlaying]);
 
-  // 5. Catch OAuth authorization code callback (?code=...) on boot
+  // 6. Catch OAuth authorization code callback (?code=...) on boot
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const code = params.get('code');
@@ -176,7 +373,7 @@ export function useFriendSpotify() {
     }
   }, [fetchNowPlaying]);
 
-  // 6. Real-Time Friend Remote Actions
+  // 7. Real-Time Friend Remote Actions
   const toggleFriendPlayback = useCallback(async () => {
     try {
       const res = await fetch(`${API_BASE}/api/spotify/friend/toggle`, { method: 'POST' });
@@ -201,6 +398,7 @@ export function useFriendSpotify() {
         setPlaybackState(json.data);
         isPlayingRef.current = false;
         baseProgressRef.current = json.data.progressMs || 0;
+        lastFetchTimeRef.current = Date.now();
         setLiveProgressMs(json.data.progressMs || 0);
       }
     } catch {
@@ -224,12 +422,10 @@ export function useFriendSpotify() {
     }
   }, []);
 
-  const seekFriendPlayback = useCallback(async (progressMs: number) => {
+  const seekFriendPlayback = useCallback(async (positionMs: number) => {
     try {
-      const res = await fetch(`${API_BASE}/api/spotify/friend/seek`, {
+      const res = await fetch(`${API_BASE}/api/spotify/friend/seek?position_ms=${positionMs}`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ progressMs }),
       });
       const json = await res.json();
       if (json.success && json.data) {
@@ -243,7 +439,7 @@ export function useFriendSpotify() {
     }
   }, []);
 
-  // 7. Connect Friend Spotify (Redirects to Spotify OAuth)
+  // Connect Friend Spotify (Redirects to Spotify OAuth)
   const connectSpotify = useCallback(() => {
     const clientId = playbackState?.clientId || DEFAULT_CLIENT_ID;
     const redirectUri = encodeURIComponent(getSpotifyRedirectUri());
@@ -261,6 +457,8 @@ export function useFriendSpotify() {
     isLoading,
     isConnecting,
     error,
+    discordUserId,
+    setDiscordUserId,
     fetchNowPlaying,
     connectSpotify,
     toggleFriendPlayback,

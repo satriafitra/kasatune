@@ -1,11 +1,13 @@
 /**
  * FriendSpotifyCard Component (Discord Spotify Rich Presence & Real-Time Sync Hub)
  * Pure passive listener view: displays friend's live Spotify playback in real time.
- * Features a dedicated "Connected" state button with zero remote control interference.
+ * Supports:
+ * 1. Discord Live Presence (via Lanyard WebSocket - 100% Free & Automatic, no Spotify Premium required!)
+ * 2. Spotify OAuth Web API
  */
 
-import React from 'react';
-import { ExternalLink, Sparkles, RefreshCw, CheckCircle2 } from 'lucide-react';
+import React, { useState } from 'react';
+import { ExternalLink, Sparkles, RefreshCw, CheckCircle2, MessageSquare, Check, X } from 'lucide-react';
 import type { FriendPlaybackState } from '../hooks/useFriendSpotify';
 import { formatTime } from '../utils/lrcParser';
 
@@ -15,6 +17,8 @@ interface FriendSpotifyCardProps {
   isLoading: boolean;
   isConnecting: boolean;
   isConnected: boolean;
+  discordUserId?: string;
+  onSetDiscordUserId?: (id: string) => void;
   onConnectSpotify: () => void;
   onRefresh: () => void;
   onToggleConnect: () => void;
@@ -26,14 +30,24 @@ export const FriendSpotifyCard: React.FC<FriendSpotifyCardProps> = ({
   isLoading,
   isConnecting,
   isConnected,
+  discordUserId = '',
+  onSetDiscordUserId = () => {},
   onConnectSpotify,
   onRefresh,
   onToggleConnect,
 }) => {
+  const [isEditingDiscord, setIsEditingDiscord] = useState(false);
+  const [inputDiscordId, setInputDiscordId] = useState(discordUserId);
+
   const track = playbackState?.track;
   const isPlaying = Boolean(playbackState?.isPlaying);
-  const durationMs = track?.durationMs || 266870;
+  const durationMs = track?.durationMs || 296000;
   const progressRatio = Math.max(0, Math.min(1, liveProgressMs / durationMs));
+
+  const handleSaveDiscordId = () => {
+    onSetDiscordUserId(inputDiscordId);
+    setIsEditingDiscord(false);
+  };
 
   return (
     <div className="mx-2 mb-2 p-3 rounded-lg bg-[#0E1013] border border-[#282B32] shadow-md flex flex-col gap-2.5 transition-all select-none">
@@ -96,33 +110,83 @@ export const FriendSpotifyCard: React.FC<FriendSpotifyCardProps> = ({
       </div>
 
       {/* Friend Profile & Playback Device */}
-      <div className="flex items-center gap-2">
-        <div className="relative w-7 h-7 rounded-lg bg-[#141619] border border-[#282B32] flex items-center justify-center text-xs font-black text-[#1DB954] flex-shrink-0">
-          <span>SP</span>
-          <span
-            className={`absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full border border-[#0B0C0E] ${
-              !isConnected
-                ? 'bg-[#656A74]'
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2 min-w-0">
+          <div className="relative w-7 h-7 rounded-lg bg-[#141619] border border-[#282B32] flex items-center justify-center text-xs font-black text-[#1DB954] flex-shrink-0">
+            <span>SP</span>
+            <span
+              className={`absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full border border-[#0B0C0E] ${
+                !isConnected
+                  ? 'bg-[#656A74]'
+                  : isPlaying
+                  ? 'bg-[#1DB954]'
+                  : 'bg-[#E89B5B]'
+              }`}
+            />
+          </div>
+
+          <div className="min-w-0 flex flex-col justify-center">
+            <span className="text-[11px] font-bold text-white truncate leading-tight">
+              {playbackState?.friendName || 'deriana_'}
+            </span>
+            <span className="text-[10px] text-[#A0A5AD] truncate leading-none pt-0.5">
+              {!isConnected
+                ? 'Sync Disconnected'
                 : isPlaying
-                ? 'bg-[#1DB954]'
-                : 'bg-[#E89B5B]'
-            }`}
-          />
+                ? `Listening on ${playbackState?.deviceName || 'Spotify'}`
+                : `Paused on ${playbackState?.deviceName || 'Spotify'}`}
+            </span>
+          </div>
         </div>
 
-        <div className="min-w-0 flex flex-col justify-center">
-          <span className="text-[11px] font-bold text-white truncate leading-tight">
-            {playbackState?.friendName || 'Hideri'}
-          </span>
-          <span className="text-[10px] text-[#A0A5AD] truncate leading-none pt-0.5">
-            {!isConnected
-              ? 'Sync Disconnected'
-              : isPlaying
-              ? `Listening on ${playbackState?.deviceName || 'Spotify'}`
-              : `Paused on ${playbackState?.deviceName || 'Spotify'}`}
-          </span>
-        </div>
+        {/* Discord ID Config Button */}
+        <button
+          onClick={() => setIsEditingDiscord((p) => !p)}
+          className={`px-1.5 py-0.5 rounded text-[9px] font-medium border transition-colors flex items-center gap-1 ${
+            discordUserId
+              ? 'bg-[#5865F2]/20 border-[#5865F2]/40 text-[#7983F5]'
+              : 'bg-[#1C1E22] border-[#282B32] text-[#A0A5AD] hover:text-white'
+          }`}
+          title="Sinkronkan otomatis via Discord (Tanpa perlu Spotify Premium)"
+        >
+          <MessageSquare className="w-2.5 h-2.5" />
+          <span>{discordUserId ? 'Discord Sync' : '+ Discord ID'}</span>
+        </button>
       </div>
+
+      {/* Discord User ID Config Form */}
+      {isEditingDiscord && (
+        <div className="p-2 rounded bg-[#141619] border border-[#5865F2]/40 flex flex-col gap-1.5 text-[10px]">
+          <div className="text-[#A0A5AD] leading-tight">
+            Masukkan <b>Discord User ID</b> teman kamu agar lagu otomatis berganti setiap detik:
+          </div>
+          <div className="flex items-center gap-1">
+            <input
+              type="text"
+              value={inputDiscordId}
+              onChange={(e) => setInputDiscordId(e.target.value)}
+              placeholder="Contoh: 482970591234567890"
+              className="flex-1 bg-[#0E1013] border border-[#282B32] rounded px-2 py-1 text-white text-[11px] font-mono outline-none focus:border-[#5865F2]"
+            />
+            <button
+              onClick={handleSaveDiscordId}
+              className="px-2 py-1 bg-[#5865F2] hover:bg-[#4752C4] text-white rounded font-bold transition-colors flex items-center"
+              title="Simpan ID"
+            >
+              <Check className="w-3 h-3" />
+            </button>
+            <button
+              onClick={() => setIsEditingDiscord(false)}
+              className="p-1 text-[#656A74] hover:text-white transition-colors"
+            >
+              <X className="w-3 h-3" />
+            </button>
+          </div>
+          <div className="text-[9px] text-[#656A74]">
+            *Teman kamu harus join server <b>discord.gg/lanyard</b> sekali saja.
+          </div>
+        </div>
+      )}
 
       {/* Currently Playing Track Box */}
       {track ? (
@@ -187,7 +251,7 @@ export const FriendSpotifyCard: React.FC<FriendSpotifyCardProps> = ({
         </div>
       )}
 
-      {/* Primary Connection State Button (Requested: Button Connected) */}
+      {/* Primary Connection State Button */}
       <div className="pt-0.5">
         {isConnected ? (
           <button

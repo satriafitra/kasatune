@@ -93,6 +93,8 @@ export const App: React.FC = () => {
     liveProgressMs: friendLiveProgressMs,
     isLoading: isLoadingFriend,
     isConnecting: isConnectingFriend,
+    discordUserId,
+    setDiscordUserId,
     connectSpotify: connectFriendSpotify,
     fetchNowPlaying: refetchFriendSpotify,
     toggleFriendPlayback,
@@ -434,6 +436,8 @@ export const App: React.FC = () => {
             onRefreshFriendSpotify={refetchFriendSpotify}
             onListenAlong={handleListenAlong}
             isFriendSyncConnected={isFriendSyncConnected}
+            discordUserId={discordUserId}
+            onSetDiscordUserId={setDiscordUserId}
             onToggleFriendSync={() => setIsFriendSyncConnected((prev) => !prev)}
           />
         </div>

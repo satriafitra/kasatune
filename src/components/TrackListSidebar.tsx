@@ -33,6 +33,8 @@ interface TrackListSidebarProps {
   isLoadingFriend?: boolean;
   isConnectingFriend?: boolean;
   isFriendSyncConnected?: boolean;
+  discordUserId?: string;
+  onSetDiscordUserId?: (id: string) => void;
   onConnectFriendSpotify?: () => void;
   onRefreshFriendSpotify?: () => void;
   onListenAlong?: (trackTitle: string, progressMs: number) => void;
@@ -51,6 +53,8 @@ export const TrackListSidebar: React.FC<TrackListSidebarProps> = ({
   isLoadingFriend = false,
   isConnectingFriend = false,
   isFriendSyncConnected = true,
+  discordUserId = '',
+  onSetDiscordUserId = () => {},
   onConnectFriendSpotify = () => {},
   onRefreshFriendSpotify = () => {},
   onListenAlong = () => {},
@@ -193,6 +197,8 @@ export const TrackListSidebar: React.FC<TrackListSidebarProps> = ({
         isLoading={isLoadingFriend}
         isConnecting={isConnectingFriend}
         isConnected={isFriendSyncConnected}
+        discordUserId={discordUserId}
+        onSetDiscordUserId={onSetDiscordUserId}
         onConnectSpotify={onConnectFriendSpotify}
         onRefresh={onRefreshFriendSpotify}
         onToggleConnect={onToggleFriendSync}
