@@ -1,9 +1,10 @@
 /**
  * AlbumShowcase Component (Spotify Now Playing Header & Discography Tracklist)
  * Authentic Spotify desktop experience:
- * - Signature dynamic ambient gradient banner with high-res cover art
+ * - Real official Radiohead album artwork
+ * - Signature dynamic ambient gradient banner
  * - Action controls (Big green play button, Like, More options)
- * - Complete Spotify Tracklist Table (#, Title, Album, BPM/Mood, Duration)
+ * - Authentic Spotify Tracklist Table (#, Title, Album, Duration)
  * - Hover play/pause interaction & active track highlighting
  */
 
@@ -35,9 +36,7 @@ export const AlbumShowcase: React.FC<AlbumShowcaseProps> = ({
   const artist = track?.artist || 'Radiohead';
   const album = track?.album || 'Pablo Honey';
   const year = track?.year || 1993;
-  const bpm = track?.bpm || 92;
-  const mood = track?.mood || 'Melancholic Rock';
-  const imageUrl = track?.coverUrl || 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?auto=format&fit=crop&w=600&q=80';
+  const imageUrl = track?.coverUrl || 'https://upload.wikimedia.org/wikipedia/en/0/0f/Radiohead.pablohoney.albumart.jpg';
 
   const [isLiked, setIsLiked] = useState(false);
   const [hoveredTrackId, setHoveredTrackId] = useState<string | null>(null);
@@ -90,10 +89,6 @@ export const AlbumShowcase: React.FC<AlbumShowcaseProps> = ({
               <span>{album}</span>
               <span>&bull;</span>
               <span>{year}</span>
-              <span>&bull;</span>
-              <span className="text-[#1DB954] font-semibold">{bpm} BPM</span>
-              <span>&bull;</span>
-              <span className="text-white/80">{mood}</span>
             </div>
           </div>
         </div>
@@ -134,11 +129,10 @@ export const AlbumShowcase: React.FC<AlbumShowcaseProps> = ({
       {/* 3. Authentic Spotify Tracklist Table */}
       <div className="px-6 sm:px-8 pb-8 flex-1 flex flex-col">
         {/* Table Header */}
-        <div className="grid grid-cols-[16px_1fr_auto] md:grid-cols-[16px_4fr_3fr_auto] lg:grid-cols-[16px_5fr_3fr_2fr_auto] gap-4 px-4 py-2 text-xs font-semibold uppercase tracking-wider text-[#B3B3B3] border-b border-[#282828] mb-2">
+        <div className="grid grid-cols-[16px_1fr_auto] md:grid-cols-[16px_4fr_3fr_auto] gap-4 px-4 py-2 text-xs font-semibold uppercase tracking-wider text-[#B3B3B3] border-b border-[#282828] mb-2">
           <div className="text-center">#</div>
           <div>Title</div>
           <div className="hidden md:block">Album</div>
-          <div className="hidden lg:block">Tempo & Mood</div>
           <div className="text-right flex items-center justify-end pr-2">
             <Clock className="w-4 h-4" />
           </div>
@@ -162,7 +156,7 @@ export const AlbumShowcase: React.FC<AlbumShowcaseProps> = ({
                     onSelectTrack(t);
                   }
                 }}
-                className={`grid grid-cols-[16px_1fr_auto] md:grid-cols-[16px_4fr_3fr_auto] lg:grid-cols-[16px_5fr_3fr_2fr_auto] gap-4 px-4 py-2.5 rounded-md text-sm items-center cursor-pointer transition-colors ${
+                className={`grid grid-cols-[16px_1fr_auto] md:grid-cols-[16px_4fr_3fr_auto] gap-4 px-4 py-2.5 rounded-md text-sm items-center cursor-pointer transition-colors ${
                   isActive
                     ? 'bg-[#282828] text-[#1DB954]'
                     : 'hover:bg-[#2A2A2A]/60 text-[#B3B3B3]'
@@ -210,14 +204,6 @@ export const AlbumShowcase: React.FC<AlbumShowcaseProps> = ({
                 {/* Album */}
                 <div className="hidden md:block text-xs text-[#B3B3B3] hover:text-white truncate">
                   {t.album}
-                </div>
-
-                {/* Tempo & Mood */}
-                <div className="hidden lg:flex items-center gap-2 text-xs">
-                  <span className="px-2 py-0.5 rounded-full bg-[#242424] text-white/90 font-mono text-[11px]">
-                    {t.bpm} BPM
-                  </span>
-                  <span className="text-[#888888] truncate">{t.mood}</span>
                 </div>
 
                 {/* Duration */}
