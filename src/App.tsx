@@ -232,11 +232,6 @@ export const App: React.FC = () => {
           tracks.find((t) => t.id === 'roselia-proud-of-oneself') ||
           tracks.find((t) => t.id === 'liella-sing-shine-smile') ||
           tracks[0];
-            (t) =>
-              t.id === 'liella-sing-shine-smile' ||
-              t.title.toLowerCase().includes('sing！shine！smile') ||
-              t.artist.toLowerCase().includes('liella')
-          ) || tracks[0];
         selectTrack(friendSong);
         loadTrack(
           friendSong.previewUrl,
