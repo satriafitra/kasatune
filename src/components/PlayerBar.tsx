@@ -1,10 +1,10 @@
 /**
  * PlayerBar Component (Discord Voice & Spotify Playback Hybrid)
- * Authentic Discord bottom dock with Kasatune Sunset Palette:
- * - Real Radiohead album artwork with crisp metadata
- * - Controls with Ochre/Rust radiant play button
- * - Gradient timeline scrubber with Cream hover thumb
- * - Ice blue metronome pulse & lyrics toggle
+ * Deep obsidian dark dock with vibrant Ice Blue (#BFE7EA) and Kasatune Sunset accents:
+ * - Real Radiohead album artwork strictly constrained in 56x56 box
+ * - Radiant Play button with sunset / album glow
+ * - Gradient timeline scrubber with Ice Blue hover thumb
+ * - Prominent Ice Blue (#BFE7EA) metronome beat pulse, shuffle/repeat indicators & volume accent
  */
 
 import React, { useState } from 'react';
@@ -19,7 +19,6 @@ import {
   Volume2,
   VolumeX,
   Mic2,
-  Activity,
 } from 'lucide-react';
 import { formatTime } from '../utils/lrcParser';
 import type { AlbumColors } from '../hooks/useAlbumColor';
@@ -68,6 +67,7 @@ export const PlayerBar: React.FC<PlayerBarProps> = ({
   volume,
   onVolumeChange,
   onSeek,
+  colors,
   beatPulse = 0,
   showLyrics,
   onToggleLyrics,
@@ -78,6 +78,9 @@ export const PlayerBar: React.FC<PlayerBarProps> = ({
   const safeDuration = durationSec > 0 ? durationSec : 238;
   const progressRatio = Math.max(0, Math.min(1, currentTimeSec / safeDuration));
 
+  const [r, g, b] = colors?.dominantColor || [232, 155, 91];
+  const albumColorRgb = `rgb(${r}, ${g}, ${b})`;
+
   const handleTimelineClick = (e: React.MouseEvent<HTMLDivElement>) => {
     const rect = e.currentTarget.getBoundingClientRect();
     const clickX = e.clientX - rect.left;
@@ -86,11 +89,11 @@ export const PlayerBar: React.FC<PlayerBarProps> = ({
   };
 
   return (
-    <footer className="h-20 w-full bg-[#1E1F22] border-t border-[#383A40]/80 px-4 flex items-center justify-between gap-4 select-none z-50">
+    <footer className="h-20 w-full bg-[#0B0C0E] border-t border-[#282B32] px-4 flex items-center justify-between gap-4 select-none z-50">
       {/* Left: Now Playing Widget */}
       <div className="flex items-center gap-3 min-w-[180px] max-w-[280px]">
         {albumImageUrl && (
-          <div className="w-14 h-14 min-w-[56px] min-h-[56px] max-w-[56px] max-h-[56px] rounded-md overflow-hidden flex-shrink-0 bg-[#2B2D31] border border-[#383A40]/60 shadow-md">
+          <div className="w-14 h-14 min-w-[56px] min-h-[56px] max-w-[56px] max-h-[56px] rounded-md overflow-hidden flex-shrink-0 bg-[#141619] border border-[#282B32] shadow-md">
             <img
               src={albumImageUrl}
               alt={trackTitle}
@@ -100,17 +103,17 @@ export const PlayerBar: React.FC<PlayerBarProps> = ({
           </div>
         )}
         <div className="min-w-0 flex flex-col justify-center">
-          <span className="text-xs sm:text-sm font-bold text-[#F2F3F5] truncate hover:text-[#FFEAD3] cursor-pointer">
+          <span className="text-xs sm:text-sm font-bold text-white truncate hover:text-[#BFE7EA] cursor-pointer transition-colors">
             {trackTitle}
           </span>
-          <span className="text-[11px] text-[#949BA4] truncate hover:underline hover:text-[#F2F3F5] cursor-pointer">
+          <span className="text-[11px] text-[#A0A5AD] truncate hover:underline hover:text-white cursor-pointer">
             {artistName}
           </span>
         </div>
         <button
           onClick={() => setIsLiked(!isLiked)}
-          className={`p-1.5 transition-colors ml-0.5 rounded hover:bg-[#2B2D31] ${
-            isLiked ? 'text-[#D46743]' : 'text-[#949BA4] hover:text-[#F2F3F5]'
+          className={`p-1.5 transition-colors ml-0.5 rounded hover:bg-[#1C1E22] ${
+            isLiked ? 'text-[#D46743]' : 'text-[#656A74] hover:text-white'
           }`}
           title={isLiked ? 'Liked' : 'Like'}
         >
@@ -124,8 +127,8 @@ export const PlayerBar: React.FC<PlayerBarProps> = ({
         <div className="flex items-center gap-4">
           <button
             onClick={onToggleShuffle}
-            className={`p-1.5 transition-colors rounded hover:bg-[#2B2D31] ${
-              isShuffle ? 'text-[#BFE7EA]' : 'text-[#949BA4] hover:text-[#F2F3F5]'
+            className={`p-1.5 transition-colors rounded hover:bg-[#1C1E22] ${
+              isShuffle ? 'text-[#BFE7EA] drop-shadow-[0_0_8px_#BFE7EA]' : 'text-[#A0A5AD] hover:text-white'
             }`}
             title="Shuffle"
           >
@@ -134,7 +137,7 @@ export const PlayerBar: React.FC<PlayerBarProps> = ({
 
           <button
             onClick={onPrevTrack}
-            className="p-1.5 text-[#949BA4] hover:text-[#FFEAD3] transition-colors rounded hover:bg-[#2B2D31]"
+            className="p-1.5 text-[#A0A5AD] hover:text-[#BFE7EA] transition-colors rounded hover:bg-[#1C1E22]"
             title="Previous (ArrowLeft)"
           >
             <SkipBack className="w-4 h-4 fill-current" />
@@ -142,7 +145,11 @@ export const PlayerBar: React.FC<PlayerBarProps> = ({
 
           <button
             onClick={onTogglePlay}
-            className="w-9 h-9 rounded-full bg-gradient-to-r from-[#E89B5B] to-[#D46743] hover:from-[#f0a667] hover:to-[#df724e] text-white flex items-center justify-center transition-all shadow-[0_2px_12px_rgba(212,103,67,0.4)] hover:scale-105 active:scale-95"
+            className="w-9 h-9 rounded-full text-white flex items-center justify-center transition-all hover:scale-105 active:scale-95 shadow-md"
+            style={{
+              background: `linear-gradient(135deg, ${albumColorRgb}, #D46743)`,
+              boxShadow: `0 2px 14px rgba(${r}, ${g}, ${b}, 0.55)`,
+            }}
             title={isPlaying ? 'Pause (Space)' : 'Play (Space)'}
           >
             {isPlaying ? (
@@ -154,7 +161,7 @@ export const PlayerBar: React.FC<PlayerBarProps> = ({
 
           <button
             onClick={onNextTrack}
-            className="p-1.5 text-[#949BA4] hover:text-[#FFEAD3] transition-colors rounded hover:bg-[#2B2D31]"
+            className="p-1.5 text-[#A0A5AD] hover:text-[#BFE7EA] transition-colors rounded hover:bg-[#1C1E22]"
             title="Next (ArrowRight)"
           >
             <SkipForward className="w-4 h-4 fill-current" />
@@ -162,8 +169,8 @@ export const PlayerBar: React.FC<PlayerBarProps> = ({
 
           <button
             onClick={onToggleRepeat}
-            className={`p-1.5 transition-colors rounded hover:bg-[#2B2D31] ${
-              isRepeat ? 'text-[#BFE7EA]' : 'text-[#949BA4] hover:text-[#F2F3F5]'
+            className={`p-1.5 transition-colors rounded hover:bg-[#1C1E22] ${
+              isRepeat ? 'text-[#BFE7EA] drop-shadow-[0_0_8px_#BFE7EA]' : 'text-[#A0A5AD] hover:text-white'
             }`}
             title="Repeat"
           >
@@ -172,8 +179,8 @@ export const PlayerBar: React.FC<PlayerBarProps> = ({
         </div>
 
         {/* Timeline Scrubber */}
-        <div className="w-full flex items-center gap-2.5 text-[11px] font-mono text-[#949BA4]">
-          <span className="min-w-[34px] text-right">
+        <div className="w-full flex items-center gap-2.5 text-[11px] font-mono text-[#A0A5AD]">
+          <span className="min-w-[34px] text-right font-medium text-[#BFE7EA]">
             {formatTime(currentTimeSec * 1000)}
           </span>
 
@@ -184,24 +191,24 @@ export const PlayerBar: React.FC<PlayerBarProps> = ({
             className="flex-1 h-3 flex items-center cursor-pointer group relative"
           >
             {/* Background bar */}
-            <div className="w-full h-1 bg-[#383A40] rounded-full overflow-hidden relative group-hover:h-1.5 transition-all">
-              {/* Progress bar filled with sunset gradient */}
+            <div className="w-full h-1 bg-[#282B32] rounded-full overflow-hidden relative group-hover:h-1.5 transition-all">
+              {/* Progress bar filled with sunset to ice cyan gradient */}
               <div
-                className="h-full bg-gradient-to-r from-[#E89B5B] to-[#D46743] transition-all duration-75"
+                className="h-full bg-gradient-to-r from-[#E89B5B] via-[#D46743] to-[#BFE7EA] transition-all duration-75"
                 style={{ width: `${progressRatio * 100}%` }}
               />
             </div>
 
-            {/* Hover thumb dot */}
+            {/* Hover thumb dot in vibrant Ice Blue */}
             {isScrubbingHover && (
               <div
-                className="absolute w-3 h-3 rounded-full bg-[#FFEAD3] border border-[#E89B5B] shadow-[0_0_8px_#FFEAD3] -translate-x-1/2 pointer-events-none"
+                className="absolute w-3.5 h-3.5 rounded-full bg-[#BFE7EA] border-2 border-white shadow-[0_0_10px_#BFE7EA] -translate-x-1/2 pointer-events-none"
                 style={{ left: `${progressRatio * 100}%` }}
               />
             )}
           </div>
 
-          <span className="min-w-[34px]">
+          <span className="min-w-[34px] text-[#656A74]">
             {formatTime(safeDuration * 1000)}
           </span>
         </div>
@@ -209,28 +216,28 @@ export const PlayerBar: React.FC<PlayerBarProps> = ({
 
       {/* Right: BPM pulse badge, Lyrics Toggle & Volume Slider */}
       <div className="flex items-center gap-3 min-w-[180px] justify-end">
-        {/* Metronome Beat Indicator */}
+        {/* Metronome Beat Indicator with glowing Ice Blue dot */}
         <div
-          className="hidden lg:flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-[#2B2D31] border border-[#383A40] text-[11px] text-[#BFE7EA]"
+          className="hidden lg:flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-[#141619] border border-[#282B32] text-[11px] text-[#BFE7EA]"
           title={`Song BPM: ${bpm}`}
         >
           <span
-            className="w-1.5 h-1.5 rounded-full transition-transform duration-75"
+            className="w-2 h-2 rounded-full transition-transform duration-75 bg-[#BFE7EA]"
             style={{
-              backgroundColor: beatPulse > 0.4 ? '#E89B5B' : '#BFE7EA',
+              boxShadow: beatPulse > 0.4 ? '0 0 10px #BFE7EA' : 'none',
               transform: `scale(${1 + beatPulse * 0.9})`,
             }}
           />
-          <span className="font-mono text-[10px]">{bpm} BPM</span>
+          <span className="font-mono text-[10px] font-bold text-[#BFE7EA]">{bpm} BPM</span>
         </div>
 
         {/* Lyrics Toggle Button */}
         <button
           onClick={onToggleLyrics}
-          className={`p-2 rounded-md transition-colors border ${
+          className={`p-2 rounded-md transition-all border ${
             showLyrics
-              ? 'text-[#FFEAD3] bg-[#2B2D31] border-[#383A40] shadow-sm'
-              : 'text-[#949BA4] border-transparent hover:bg-[#2B2D31] hover:text-[#F2F3F5]'
+              ? 'text-[#BFE7EA] bg-[#1C1E22] border-[#BFE7EA]/40 shadow-[0_0_10px_rgba(191,231,234,0.3)]'
+              : 'text-[#656A74] border-transparent hover:bg-[#141619] hover:text-white'
           }`}
           title="Toggle Lyrics"
         >
@@ -241,13 +248,13 @@ export const PlayerBar: React.FC<PlayerBarProps> = ({
         <div className="flex items-center gap-2">
           <button
             onClick={() => onVolumeChange(volume === 0 ? 0.85 : 0)}
-            className="text-[#949BA4] hover:text-[#F2F3F5] transition-colors p-1"
+            className="text-[#A0A5AD] hover:text-white transition-colors p-1"
             title={volume === 0 ? 'Unmute' : 'Mute'}
           >
             {volume === 0 ? (
               <VolumeX className="w-4 h-4 text-[#ED4245]" />
             ) : (
-              <Volume2 className="w-4 h-4" />
+              <Volume2 className="w-4 h-4 hover:text-[#BFE7EA]" />
             )}
           </button>
 
@@ -258,7 +265,7 @@ export const PlayerBar: React.FC<PlayerBarProps> = ({
             step="0.02"
             value={volume}
             onChange={(e) => onVolumeChange(parseFloat(e.target.value))}
-            className="w-18 sm:w-22 h-1 bg-[#383A40] rounded-lg appearance-none cursor-pointer accent-[#E89B5B]"
+            className="w-18 sm:w-22 h-1 bg-[#282B32] rounded-lg appearance-none cursor-pointer accent-[#BFE7EA]"
           />
         </div>
       </div>

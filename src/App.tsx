@@ -163,7 +163,7 @@ export const App: React.FC = () => {
   };
 
   return (
-    <div className="h-screen w-full bg-[#1E1F22] text-[#F2F3F5] flex flex-col overflow-hidden font-sans select-none">
+    <div className="h-screen w-full bg-[#0B0C0E] text-white flex flex-col overflow-hidden font-sans select-none">
       {/* 1. Discord x Spotify Top Navigation Header */}
       <Navbar
         isBackendOnline={isBackendOnline}
@@ -179,7 +179,7 @@ export const App: React.FC = () => {
       />
 
       {/* 2. Main Workspace (Discord Server Rail + Channels + Grand Vinyl & Lyric Stage) */}
-      <main className="flex-1 flex overflow-hidden min-h-0 bg-[#1E1F22]">
+      <main className="flex-1 flex overflow-hidden min-h-0 bg-[#0B0C0E]">
         {/* Col 1: Discord Server Rail (72px) */}
         <DiscordServerRail
           activeAlbum={activeAlbum}

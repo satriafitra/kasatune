@@ -1,9 +1,9 @@
 /**
  * TrackListSidebar Component (Discord Channel & Queue Drawer)
- * Authentic Discord Channel navigation:
+ * Deep obsidian dark surfaces with vibrant Ice Blue (#BFE7EA) channel indicators:
  * - Server title with verified badge
  * - Channel list (# all-songs, # pablo-honey, etc.)
- * - Instant play track items
+ * - Instant play track items with glowing Ice Blue equalizer
  * - Discord User Voice Presence footer
  */
 
@@ -13,8 +13,6 @@ import {
   Volume2,
   Headphones,
   Mic,
-  Music2,
-  Sparkles,
   ChevronDown,
 } from 'lucide-react';
 import type { BackendRadioheadTrack } from '../api/backend';
@@ -37,7 +35,6 @@ export const TrackListSidebar: React.FC<TrackListSidebarProps> = ({
   isPlaying,
   searchFilter,
   activeAlbum,
-  onSelectAlbum,
 }) => {
   const filteredTracks = tracks.filter((t) => {
     const matchesAlbum = activeAlbum === 'all' || t.album.toLowerCase() === activeAlbum.toLowerCase();
@@ -52,25 +49,25 @@ export const TrackListSidebar: React.FC<TrackListSidebarProps> = ({
   });
 
   return (
-    <aside className="w-64 sm:w-72 h-full bg-[#2B2D31] border-r border-[#383A40]/60 flex flex-col overflow-hidden select-none flex-shrink-0">
+    <aside className="w-64 sm:w-72 h-full bg-[#111215] border-r border-[#282B32] flex flex-col overflow-hidden select-none flex-shrink-0">
       {/* Top Discord Server Title Header */}
-      <div className="h-12 px-4 flex items-center justify-between border-b border-[#1E1F22] hover:bg-[#35373C] transition-colors cursor-pointer shadow-sm">
+      <div className="h-12 px-4 flex items-center justify-between border-b border-[#282B32] bg-[#141619] hover:bg-[#1C1E22] transition-colors cursor-pointer shadow-sm">
         <div className="flex items-center gap-1.5 min-w-0">
-          <span className="font-extrabold text-sm text-[#F2F3F5] tracking-tight truncate">
+          <span className="font-extrabold text-sm text-white tracking-tight truncate">
             {activeAlbum === 'all' ? 'Radiohead Masters' : activeAlbum}
           </span>
-          <span className="w-3.5 h-3.5 rounded-full bg-[#BFE7EA] text-black text-[9px] font-black flex items-center justify-center flex-shrink-0">
+          <span className="w-4 h-4 rounded-full bg-[#BFE7EA] text-[#0B0C0E] text-[10px] font-black flex items-center justify-center flex-shrink-0 shadow-[0_0_8px_#BFE7EA]">
             ✓
           </span>
         </div>
-        <ChevronDown className="w-4 h-4 text-[#949BA4]" />
+        <ChevronDown className="w-4 h-4 text-[#A0A5AD]" />
       </div>
 
       {/* Channel Category Header */}
       <div className="px-3 pt-3 pb-1">
-        <div className="flex items-center justify-between text-[11px] font-bold uppercase tracking-wider text-[#949BA4] px-1">
+        <div className="flex items-center justify-between text-[10px] font-bold uppercase tracking-wider text-[#656A74] px-1">
           <span>Channels &amp; Tracks</span>
-          <span className="font-mono text-[10px] text-[#BFE7EA]">
+          <span className="font-mono text-[10px] text-[#BFE7EA] font-semibold">
             {filteredTracks.length} ready
           </span>
         </div>
@@ -79,7 +76,7 @@ export const TrackListSidebar: React.FC<TrackListSidebarProps> = ({
       {/* Track List as Discord Channels */}
       <div className="flex-1 overflow-y-auto px-2 py-1 space-y-0.5 custom-scrollbar">
         {filteredTracks.length === 0 ? (
-          <div className="p-6 text-center text-xs text-[#949BA4]">
+          <div className="p-6 text-center text-xs text-[#656A74]">
             No tracks found in this category
           </div>
         ) : (
@@ -92,19 +89,19 @@ export const TrackListSidebar: React.FC<TrackListSidebarProps> = ({
                 onClick={() => onSelectTrack(track)}
                 className={`group flex items-center justify-between gap-2.5 px-2.5 py-2 rounded-md cursor-pointer transition-all ${
                   isActive
-                    ? 'bg-[#35373C] text-[#F2F3F5] shadow-sm'
-                    : 'hover:bg-[#313338] text-[#949BA4] hover:text-[#DBDEE1]'
+                    ? 'bg-[#1C1E22] text-white border-l-2 border-[#BFE7EA] shadow-sm'
+                    : 'hover:bg-[#18191D] text-[#A0A5AD] hover:text-[#F2F3F5]'
                 }`}
               >
                 {/* Channel Icon or Equalizer */}
                 <div className="flex items-center gap-2.5 min-w-0">
                   <div className="flex-shrink-0 flex items-center justify-center">
                     {isActive && isPlaying ? (
-                      <Volume2 className="w-4 h-4 text-[#BFE7EA] animate-pulse" />
+                      <Volume2 className="w-4 h-4 text-[#BFE7EA] animate-pulse drop-shadow-[0_0_8px_#BFE7EA]" />
                     ) : (
                       <Hash
                         className={`w-4 h-4 transition-colors ${
-                          isActive ? 'text-[#E89B5B]' : 'text-[#80848E] group-hover:text-[#949BA4]'
+                          isActive ? 'text-[#BFE7EA]' : 'text-[#656A74] group-hover:text-[#A0A5AD]'
                         }`}
                       />
                     )}
@@ -113,12 +110,12 @@ export const TrackListSidebar: React.FC<TrackListSidebarProps> = ({
                   <div className="min-w-0 flex flex-col justify-center">
                     <p
                       className={`text-xs font-bold truncate leading-tight ${
-                        isActive ? 'text-[#FFEAD3]' : 'text-[#DBDEE1]'
+                        isActive ? 'text-[#BFE7EA]' : 'text-[#E0E2E5]'
                       }`}
                     >
                       {track.title}
                     </p>
-                    <p className="text-[10px] text-[#949BA4] truncate">
+                    <p className="text-[10px] text-[#656A74] truncate">
                       {track.album}
                     </p>
                   </div>
@@ -135,34 +132,34 @@ export const TrackListSidebar: React.FC<TrackListSidebarProps> = ({
       </div>
 
       {/* Discord User Presence Footer */}
-      <div className="h-14 px-3 bg-[#232428] border-t border-[#1E1F22] flex items-center justify-between flex-shrink-0">
+      <div className="h-14 px-3 bg-[#0B0C0E] border-t border-[#282B32] flex items-center justify-between flex-shrink-0">
         <div className="flex items-center gap-2 min-w-0">
           <div className="relative w-8 h-8 rounded-full bg-gradient-to-tr from-[#E89B5B] to-[#BFE7EA] flex items-center justify-center text-xs font-bold text-black flex-shrink-0">
             <span>RY</span>
             {/* Discord Online Green Dot */}
-            <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-[#23A55A] border-2 border-[#232428]" />
+            <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-[#23A55A] border-2 border-[#0B0C0E]" />
           </div>
 
           <div className="min-w-0 flex flex-col justify-center">
-            <span className="text-xs font-bold text-[#F2F3F5] truncate leading-tight">
+            <span className="text-xs font-bold text-white truncate leading-tight">
               Radiohead Fan
             </span>
-            <span className="text-[10px] text-[#949BA4] truncate leading-none pt-0.5">
+            <span className="text-[10px] text-[#BFE7EA] truncate leading-none pt-0.5 font-medium">
               Listening to Thom Yorke
             </span>
           </div>
         </div>
 
         {/* Discord Action Icons */}
-        <div className="flex items-center text-[#949BA4]">
+        <div className="flex items-center text-[#A0A5AD]">
           <button
-            className="p-1 hover:bg-[#35373C] hover:text-[#F2F3F5] rounded transition-colors"
+            className="p-1 hover:bg-[#1C1E22] hover:text-white rounded transition-colors"
             title="Microphone"
           >
             <Mic className="w-3.5 h-3.5" />
           </button>
           <button
-            className="p-1 hover:bg-[#35373C] hover:text-[#F2F3F5] rounded transition-colors"
+            className="p-1 hover:bg-[#1C1E22] hover:text-white rounded transition-colors"
             title="Headphones"
           >
             <Headphones className="w-3.5 h-3.5" />

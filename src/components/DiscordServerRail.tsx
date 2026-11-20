@@ -1,14 +1,14 @@
 /**
  * DiscordServerRail Component (Leftmost Discord Server Navigation Bar)
- * Authentic Discord Server Rail:
+ * Deep obsidian dark surfaces with vibrant Ice Blue (#BFE7EA) active indicators:
  * - Kasatune Home Server Pill
  * - Official Radiohead Album Icons with Squircle Morphing on hover/active
- * - Discord Left White Pill Indicator (expands on hover/active)
- * - Discord Tooltip on hover
+ * - Discord Pill Indicator in Ice Blue (#BFE7EA)
+ * - Discord Floating Tooltip on hover
  */
 
 import React, { useState } from 'react';
-import { Radio, Disc, Sparkles, Plus, Compass } from 'lucide-react';
+import { Radio, Disc, Sparkles } from 'lucide-react';
 
 export type AlbumFilterType = 'all' | 'Pablo Honey' | 'The Bends' | 'OK Computer';
 
@@ -62,7 +62,7 @@ export const DiscordServerRail: React.FC<DiscordServerRailProps> = ({
   const [hoveredId, setHoveredId] = useState<string | null>(null);
 
   return (
-    <nav className="w-[72px] h-full bg-[#1E1F22] border-r border-[#383A40]/60 flex flex-col items-center py-3 gap-2 flex-shrink-0 select-none z-30">
+    <nav className="w-[72px] h-full bg-[#0B0C0E] border-r border-[#282B32] flex flex-col items-center py-3 gap-2 flex-shrink-0 select-none z-30">
       {SERVERS.map((server, index) => {
         const isActive = activeAlbum === server.id;
         const isHovered = hoveredId === server.id;
@@ -71,7 +71,7 @@ export const DiscordServerRail: React.FC<DiscordServerRailProps> = ({
           <React.Fragment key={server.id}>
             {/* Divider after Kasatune Home Icon */}
             {index === 1 && (
-              <div className="w-8 h-[2px] bg-[#383A40]/80 rounded-full my-1" />
+              <div className="w-8 h-[2px] bg-[#282B32] rounded-full my-1" />
             )}
 
             <div
@@ -80,25 +80,25 @@ export const DiscordServerRail: React.FC<DiscordServerRailProps> = ({
               onMouseLeave={() => setHoveredId(null)}
               onClick={() => onSelectAlbum(server.id)}
             >
-              {/* Discord Pill Indicator (Left Edge) */}
+              {/* Discord Pill Indicator (Left Edge) in vibrant Ice Blue */}
               <div
-                className={`absolute left-0 w-1 bg-white rounded-r-full transition-all duration-200 ${
+                className={`absolute left-0 w-1 bg-[#BFE7EA] rounded-r-full transition-all duration-200 shadow-[0_0_8px_#BFE7EA] ${
                   isActive
-                    ? 'h-10 opacity-100 bg-[#FFEAD3]'
+                    ? 'h-10 opacity-100'
                     : isHovered
-                    ? 'h-5 opacity-100 bg-white/80'
+                    ? 'h-5 opacity-80'
                     : 'h-0 opacity-0'
                 }`}
               />
 
               {/* Server Squircle Icon */}
               <div
-                className={`relative w-12 h-12 flex items-center justify-center transition-all duration-200 overflow-hidden shadow-md ${
+                className={`relative w-12 h-12 flex items-center justify-center transition-all duration-200 overflow-hidden shadow-md border ${
                   isActive
-                    ? 'rounded-[16px] ring-2 ring-[#E89B5B] shadow-[0_0_12px_rgba(232,155,91,0.4)]'
+                    ? 'rounded-[16px] ring-2 ring-[#BFE7EA] border-transparent shadow-[0_0_14px_rgba(191,231,234,0.45)]'
                     : isHovered
-                    ? 'rounded-[16px] bg-[#35373C]'
-                    : 'rounded-[24px] bg-[#2B2D31]'
+                    ? 'rounded-[16px] bg-[#1C1E22] border-[#282B32]'
+                    : 'rounded-[24px] bg-[#141619] border-[#282B32]/70'
                 }`}
               >
                 {server.isHome ? (
@@ -113,14 +113,14 @@ export const DiscordServerRail: React.FC<DiscordServerRailProps> = ({
                     className="w-full h-full object-cover"
                   />
                 ) : (
-                  <Disc className="w-5 h-5 text-[#949BA4]" />
+                  <Disc className="w-5 h-5 text-[#A0A5AD]" />
                 )}
               </div>
 
               {/* Discord Floating Tooltip */}
               {isHovered && (
-                <div className="absolute left-[80px] bg-[#111214] border border-[#383A40] text-[#F2F3F5] text-xs font-bold px-3 py-1.5 rounded-md shadow-2xl whitespace-nowrap z-50 pointer-events-none animate-in fade-in zoom-in-95 duration-100 flex items-center gap-1.5">
-                  <span className="w-1.5 h-1.5 rounded-full bg-[#E89B5B]" />
+                <div className="absolute left-[80px] bg-[#111215] border border-[#282B32] text-white text-xs font-bold px-3 py-1.5 rounded-md shadow-2xl whitespace-nowrap z-50 pointer-events-none animate-in fade-in zoom-in-95 duration-100 flex items-center gap-1.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-[#BFE7EA]" />
                   <span>{server.name}</span>
                 </div>
               )}
@@ -129,7 +129,7 @@ export const DiscordServerRail: React.FC<DiscordServerRailProps> = ({
         );
       })}
 
-      <div className="w-8 h-[2px] bg-[#383A40]/80 rounded-full my-1" />
+      <div className="w-8 h-[2px] bg-[#282B32] rounded-full my-1" />
 
       {/* Reconnect / Sync Backend Bubble */}
       <div
@@ -139,16 +139,16 @@ export const DiscordServerRail: React.FC<DiscordServerRailProps> = ({
         onClick={onRefreshBackend}
       >
         <div
-          className={`w-12 h-12 rounded-[24px] group-hover:rounded-[16px] bg-[#2B2D31] group-hover:bg-[#23A55A] text-[#23A55A] group-hover:text-white flex items-center justify-center transition-all duration-200 shadow-md ${
-            isBackendOnline ? 'border border-[#383A40]' : 'border border-[#FEE75C] text-[#FEE75C]'
+          className={`w-12 h-12 rounded-[24px] group-hover:rounded-[16px] bg-[#141619] group-hover:bg-[#1C1E22] text-[#BFE7EA] flex items-center justify-center transition-all duration-200 shadow-md border ${
+            isBackendOnline ? 'border-[#282B32]' : 'border-[#FEE75C] text-[#FEE75C]'
           }`}
         >
           <Sparkles className="w-5 h-5" />
         </div>
 
         {hoveredId === 'sync' && (
-          <div className="absolute left-[80px] bg-[#111214] border border-[#383A40] text-[#F2F3F5] text-xs font-bold px-3 py-1.5 rounded-md shadow-2xl whitespace-nowrap z-50 pointer-events-none animate-in fade-in zoom-in-95 duration-100">
-            {isBackendOnline ? 'Go API Connected (Click to Refresh)' : 'Re-check Go Backend'}
+          <div className="absolute left-[80px] bg-[#111215] border border-[#282B32] text-white text-xs font-bold px-3 py-1.5 rounded-md shadow-2xl whitespace-nowrap z-50 pointer-events-none animate-in fade-in zoom-in-95 duration-100">
+            {isBackendOnline ? 'Go API Online (Click to Refresh)' : 'Re-check Go Backend'}
           </div>
         )}
       </div>
