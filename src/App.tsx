@@ -138,8 +138,11 @@ export const App: React.FC = () => {
     if (friendPlayback.track) {
       const friendTitle = friendPlayback.track.title.toLowerCase().replace(/！/g, '!').trim();
       const currentTitle = activeTrack.title.toLowerCase().replace(/！/g, '!').trim();
+      const isDifferentTrack =
+        (friendPlayback.track.id && activeTrack.id && friendPlayback.track.id !== activeTrack.id) ||
+        (!currentTitle.includes(friendTitle) && !friendTitle.includes(currentTitle));
 
-      if (!currentTitle.includes(friendTitle) && !friendTitle.includes(currentTitle)) {
+      if (isDifferentTrack) {
         const matched = tracks.find(
           (t) =>
             t.id === friendPlayback.track?.id ||

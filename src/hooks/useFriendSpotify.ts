@@ -7,6 +7,7 @@
  */
 
 import { useState, useEffect, useRef, useCallback } from 'react';
+import friendTracksData from '../data/friend_tracks.json';
 
 const API_BASE = 'http://localhost:8080';
 const DEFAULT_CLIENT_ID = '272c12f48c18494fb5ac490cd10a8b2b';
@@ -161,29 +162,58 @@ export function useFriendSpotify() {
     const processLanyardPayload = async (d: any) => {
       if (!isSubscribed) return;
 
-      if (d && d.listening_to_spotify && d.spotify) {
+      // Extract from raw Discord activity (most reliable & instant) or d.spotify
+      const act = d?.activities?.find((a: any) => a.name === 'Spotify' || a.id?.startsWith('spotify'));
+      const sp = d?.spotify;
+
+      if (act || (d && d.listening_to_spotify && sp)) {
         isUsingLanyardRef.current = true;
-        const sp = d.spotify;
-        const startMs = sp.timestamps?.start || Date.now();
-        const endMs = sp.timestamps?.end || startMs + 200000;
+        const songTitle = act ? act.details : sp.song;
+        const songArtist = act ? act.state : sp.artist;
+        const songAlbum = act ? (act.assets?.large_text || act.details) : sp.album;
+        const trackId = act ? (act.sync_id || 'live-track') : sp.track_id;
+
+        let coverUrl = sp?.album_art_url || '';
+        if (!coverUrl && act?.assets?.large_image) {
+          const raw = act.assets.large_image.replace('spotify:', '');
+          coverUrl = `https://i.scdn.co/image/${raw}`;
+        }
+
+        const timestamps = act?.timestamps || sp?.timestamps;
+        const startMs = timestamps?.start || Date.now();
+        const endMs = timestamps?.end || startMs + 200000;
         const durationMs = endMs - startMs;
         const currentProgressMs = Math.max(0, Math.min(durationMs, Date.now() - startMs));
 
-        const [previewUrl, syncedLyrics] = await Promise.all([
-          getPreviewAudio(sp.artist, sp.song),
-          getSyncedLyrics(sp.artist, sp.song),
-        ]);
+        const localMatch = (friendTracksData as any[]).find(
+          (t) =>
+            t.id === trackId ||
+            (songTitle && t.title.toLowerCase().includes(songTitle.toLowerCase())) ||
+            (songTitle && songTitle.toLowerCase().includes(t.title.toLowerCase()))
+        );
+
+        let previewUrl = localMatch?.previewUrl || '';
+        let syncedLyrics = localMatch?.syncedLyrics || '';
+
+        if (!previewUrl || !syncedLyrics) {
+          const [foundAudio, foundLyrics] = await Promise.all([
+            !previewUrl ? getPreviewAudio(songArtist, songTitle) : Promise.resolve(''),
+            !syncedLyrics ? getSyncedLyrics(songArtist, songTitle) : Promise.resolve(''),
+          ]);
+          if (foundAudio) previewUrl = foundAudio;
+          if (foundLyrics) syncedLyrics = foundLyrics;
+        }
 
         if (!isSubscribed) return;
 
         const friendTrack: FriendTrack = {
-          id: sp.track_id || `${sp.artist}-${sp.song}`,
-          title: sp.song,
-          artist: sp.artist,
-          album: sp.album,
-          coverUrl: sp.album_art_url,
+          id: trackId,
+          title: songTitle,
+          artist: songArtist,
+          album: songAlbum,
+          coverUrl: coverUrl,
           durationMs: durationMs,
-          spotifyUrl: `https://open.spotify.com/track/${sp.track_id}`,
+          spotifyUrl: `https://open.spotify.com/track/${trackId}`,
           previewUrl: previewUrl,
           syncedLyrics: syncedLyrics,
         };
@@ -193,7 +223,7 @@ export function useFriendSpotify() {
           isPlaying: true,
           progressMs: currentProgressMs,
           timestamp: Date.now(),
-          deviceName: 'Spotify (Discord Live)',
+          deviceName: 'Spotify on Desktop (Discord Live)',
           deviceType: 'Computer',
           friendName: d.discord_user?.global_name || d.discord_user?.username || 'deriana_',
           playlistName: 'Discord Live Session',
@@ -209,7 +239,7 @@ export function useFriendSpotify() {
         setLiveProgressMs(currentProgressMs);
         setError(null);
         setIsLoading(false);
-      } else if (d && !d.listening_to_spotify) {
+      } else {
         // Paused or not listening on Spotify
         setPlaybackState((prev) => (prev ? { ...prev, isPlaying: false } : null));
         isPlayingRef.current = false;
