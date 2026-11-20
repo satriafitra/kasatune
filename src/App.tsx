@@ -1,14 +1,16 @@
 /**
- * App Component (Spotify Desktop Web Application)
- * Seamless Spotify Desktop Experience:
- * - 100% synchronized lyrics & audio on track skip (instantaneous zero-offset reset)
- * - Full-length studio recordings (3-6 minutes per song)
- * - Rhythmic beat-matched audio visualizer & tempo metronome for active and idle states
- * - Fluid Spotify controls (Shuffle, SkipBack, Play/Pause, SkipForward, Repeat)
+ * App Component (Kasatune: Discord x Spotify Hybrid Architecture)
+ * Unique, compelling layout architecture:
+ * - Leftmost Discord Server Rail (Official album icons with squircle morphing & pill markers)
+ * - Discord Channel Drawer (Category channels & instant-play tracks)
+ * - Grand Vinyl Studio Stage (Spinning collector's vinyl disc, album metadata & discography table)
+ * - High-Impact Kinetic Lyrics Theater (Apple Music / Spotify Sing full-height synced lyrics)
+ * - Persistent Bottom Dock with Kasatune Warm Sunset Palette (#FFEAD3, #BFE7EA, #E89B5B, #D46743)
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { Navbar } from './components/Navbar';
+import { DiscordServerRail, type AlbumFilterType } from './components/DiscordServerRail';
 import { TrackListSidebar } from './components/TrackListSidebar';
 import { AlbumShowcase } from './components/AlbumShowcase';
 import { DynamicLyrics } from './components/DynamicLyrics';
@@ -22,6 +24,7 @@ import type { BackendRadioheadTrack } from './api/backend';
 export const App: React.FC = () => {
   const [showLyrics, setShowLyrics] = useState(true);
   const [searchFilter, setSearchFilter] = useState('');
+  const [activeAlbum, setActiveAlbum] = useState<AlbumFilterType>('all');
 
   // 1. Spotify PKCE Auth
   const {
@@ -175,46 +178,59 @@ export const App: React.FC = () => {
         onSearchChange={setSearchFilter}
       />
 
-      {/* 2. Main Workspace (Discord Surfaces + Spotify Panels) */}
-      <main className="flex-1 px-2 pb-2 pt-2 gap-2 flex overflow-hidden min-h-0 bg-[#1E1F22]">
-        {/* Left: Your Library Sidebar */}
-        <div className="w-72 sm:w-80 h-full flex-shrink-0 hidden md:block">
+      {/* 2. Main Workspace (Discord Server Rail + Channels + Grand Vinyl & Lyric Stage) */}
+      <main className="flex-1 flex overflow-hidden min-h-0 bg-[#1E1F22]">
+        {/* Col 1: Discord Server Rail (72px) */}
+        <DiscordServerRail
+          activeAlbum={activeAlbum}
+          onSelectAlbum={setActiveAlbum}
+          onRefreshBackend={refetchTracks}
+          isBackendOnline={isBackendOnline}
+        />
+
+        {/* Col 2: Discord Channel & Queue Drawer (260px hidden on mobile) */}
+        <div className="h-full flex-shrink-0 hidden md:block">
           <TrackListSidebar
             tracks={tracks}
             activeTrackId={activeTrack.id}
             onSelectTrack={handleSelectTrack}
             isPlaying={isPlaying}
             searchFilter={searchFilter}
+            activeAlbum={activeAlbum}
+            onSelectAlbum={setActiveAlbum}
           />
         </div>
 
-        {/* Center: Main Now Playing Stage & Tracklist */}
-        <div className="flex-1 h-full min-w-0">
-          <AlbumShowcase
-            track={activeTrack}
-            tracks={tracks}
-            activeTrackId={activeTrack.id}
-            colors={albumColors}
-            isPlaying={isPlaying}
-            onTogglePlay={togglePlay}
-            onSelectTrack={handleSelectTrack}
-          />
-        </div>
-
-        {/* Right: Lyrics Tab Drawer (Collapsible) */}
-        {showLyrics && (
-          <div className="w-80 lg:w-96 h-full flex-shrink-0 hidden xl:block animate-in fade-in duration-300">
-            <DynamicLyrics
-              lyrics={lyrics}
-              plainLyrics={plainLyrics}
-              currentProgressMs={audioCurrentTimeSec * 1000}
+        {/* Col 3 & 4: Grand Vinyl Studio & Live Lyric Stage */}
+        <div className="flex-1 h-full min-w-0 p-2 gap-2 flex overflow-hidden">
+          {/* Main Album Vinyl & Discography Stage */}
+          <div className="flex-1 h-full min-w-0">
+            <AlbumShowcase
+              track={activeTrack}
+              tracks={tracks}
+              activeTrackId={activeTrack.id}
               colors={albumColors}
-              isLoading={isLoadingSong}
-              onSeek={handleSeekFromLyrics}
-              trackTitle={activeTrack.title}
+              isPlaying={isPlaying}
+              onTogglePlay={togglePlay}
+              onSelectTrack={handleSelectTrack}
             />
           </div>
-        )}
+
+          {/* Live Lyrics Theater (Collapsible or Full-Height) */}
+          {showLyrics && (
+            <div className="w-[320px] lg:w-[380px] xl:w-[440px] 2xl:w-[480px] h-full flex-shrink-0 hidden lg:block animate-in fade-in duration-300">
+              <DynamicLyrics
+                lyrics={lyrics}
+                plainLyrics={plainLyrics}
+                currentProgressMs={audioCurrentTimeSec * 1000}
+                colors={albumColors}
+                isLoading={isLoadingSong}
+                onSeek={handleSeekFromLyrics}
+                trackTitle={activeTrack.title}
+              />
+            </div>
+          )}
+        </div>
       </main>
 
       {/* 3. Official Spotify Playback Dock */}

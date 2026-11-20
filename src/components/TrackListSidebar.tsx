@@ -1,23 +1,24 @@
 /**
- * TrackListSidebar Component (Discord Channel & Spotify Library Hybrid)
- * Authentic Discord navigation integrated with Spotify library:
- * - Channel-style navigation (# 🎵 radiohead-tracks)
- * - Custom Kasatune palette accents (#FFEAD3, #BFE7EA, #E89B5B, #D46743)
- * - Discord User Presence Bar at bottom (Radiohead Listener with online dot)
+ * TrackListSidebar Component (Discord Channel & Queue Drawer)
+ * Authentic Discord Channel navigation:
+ * - Server title with verified badge
+ * - Channel list (# all-songs, # pablo-honey, etc.)
+ * - Instant play track items
+ * - Discord User Voice Presence footer
  */
 
-import React, { useState } from 'react';
+import React from 'react';
 import {
-  Library,
-  Volume2,
-  Search,
   Hash,
+  Volume2,
   Headphones,
   Mic,
-  Settings,
-  Disc3,
+  Music2,
+  Sparkles,
+  ChevronDown,
 } from 'lucide-react';
 import type { BackendRadioheadTrack } from '../api/backend';
+import type { AlbumFilterType } from './DiscordServerRail';
 
 interface TrackListSidebarProps {
   tracks: BackendRadioheadTrack[];
@@ -25,6 +26,8 @@ interface TrackListSidebarProps {
   onSelectTrack: (track: BackendRadioheadTrack) => void;
   isPlaying: boolean;
   searchFilter: string;
+  activeAlbum: AlbumFilterType;
+  onSelectAlbum: (album: AlbumFilterType) => void;
 }
 
 export const TrackListSidebar: React.FC<TrackListSidebarProps> = ({
@@ -33,10 +36,11 @@ export const TrackListSidebar: React.FC<TrackListSidebarProps> = ({
   onSelectTrack,
   isPlaying,
   searchFilter,
+  activeAlbum,
+  onSelectAlbum,
 }) => {
-  const [activeFilter, setActiveFilter] = useState<'all' | 'albums' | 'songs'>('all');
-
   const filteredTracks = tracks.filter((t) => {
+    const matchesAlbum = activeAlbum === 'all' || t.album.toLowerCase() === activeAlbum.toLowerCase();
     const q = searchFilter.toLowerCase();
     const matchesSearch =
       !q ||
@@ -44,55 +48,39 @@ export const TrackListSidebar: React.FC<TrackListSidebarProps> = ({
       t.album.toLowerCase().includes(q) ||
       t.mood.toLowerCase().includes(q);
 
-    return matchesSearch;
+    return matchesAlbum && matchesSearch;
   });
 
   return (
-    <aside className="w-full h-full bg-[#2B2D31] rounded-lg border border-[#383A40]/60 flex flex-col overflow-hidden select-none shadow-sm">
-      {/* Top Discord Channel Header */}
-      <div className="p-3.5 pb-2 flex flex-col gap-2.5 border-b border-[#383A40]/40">
-        <div className="flex items-center justify-between text-[#949BA4] hover:text-[#F2F3F5] transition-colors cursor-pointer">
-          <div className="flex items-center gap-2">
-            <Hash className="w-5 h-5 text-[#E89B5B]" />
-            <span className="font-extrabold text-sm tracking-tight text-[#F2F3F5]">
-              radiohead-library
-            </span>
-          </div>
-          <span className="text-[11px] font-semibold px-2 py-0.5 rounded-md bg-[#1E1F22] text-[#BFE7EA] border border-[#383A40]">
-            {tracks.length} songs
+    <aside className="w-64 sm:w-72 h-full bg-[#2B2D31] border-r border-[#383A40]/60 flex flex-col overflow-hidden select-none flex-shrink-0">
+      {/* Top Discord Server Title Header */}
+      <div className="h-12 px-4 flex items-center justify-between border-b border-[#1E1F22] hover:bg-[#35373C] transition-colors cursor-pointer shadow-sm">
+        <div className="flex items-center gap-1.5 min-w-0">
+          <span className="font-extrabold text-sm text-[#F2F3F5] tracking-tight truncate">
+            {activeAlbum === 'all' ? 'Radiohead Masters' : activeAlbum}
+          </span>
+          <span className="w-3.5 h-3.5 rounded-full bg-[#BFE7EA] text-black text-[9px] font-black flex items-center justify-center flex-shrink-0">
+            ✓
           </span>
         </div>
+        <ChevronDown className="w-4 h-4 text-[#949BA4]" />
+      </div>
 
-        {/* Filter Pills */}
-        <div className="flex items-center gap-1.5 pt-0.5">
-          <button
-            onClick={() => setActiveFilter('all')}
-            className={`px-2.5 py-1 rounded-md text-xs font-semibold transition-all ${
-              activeFilter === 'all'
-                ? 'bg-gradient-to-r from-[#E89B5B] to-[#D46743] text-white shadow-sm'
-                : 'bg-[#1E1F22] text-[#949BA4] hover:bg-[#35373C] hover:text-[#F2F3F5]'
-            }`}
-          >
-            All Tracks
-          </button>
-          <button
-            onClick={() => setActiveFilter('songs')}
-            className={`px-2.5 py-1 rounded-md text-xs font-semibold transition-all ${
-              activeFilter === 'songs'
-                ? 'bg-gradient-to-r from-[#E89B5B] to-[#D46743] text-white shadow-sm'
-                : 'bg-[#1E1F22] text-[#949BA4] hover:bg-[#35373C] hover:text-[#F2F3F5]'
-            }`}
-          >
-            Studio Masters
-          </button>
+      {/* Channel Category Header */}
+      <div className="px-3 pt-3 pb-1">
+        <div className="flex items-center justify-between text-[11px] font-bold uppercase tracking-wider text-[#949BA4] px-1">
+          <span>Channels &amp; Tracks</span>
+          <span className="font-mono text-[10px] text-[#BFE7EA]">
+            {filteredTracks.length} ready
+          </span>
         </div>
       </div>
 
-      {/* Track List */}
-      <div className="flex-1 overflow-y-auto px-2 py-2 space-y-1 custom-scrollbar">
+      {/* Track List as Discord Channels */}
+      <div className="flex-1 overflow-y-auto px-2 py-1 space-y-0.5 custom-scrollbar">
         {filteredTracks.length === 0 ? (
           <div className="p-6 text-center text-xs text-[#949BA4]">
-            No Radiohead tracks found
+            No tracks found in this category
           </div>
         ) : (
           filteredTracks.map((track) => {
@@ -102,47 +90,43 @@ export const TrackListSidebar: React.FC<TrackListSidebarProps> = ({
               <div
                 key={track.id}
                 onClick={() => onSelectTrack(track)}
-                className={`group flex items-center justify-between gap-3 p-2 rounded-md cursor-pointer transition-all ${
+                className={`group flex items-center justify-between gap-2.5 px-2.5 py-2 rounded-md cursor-pointer transition-all ${
                   isActive
-                    ? 'bg-[#35373C] border-l-2 border-[#E89B5B] shadow-sm'
-                    : 'hover:bg-[#313338] text-[#949BA4]'
+                    ? 'bg-[#35373C] text-[#F2F3F5] shadow-sm'
+                    : 'hover:bg-[#313338] text-[#949BA4] hover:text-[#DBDEE1]'
                 }`}
               >
-                {/* Artwork & Info */}
+                {/* Channel Icon or Equalizer */}
                 <div className="flex items-center gap-2.5 min-w-0">
-                  <div className="relative w-10 h-10 rounded-md overflow-hidden bg-[#1E1F22] flex-shrink-0 border border-[#383A40]/50">
-                    <img
-                      src={track.coverUrl}
-                      alt={track.title}
-                      crossOrigin="anonymous"
-                      className="w-full h-full object-cover"
-                    />
-                    {isActive && isPlaying && (
-                      <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
-                        <Volume2 className="w-4 h-4 text-[#BFE7EA] animate-pulse" />
-                      </div>
+                  <div className="flex-shrink-0 flex items-center justify-center">
+                    {isActive && isPlaying ? (
+                      <Volume2 className="w-4 h-4 text-[#BFE7EA] animate-pulse" />
+                    ) : (
+                      <Hash
+                        className={`w-4 h-4 transition-colors ${
+                          isActive ? 'text-[#E89B5B]' : 'text-[#80848E] group-hover:text-[#949BA4]'
+                        }`}
+                      />
                     )}
                   </div>
 
                   <div className="min-w-0 flex flex-col justify-center">
                     <p
                       className={`text-xs font-bold truncate leading-tight ${
-                        isActive ? 'text-[#FFEAD3]' : 'text-[#F2F3F5]'
+                        isActive ? 'text-[#FFEAD3]' : 'text-[#DBDEE1]'
                       }`}
                     >
                       {track.title}
                     </p>
-                    <p className="text-[11px] text-[#949BA4] truncate pt-0.5">
-                      {track.album} &bull; {track.year}
+                    <p className="text-[10px] text-[#949BA4] truncate">
+                      {track.album}
                     </p>
                   </div>
                 </div>
 
-                {/* Right Status */}
+                {/* Right Disc Indicator */}
                 {isActive && (
-                  <div className="flex-shrink-0 pr-1">
-                    <span className="w-2 h-2 rounded-full bg-[#BFE7EA] block shadow-[0_0_8px_#BFE7EA]" />
-                  </div>
+                  <span className="w-2 h-2 rounded-full bg-[#BFE7EA] shadow-[0_0_8px_#BFE7EA] flex-shrink-0" />
                 )}
               </div>
             );
@@ -151,7 +135,7 @@ export const TrackListSidebar: React.FC<TrackListSidebarProps> = ({
       </div>
 
       {/* Discord User Presence Footer */}
-      <div className="p-2.5 bg-[#232428] border-t border-[#383A40]/60 flex items-center justify-between">
+      <div className="h-14 px-3 bg-[#232428] border-t border-[#1E1F22] flex items-center justify-between flex-shrink-0">
         <div className="flex items-center gap-2 min-w-0">
           <div className="relative w-8 h-8 rounded-full bg-gradient-to-tr from-[#E89B5B] to-[#BFE7EA] flex items-center justify-center text-xs font-bold text-black flex-shrink-0">
             <span>RY</span>
@@ -171,10 +155,16 @@ export const TrackListSidebar: React.FC<TrackListSidebarProps> = ({
 
         {/* Discord Action Icons */}
         <div className="flex items-center text-[#949BA4]">
-          <button className="p-1 hover:bg-[#35373C] hover:text-[#F2F3F5] rounded transition-colors" title="Microphone">
+          <button
+            className="p-1 hover:bg-[#35373C] hover:text-[#F2F3F5] rounded transition-colors"
+            title="Microphone"
+          >
             <Mic className="w-3.5 h-3.5" />
           </button>
-          <button className="p-1 hover:bg-[#35373C] hover:text-[#F2F3F5] rounded transition-colors" title="Headphones">
+          <button
+            className="p-1 hover:bg-[#35373C] hover:text-[#F2F3F5] rounded transition-colors"
+            title="Headphones"
+          >
             <Headphones className="w-3.5 h-3.5" />
           </button>
         </div>
