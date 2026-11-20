@@ -212,12 +212,14 @@ export const AlbumShowcase: React.FC<AlbumShowcaseProps> = ({
 
                 {/* Title + Thumbnail + Artist */}
                 <div className="flex items-center gap-3 min-w-0">
-                  <img
-                    src={t.coverUrl}
-                    alt={t.title}
-                    crossOrigin="anonymous"
-                    className="w-9 h-9 rounded-md object-cover flex-shrink-0 bg-[#1E1F22] border border-[#383A40]/50"
-                  />
+                  <div className="w-10 h-10 min-w-[40px] min-h-[40px] max-w-[40px] max-h-[40px] rounded-md overflow-hidden flex-shrink-0 bg-[#1E1F22] border border-[#383A40]/50">
+                    <img
+                      src={t.coverUrl}
+                      alt={t.title}
+                      crossOrigin="anonymous"
+                      className="w-full h-full object-cover block"
+                    />
+                  </div>
                   <div className="flex flex-col min-w-0">
                     <span
                       className={`font-bold truncate text-xs leading-tight ${

@@ -90,12 +90,14 @@ export const PlayerBar: React.FC<PlayerBarProps> = ({
       {/* Left: Now Playing Widget */}
       <div className="flex items-center gap-3 min-w-[180px] max-w-[280px]">
         {albumImageUrl && (
-          <img
-            src={albumImageUrl}
-            alt={trackTitle}
-            crossOrigin="anonymous"
-            className="w-13 h-13 rounded-md object-cover shadow-md flex-shrink-0 bg-[#2B2D31] border border-[#383A40]/50"
-          />
+          <div className="w-14 h-14 min-w-[56px] min-h-[56px] max-w-[56px] max-h-[56px] rounded-md overflow-hidden flex-shrink-0 bg-[#2B2D31] border border-[#383A40]/60 shadow-md">
+            <img
+              src={albumImageUrl}
+              alt={trackTitle}
+              crossOrigin="anonymous"
+              className="w-full h-full object-cover block"
+            />
+          </div>
         )}
         <div className="min-w-0 flex flex-col justify-center">
           <span className="text-xs sm:text-sm font-bold text-[#F2F3F5] truncate hover:text-[#FFEAD3] cursor-pointer">
