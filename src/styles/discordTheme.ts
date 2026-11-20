@@ -1,31 +1,49 @@
 /**
- * Discord Dark Theme Color Palette & Design Tokens
- * Spec-accurate colors matching the official Discord Dark Mode UI
+ * Discord & Kasatune Color Palette & Design Tokens
+ * Harmonious blend of Discord Dark Theme surfaces with the custom Kasatune 4-Color Palette:
+ * - Cream (#FFEAD3)
+ * - Ice Blue (#BFE7EA)
+ * - Warm Ochre (#E89B5B)
+ * - Deep Rust (#D46743)
  */
 
-export const DISCORD_THEME = {
-  // Backgrounds & Surfaces
-  base: '#1E1F22',      // Darkest main background
-  card: '#2B2D31',      // Card / container surface
-  elevated: '#313338',  // Elevated / hover / interactive surface
+export const KASATUNE_PALETTE = {
+  // Custom Palette from user specification
+  cream: '#FFEAD3',     // Stripe 1: Warm Peach Cream (Lyrics active highlight & Drop shadows)
+  ice: '#BFE7EA',       // Stripe 2: Pastel Cyan / Ice Blue (Active indicators, hover scrubber, accents)
+  ochre: '#E89B5B',     // Stripe 3: Warm Terracotta / Amber Ochre (Buttons, prominent badges)
+  rust: '#D46743',      // Stripe 4: Deep Rust / Burnt Sienna (Ambient header gradient & warm shadows)
 
-  // Brand Accents
-  blurple: '#5865F2',        // Discord Blurple primary accent
-  blurpleHover: '#4752C4',   // Blurple hover state
-  green: '#57F287',          // Active/Online indicator
-  red: '#ED4245',            // Error / Disconnect indicator
-  yellow: '#FEE75C',         // Warning / Idle indicator
+  // Discord Official Dark Mode Surfaces
+  discordDarkest: '#1E1F22',  // App base backdrop
+  discordPanel: '#2B2D31',    // Main container & cards
+  discordElevated: '#313338', // Elevated cards & hover items
+  discordHover: '#35373C',    // Active selection & hover rows
+  discordCard: '#232428',     // Sidebar deep background
+  discordBorder: '#383A40',   // Subtle divider lines
+  discordBlurple: '#5865F2',  // Discord brand accent
+  discordGreen: '#23A55A',    // Discord online status green
 
   // Typography
-  textPrimary: '#F2F3F5',    // Pure white for song titles & active lyrics
-  textSecondary: '#B5BAC1',  // Light grey for artist names & metadata
-  textMuted: '#80848E',      // Muted grey for inactive lyrics & duration
-
-  // Borders & Dividers
-  border: '#3F4147',         // Subtle container border & divider
+  textPrimary: '#F2F3F5',     // Crisp white
+  textSecondary: '#949BA4',   // Discord muted gray
+  textMuted: '#6D737F',       // Inactive subtitles & timestamps
 } as const;
 
-export type DiscordThemeColor = keyof typeof DISCORD_THEME;
+export const DISCORD_THEME = {
+  base: KASATUNE_PALETTE.discordDarkest,
+  card: KASATUNE_PALETTE.discordPanel,
+  elevated: KASATUNE_PALETTE.discordElevated,
+  blurple: KASATUNE_PALETTE.discordBlurple,
+  blurpleHover: '#4752C4',
+  green: KASATUNE_PALETTE.discordGreen,
+  red: '#ED4245',
+  yellow: '#FEE75C',
+  textPrimary: KASATUNE_PALETTE.textPrimary,
+  textSecondary: KASATUNE_PALETTE.textSecondary,
+  textMuted: KASATUNE_PALETTE.textMuted,
+  border: KASATUNE_PALETTE.discordBorder,
+} as const;
 
 /**
  * Helper to convert hex to RGB values

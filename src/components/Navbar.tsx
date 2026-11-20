@@ -1,10 +1,23 @@
 /**
- * Navbar Component (Spotify Desktop Top Bar)
- * Seamless top navigation with history arrows, search input, Go backend status pill, and controls.
+ * Navbar Component (Discord x Spotify Top Bar)
+ * Authentic Discord Dark Mode header with Kasatune retro-modern sunset palette:
+ * - Kasatune brand pill with Ochre/Rust gradient
+ * - Discord-style channel navigation & search bar with Ctrl+K shortcut hint
+ * - Go backend health status badge & settings modal
  */
 
 import React, { useState } from 'react';
-import { ChevronLeft, ChevronRight, Search, Settings, RefreshCw, CheckCircle2, Radio } from 'lucide-react';
+import {
+  ChevronLeft,
+  ChevronRight,
+  Search,
+  Settings,
+  RefreshCw,
+  Radio,
+  Hash,
+  Activity,
+  CheckCircle2,
+} from 'lucide-react';
 
 interface NavbarProps {
   isBackendOnline: boolean;
@@ -43,156 +56,146 @@ export const Navbar: React.FC<NavbarProps> = ({
   const currentRedirectUri = window.location.origin + window.location.pathname;
 
   return (
-    <header className="h-14 w-full bg-[#000000] px-4 flex items-center justify-between gap-4 select-none z-30">
-      {/* Left: Spotify History Arrows & Brand */}
+    <header className="h-14 w-full bg-[#1E1F22] border-b border-[#383A40]/80 px-4 flex items-center justify-between gap-4 select-none z-30">
+      {/* Left: Spotify History Arrows & Discord Brand */}
       <div className="flex items-center gap-3">
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-1">
           <button
-            className="w-8 h-8 rounded-full bg-[#0A0A0A] text-[#B3B3B3] hover:text-white flex items-center justify-center transition-colors"
+            className="w-7 h-7 rounded-md bg-[#2B2D31] hover:bg-[#35373C] text-[#949BA4] hover:text-[#F2F3F5] flex items-center justify-center transition-colors"
             title="Back"
           >
-            <ChevronLeft className="w-5 h-5" />
+            <ChevronLeft className="w-4 h-4" />
           </button>
           <button
-            className="w-8 h-8 rounded-full bg-[#0A0A0A] text-[#B3B3B3] hover:text-white flex items-center justify-center transition-colors"
+            className="w-7 h-7 rounded-md bg-[#2B2D31] hover:bg-[#35373C] text-[#949BA4] hover:text-[#F2F3F5] flex items-center justify-center transition-colors"
             title="Forward"
           >
-            <ChevronRight className="w-5 h-5" />
+            <ChevronRight className="w-4 h-4" />
           </button>
         </div>
 
         {/* Brand Pill */}
         <div className="flex items-center gap-2 pl-2">
-          <div className="w-7 h-7 rounded-full bg-[#1DB954] flex items-center justify-center text-black font-black">
-            <Radio className="w-4 h-4 fill-black stroke-black" />
+          <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-[#E89B5B] to-[#D46743] flex items-center justify-center text-white shadow-[0_2px_10px_rgba(212,103,67,0.4)]">
+            <Radio className="w-4 h-4 stroke-[2.5]" />
           </div>
-          <span className="font-extrabold text-sm text-white tracking-tight hidden sm:inline">
-            Webtify
+          <span className="font-extrabold text-sm text-[#F2F3F5] tracking-tight">
+            Kasatune
           </span>
-          <span className="text-[10px] font-bold text-[#1DB954] uppercase tracking-wider bg-[#1f1f1f] px-2 py-0.5 rounded-full hidden md:inline">
-            Radiohead
-          </span>
+
+          <div className="hidden sm:flex items-center gap-1 text-[11px] font-semibold text-[#BFE7EA] bg-[#2B2D31] border border-[#383A40] px-2 py-0.5 rounded-md">
+            <Hash className="w-3 h-3 text-[#E89B5B]" />
+            <span>radiohead</span>
+          </div>
         </div>
       </div>
 
-      {/* Center: Spotify Search Bar */}
+      {/* Center: Discord-style Search Bar */}
       <div className="flex-1 max-w-md relative">
         <div className="relative flex items-center">
-          <Search className="w-4 h-4 absolute left-3 text-[#B3B3B3]" />
+          <Search className="w-4 h-4 absolute left-3 text-[#949BA4]" />
           <input
             type="text"
             value={searchQuery}
             onChange={(e) => onSearchChange(e.target.value)}
-            placeholder="What Radiohead song do you want to play?"
-            className="w-full h-10 pl-10 pr-4 rounded-full bg-[#1F1F1F] hover:bg-[#282828] focus:bg-[#282828] text-xs text-white placeholder-[#B3B3B3] focus:outline-none focus:ring-2 focus:ring-white transition-all"
+            placeholder="Search Radiohead songs, albums..."
+            className="w-full h-8 pl-9 pr-14 rounded-md bg-[#2B2D31] hover:bg-[#313338] focus:bg-[#313338] border border-[#383A40]/70 focus:border-[#BFE7EA] text-xs text-[#F2F3F5] placeholder-[#949BA4] focus:outline-none transition-all"
           />
+          <kbd className="hidden sm:inline-block absolute right-2.5 px-1.5 py-0.5 text-[10px] font-mono text-[#949BA4] bg-[#1E1F22] border border-[#383A40] rounded shadow-sm">
+            Ctrl+K
+          </kbd>
         </div>
       </div>
 
       {/* Right: Go Backend Status & Account Controls */}
       <div className="flex items-center gap-2.5">
         {/* Backend Status Pill */}
-        <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#1F1F1F] text-xs">
+        <div
+          className="flex items-center gap-2 px-2.5 py-1 rounded-md bg-[#2B2D31] border border-[#383A40] text-xs cursor-pointer hover:bg-[#35373C] transition-colors"
+          title="Click to re-ping Go Backend"
+          onClick={onRefreshBackend}
+        >
           <span
             className={`w-2 h-2 rounded-full ${
-              isBackendOnline ? 'bg-[#1DB954] shadow-[0_0_8px_#1DB954]' : 'bg-[#FEE75C]'
+              isBackendOnline
+                ? 'bg-[#23A55A] shadow-[0_0_8px_#23A55A]'
+                : 'bg-[#FEE75C] shadow-[0_0_8px_#FEE75C]'
             }`}
           />
-          <span className="text-[#B3B3B3] font-semibold text-[11px] hidden sm:inline">
-            {isBackendOnline ? 'Go API :8080' : 'Offline Mode'}
+          <span className="font-semibold text-[11px] text-[#F2F3F5] hidden sm:inline">
+            {isBackendOnline ? 'Go API Online' : 'Connecting'}
           </span>
+          <RefreshCw
+            className={`w-3 h-3 text-[#949BA4] ${isLoading ? 'animate-spin text-[#BFE7EA]' : ''}`}
+          />
         </div>
 
-        {/* Sync/Scrape Button */}
-        <button
-          onClick={onRefreshBackend}
-          disabled={isLoading}
-          className="p-2 rounded-full bg-[#1F1F1F] hover:bg-[#282828] text-[#B3B3B3] hover:text-white transition-colors"
-          title="Sync latest tracks from Go Backend"
-        >
-          <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin text-[#1DB954]' : ''}`} />
-        </button>
-
-        {/* Settings Button */}
-        <button
-          onClick={() => setIsSettingsOpen(true)}
-          className="p-2 rounded-full bg-[#1F1F1F] hover:bg-[#282828] text-[#B3B3B3] hover:text-white transition-colors"
-          title="Spotify Settings"
-        >
-          <Settings className="w-3.5 h-3.5" />
-        </button>
-
-        {/* Spotify Connect / Logout Button */}
+        {/* Spotify Connect / Settings Button */}
         {isAuthenticated ? (
           <button
             onClick={onLogout}
-            className="px-3.5 py-1.5 rounded-full bg-[#1F1F1F] hover:bg-[#282828] text-xs font-bold text-white transition-all"
+            className="px-3 py-1 rounded-md bg-[#313338] hover:bg-[#ED4245] text-[#F2F3F5] text-xs font-semibold transition-colors"
           >
-            Logout
+            Disconnect
           </button>
         ) : (
           <button
-            onClick={onLogin}
-            className="px-4 py-1.5 rounded-full bg-white hover:scale-105 active:scale-95 text-black text-xs font-bold transition-all shadow-md"
+            onClick={() => setIsSettingsOpen(true)}
+            className="px-3 py-1 rounded-md bg-[#5865F2] hover:bg-[#4752C4] text-white text-xs font-semibold shadow-sm transition-colors flex items-center gap-1.5"
           >
-            Log in
+            <Settings className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">Settings</span>
           </button>
         )}
       </div>
 
-      {/* Settings Modal */}
+      {/* Settings Modal (Discord Style) */}
       {isSettingsOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-150">
-          <div className="w-full max-w-md bg-[#242424] rounded-2xl shadow-2xl p-6 text-white border border-[#333]">
-            <div className="flex items-center justify-between pb-3 border-b border-[#333]">
-              <h3 className="font-bold text-sm">Spotify Settings</h3>
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-[#2B2D31] border border-[#383A40] rounded-lg max-w-md w-full p-6 space-y-4 shadow-2xl animate-in fade-in zoom-in-95 duration-150">
+            <div className="flex items-center justify-between border-b border-[#383A40] pb-3">
+              <h3 className="font-bold text-base text-[#F2F3F5]">Kasatune Settings</h3>
               <button
                 onClick={() => setIsSettingsOpen(false)}
-                className="text-[#B3B3B3] hover:text-white text-lg font-bold"
+                className="text-[#949BA4] hover:text-white text-sm"
               >
                 &times;
               </button>
             </div>
 
-            <form onSubmit={handleSaveSettings} className="space-y-4 pt-4">
+            <form onSubmit={handleSaveSettings} className="space-y-4 text-xs">
               <div>
-                <label className="block text-xs font-semibold uppercase tracking-wider text-[#B3B3B3] mb-1.5">
-                  Spotify Client ID (Optional)
+                <label className="block text-[#949BA4] uppercase font-bold text-[11px] mb-1.5">
+                  Spotify Client ID (Optional for Live Remote Polling)
                 </label>
                 <input
                   type="text"
                   value={tempClientId}
                   onChange={(e) => setTempClientId(e.target.value)}
-                  placeholder="Paste your Spotify Client ID..."
-                  className="w-full px-3.5 py-2.5 rounded-lg bg-[#121212] border border-[#333] text-xs text-white focus:outline-none focus:border-[#1DB954]"
+                  placeholder="Paste Spotify Client ID..."
+                  className="w-full p-2.5 rounded-md bg-[#1E1F22] border border-[#383A40] text-[#F2F3F5] focus:outline-none focus:border-[#BFE7EA]"
                 />
               </div>
 
-              <div>
-                <label className="block text-xs font-semibold uppercase tracking-wider text-[#B3B3B3] mb-1.5">
-                  Redirect URI
-                </label>
-                <input
-                  type="text"
-                  readOnly
-                  value={currentRedirectUri}
-                  className="w-full px-3.5 py-2 rounded-lg bg-[#121212] border border-[#333] text-xs text-[#B3B3B3] font-mono select-all"
-                />
+              <div className="bg-[#1E1F22] p-3 rounded-md border border-[#383A40] space-y-1 text-[#949BA4]">
+                <p className="font-semibold text-[#F2F3F5]">Redirect URI:</p>
+                <code className="text-[11px] text-[#BFE7EA] block select-all break-all">
+                  {currentRedirectUri}
+                </code>
               </div>
 
-              <div className="pt-2 flex items-center justify-end gap-2">
+              <div className="flex justify-end gap-2 pt-2">
                 <button
                   type="button"
                   onClick={() => setIsSettingsOpen(false)}
-                  className="px-4 py-2 rounded-full bg-[#1F1F1F] hover:bg-[#282828] text-xs font-bold text-[#B3B3B3]"
+                  className="px-3 py-1.5 rounded-md text-[#F2F3F5] hover:underline"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 rounded-full bg-[#1DB954] hover:bg-[#1ED760] text-xs font-bold text-black flex items-center gap-1.5"
+                  className="px-4 py-1.5 rounded-md bg-gradient-to-r from-[#E89B5B] to-[#D46743] hover:opacity-95 text-white font-semibold shadow-md"
                 >
-                  <CheckCircle2 className="w-3.5 h-3.5" />
                   Save
                 </button>
               </div>

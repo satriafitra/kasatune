@@ -160,8 +160,8 @@ export const App: React.FC = () => {
   };
 
   return (
-    <div className="h-screen w-full bg-[#000000] text-white flex flex-col overflow-hidden font-sans select-none">
-      {/* 1. Spotify Top Navigation Header */}
+    <div className="h-screen w-full bg-[#1E1F22] text-[#F2F3F5] flex flex-col overflow-hidden font-sans select-none">
+      {/* 1. Discord x Spotify Top Navigation Header */}
       <Navbar
         isBackendOnline={isBackendOnline}
         onRefreshBackend={refetchTracks}
@@ -175,8 +175,8 @@ export const App: React.FC = () => {
         onSearchChange={setSearchFilter}
       />
 
-      {/* 2. Main Spotify Workspace (Seamless panels, No card borders!) */}
-      <main className="flex-1 px-2 pb-2 gap-2 flex overflow-hidden min-h-0">
+      {/* 2. Main Workspace (Discord Surfaces + Spotify Panels) */}
+      <main className="flex-1 px-2 pb-2 pt-2 gap-2 flex overflow-hidden min-h-0 bg-[#1E1F22]">
         {/* Left: Your Library Sidebar */}
         <div className="w-72 sm:w-80 h-full flex-shrink-0 hidden md:block">
           <TrackListSidebar

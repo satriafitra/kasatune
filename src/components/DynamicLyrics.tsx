@@ -1,16 +1,15 @@
 /**
- * DynamicLyrics Component (Spotify Desktop Lyrics Tab)
- * Seamless, full-height lyrics screen tinted by the album's dynamic color.
- * Features:
- * - 100% human-synchronized vocal tracking (zero periodic formulas)
- * - Instant scroll reset to top when skipping tracks (zero desync on track skip)
- * - Instrumental intro indicator displaying exact countdown to vocal onset
- * - Auto-centering on active lyric line
- * - Click-to-seek directly to timestamp
+ * DynamicLyrics Component (Discord Chat & Spotify Synced Lyrics Hybrid)
+ * Authentic Discord chat room aesthetic combined with Apple Music / Spotify kinetic lyrics:
+ * - Kasatune Sunset Palette (#FFEAD3 Cream, #BFE7EA Ice Blue, #E89B5B Ochre, #D46743 Rust)
+ * - 100% human-synchronized vocal tracking from LRCLIB
+ * - Dynamic kinetic text with warm amber glow on active sung line
+ * - Depth-of-field past lines and soft ice cyan upcoming lines
+ * - Click-to-seek timestamp navigation
  */
 
 import React, { useEffect, useRef, useState } from 'react';
-import { Mic2, Compass, AlignLeft, Music } from 'lucide-react';
+import { Mic2, Compass, AlignLeft, Music, Hash } from 'lucide-react';
 import type { LyricLine } from '../utils/lrcParser';
 import { findActiveLyricIndex, formatTime } from '../utils/lrcParser';
 import type { AlbumColors } from '../hooks/useAlbumColor';
@@ -29,7 +28,6 @@ export const DynamicLyrics: React.FC<DynamicLyricsProps> = ({
   lyrics,
   plainLyrics,
   currentProgressMs,
-  colors,
   isLoading,
   onSeek,
   trackTitle,
@@ -62,17 +60,19 @@ export const DynamicLyrics: React.FC<DynamicLyricsProps> = ({
 
   return (
     <div
-      className="w-full h-full bg-[#121212] rounded-lg flex flex-col overflow-hidden select-none transition-colors duration-[1200ms] relative"
+      className="w-full h-full bg-[#2B2D31] rounded-lg border border-[#383A40]/60 flex flex-col overflow-hidden select-none transition-colors duration-[1200ms] relative shadow-sm"
       style={{
-        background: `linear-gradient(180deg, rgba(${colors.dominantColor[0]}, ${colors.dominantColor[1]}, ${colors.dominantColor[2]}, 0.35) 0%, rgba(18, 18, 18, 0.98) 75%, #121212 100%)`,
+        background: 'linear-gradient(180deg, rgba(212, 103, 67, 0.22) 0%, rgba(191, 231, 234, 0.06) 45%, rgba(43, 45, 49, 0.98) 80%, #2B2D31 100%)',
       }}
     >
-      {/* Top Bar */}
-      <div className="p-4 px-6 flex items-center justify-between border-b border-white/5 z-20 flex-shrink-0">
-        <div className="flex items-center gap-2">
-          <Mic2 className="w-5 h-5 text-white" />
-          <span className="font-extrabold text-sm text-white">Lyrics</span>
-          <span className="text-xs text-[#B3B3B3] truncate max-w-[150px]">
+      {/* Top Discord Channel Header */}
+      <div className="p-3.5 px-5 flex items-center justify-between border-b border-[#383A40]/40 z-20 flex-shrink-0 bg-[#2B2D31]/70 backdrop-blur-sm">
+        <div className="flex items-center gap-2 min-w-0">
+          <Hash className="w-4 h-4 text-[#E89B5B] flex-shrink-0" />
+          <span className="font-extrabold text-sm text-[#F2F3F5] tracking-tight">
+            synced-lyrics
+          </span>
+          <span className="text-xs text-[#949BA4] truncate hidden sm:inline">
             &bull; {trackTitle}
           </span>
         </div>
@@ -80,10 +80,10 @@ export const DynamicLyrics: React.FC<DynamicLyricsProps> = ({
         {lyrics.length > 0 && (
           <button
             onClick={() => setAutoScroll(!autoScroll)}
-            className={`px-3 py-1 rounded-full text-xs font-semibold flex items-center gap-1.5 transition-all ${
+            className={`px-2.5 py-1 rounded-md text-xs font-semibold flex items-center gap-1.5 transition-all border ${
               autoScroll
-                ? 'bg-white text-black'
-                : 'bg-black/40 text-[#B3B3B3] hover:text-white'
+                ? 'bg-[#1E1F22] text-[#BFE7EA] border-[#383A40]'
+                : 'bg-transparent text-[#949BA4] border-transparent hover:bg-[#35373C] hover:text-white'
             }`}
           >
             <Compass className={`w-3.5 h-3.5 ${autoScroll ? 'animate-spin' : ''}`} />
@@ -103,16 +103,16 @@ export const DynamicLyrics: React.FC<DynamicLyricsProps> = ({
       >
         {isLoading ? (
           <div className="h-full flex flex-col items-center justify-center text-center space-y-3 py-24">
-            <div className="w-8 h-8 border-2 border-[#1DB954] border-t-transparent rounded-full animate-spin" />
-            <p className="text-xs text-[#B3B3B3]">Loading lyrics...</p>
+            <div className="w-8 h-8 border-2 border-[#E89B5B] border-t-transparent rounded-full animate-spin" />
+            <p className="text-xs text-[#949BA4]">Connecting to LRCLIB timestamps...</p>
           </div>
         ) : lyrics.length > 0 ? (
           <>
             {/* Intro indicator when waiting for first vocal line */}
             {isIntro && (
-              <div className="flex items-center gap-2.5 py-2.5 px-4 rounded-full bg-white/5 border border-white/10 w-fit text-xs text-[#1DB954] font-semibold animate-pulse mb-6">
-                <span className="w-2 h-2 rounded-full bg-[#1DB954]" />
-                <span>Intro Instrumental &bull; Vocals start at {formatTime(lyrics[0].timeMs)}</span>
+              <div className="flex items-center gap-2.5 py-2 px-3.5 rounded-md bg-[#1E1F22] border border-[#383A40] w-fit text-xs text-[#BFE7EA] font-semibold animate-pulse mb-6">
+                <span className="w-2 h-2 rounded-full bg-[#E89B5B]" />
+                <span>Intro Instrumental &bull; Vocals at {formatTime(lyrics[0].timeMs)}</span>
               </div>
             )}
 
@@ -128,16 +128,16 @@ export const DynamicLyrics: React.FC<DynamicLyricsProps> = ({
                   onClick={() => onSeek(line.timeMs)}
                   className={`transition-all duration-300 cursor-pointer ${
                     isActive
-                      ? 'text-white font-extrabold text-2xl sm:text-3xl leading-snug drop-shadow-[0_2px_14px_rgba(255,255,255,0.45)] scale-[1.01] origin-left'
+                      ? 'text-[#FFEAD3] font-black text-2xl sm:text-3xl leading-snug drop-shadow-[0_0_16px_rgba(232,155,91,0.5)] scale-[1.01] origin-left'
                       : isPast
-                      ? 'text-white/30 font-semibold text-xl sm:text-2xl leading-snug hover:text-white/70'
-                      : 'text-white/45 font-bold text-xl sm:text-2xl leading-snug hover:text-white/85'
+                      ? 'text-[#949BA4]/45 font-medium text-lg sm:text-xl leading-snug hover:text-[#949BA4]/80'
+                      : 'text-[#BFE7EA]/70 font-bold text-xl sm:text-2xl leading-snug hover:text-[#FFEAD3]'
                   }`}
                 >
-                  <p className={isMusicalBreak ? 'text-lg text-white/40 italic flex items-center gap-2' : ''}>
+                  <p className={isMusicalBreak ? 'text-base text-[#BFE7EA]/50 italic flex items-center gap-2' : ''}>
                     {isMusicalBreak ? (
                       <>
-                        <Music className="w-4 h-4 inline opacity-60" />
+                        <Music className="w-4 h-4 inline opacity-60 text-[#E89B5B]" />
                         <span>(Instrumental)</span>
                       </>
                     ) : (
@@ -150,14 +150,14 @@ export const DynamicLyrics: React.FC<DynamicLyricsProps> = ({
           </>
         ) : plainLyrics ? (
           <div className="space-y-4 py-8">
-            <pre className="font-sans text-lg text-[#B3B3B3] leading-relaxed whitespace-pre-wrap">
+            <pre className="font-sans text-lg text-[#949BA4] leading-relaxed whitespace-pre-wrap">
               {plainLyrics}
             </pre>
           </div>
         ) : (
-          <div className="h-full flex flex-col items-center justify-center text-center space-y-3 py-24 text-[#B3B3B3]">
+          <div className="h-full flex flex-col items-center justify-center text-center space-y-3 py-24 text-[#949BA4]">
             <AlignLeft className="w-10 h-10" />
-            <h4 className="text-base font-bold text-white">Looks like we don&apos;t have the lyrics for this song yet.</h4>
+            <h4 className="text-sm font-bold text-[#F2F3F5]">No synced lyrics available.</h4>
           </div>
         )}
       </div>
