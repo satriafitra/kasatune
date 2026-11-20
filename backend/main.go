@@ -30,6 +30,11 @@ func main() {
 	store := services.NewStore()
 	trackHandler := handlers.NewTrackHandler(store)
 
+	spotifyClientID := "272c12f48c18494fb5ac490cd10a8b2b"
+	spotifyClientSecret := "1d176acff29d420d9ee0c4a351e4a2cc"
+	spotifyService := services.NewSpotifyService(spotifyClientID, spotifyClientSecret)
+	spotifyHandler := handlers.NewSpotifyHandler(spotifyService)
+
 	mux := http.NewServeMux()
 
 	// Register API endpoints
@@ -37,6 +42,11 @@ func main() {
 	mux.HandleFunc("/api/radiohead/tracks", trackHandler.GetTracks)
 	mux.HandleFunc("/api/radiohead/tracks/", trackHandler.GetTrackByID)
 	mux.HandleFunc("/api/radiohead/scrape", trackHandler.ScrapeTracks)
+
+	// Real-Time Friend Spotify Endpoints
+	mux.HandleFunc("/api/spotify/friend/now-playing", spotifyHandler.GetFriendNowPlaying)
+	mux.HandleFunc("/api/spotify/auth/exchange", spotifyHandler.ExchangeAuthCode)
+	mux.HandleFunc("/api/spotify/status", spotifyHandler.GetSpotifyStatus)
 
 	// Root welcome endpoint
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
@@ -52,6 +62,9 @@ func main() {
 				"GET /api/radiohead/tracks",
 				"GET /api/radiohead/tracks/:id",
 				"GET /api/radiohead/scrape",
+				"GET /api/spotify/friend/now-playing",
+				"POST /api/spotify/auth/exchange",
+				"GET /api/spotify/status",
 			},
 		})
 	})
@@ -66,6 +79,7 @@ func main() {
 
 	log.Printf("[Webtify-BE] Radiohead Go API Server listening on http://localhost:%d\n", port)
 	log.Printf("[Webtify-BE] Preloaded %d Radiohead tracks ready for frontend sync\n", len(store.GetAll()))
+	log.Printf("[Webtify-BE] Spotify Friend Sync Hub active with Client ID: %s\n", spotifyClientID)
 
 	if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 		log.Fatalf("Server failed to start: %v\n", err)

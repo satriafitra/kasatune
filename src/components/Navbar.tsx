@@ -28,6 +28,9 @@ interface NavbarProps {
   isLoading: boolean;
   searchQuery: string;
   onSearchChange: (q: string) => void;
+  friendTrackTitle?: string;
+  isFriendConnected?: boolean;
+  onConnectFriendSpotify?: () => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -41,6 +44,9 @@ export const Navbar: React.FC<NavbarProps> = ({
   isLoading,
   searchQuery,
   onSearchChange,
+  friendTrackTitle,
+  isFriendConnected = false,
+  onConnectFriendSpotify = () => {},
 }) => {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [tempClientId, setTempClientId] = useState(clientId);
@@ -107,6 +113,31 @@ export const Navbar: React.FC<NavbarProps> = ({
 
       {/* Right: Go Backend Status & Account Controls */}
       <div className="flex items-center gap-2.5">
+        {/* Friend Spotify Live Status Pill */}
+        <div
+          onClick={onConnectFriendSpotify}
+          className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-[#141619] border border-[#282B32] hover:border-[#1DB954]/50 text-xs cursor-pointer hover:bg-[#1C1E22] transition-colors"
+          title={
+            isFriendConnected
+              ? 'Friend Spotify is connected & detecting in real-time'
+              : 'Click to connect Friend Spotify via OAuth'
+          }
+        >
+          <span className="relative flex h-2 w-2">
+            {isFriendConnected && (
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#1DB954] opacity-75" />
+            )}
+            <span
+              className={`relative inline-flex rounded-full h-2 w-2 ${
+                isFriendConnected ? 'bg-[#1DB954] shadow-[0_0_8px_#1DB954]' : 'bg-[#1DB954]/60'
+              }`}
+            />
+          </span>
+          <span className="font-semibold text-[11px] text-white hidden md:inline truncate max-w-[140px]">
+            {friendTrackTitle ? `Friend: ${friendTrackTitle}` : 'Spotify Live'}
+          </span>
+        </div>
+
         {/* Backend Status Pill */}
         <div
           className="flex items-center gap-2 px-2.5 py-1 rounded-md bg-[#141619] border border-[#282B32] text-xs cursor-pointer hover:bg-[#1C1E22] transition-colors"

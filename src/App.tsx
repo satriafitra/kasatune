@@ -19,6 +19,7 @@ import { useSpotifyAuth } from './hooks/useSpotifyAuth';
 import { useMusicSync } from './hooks/useMusicSync';
 import { useAlbumColor } from './hooks/useAlbumColor';
 import { useAudioVisualizer } from './hooks/useAudioVisualizer';
+import { useFriendSpotify } from './hooks/useFriendSpotify';
 import type { BackendRadioheadTrack } from './api/backend';
 
 export const App: React.FC = () => {
@@ -81,6 +82,42 @@ export const App: React.FC = () => {
         }
       },
     }
+  );
+
+  // 5. Real-Time Friend Spotify Detection & Playtime Sync Hub
+  const {
+    playbackState: friendPlayback,
+    liveProgressMs: friendLiveProgressMs,
+    isLoading: isLoadingFriend,
+    isConnecting: isConnectingFriend,
+    connectSpotify: connectFriendSpotify,
+    fetchNowPlaying: refetchFriendSpotify,
+  } = useFriendSpotify();
+
+  // Listen Along with Friend: Matches song & syncs playtime position in real time!
+  const handleListenAlong = useCallback(
+    (trackTitle: string, progressMs: number) => {
+      const normalizedTarget = trackTitle.toLowerCase().trim();
+      const matchedTrack =
+        tracks.find(
+          (t) =>
+            t.title.toLowerCase().includes(normalizedTarget) ||
+            normalizedTarget.includes(t.title.toLowerCase())
+        ) || tracks[0];
+
+      if (matchedTrack) {
+        selectTrack(matchedTrack);
+        loadTrack(
+          matchedTrack.previewUrl,
+          matchedTrack.bpm,
+          matchedTrack.durationMs > 0 ? matchedTrack.durationMs / 1000 : 238,
+          true
+        );
+        const seekSec = Math.max(0, progressMs / 1000);
+        seekToSeconds(seekSec);
+      }
+    },
+    [tracks, selectTrack, loadTrack, seekToSeconds]
   );
 
   // Synchronous Track Change Handler: Guarantees audio & lyrics stay 100% in sync and AUTOPLAYS
@@ -176,6 +213,9 @@ export const App: React.FC = () => {
         isLoading={isLoadingSong}
         searchQuery={searchFilter}
         onSearchChange={setSearchFilter}
+        friendTrackTitle={friendPlayback?.track?.title}
+        isFriendConnected={friendPlayback?.isConnected}
+        onConnectFriendSpotify={connectFriendSpotify}
       />
 
       {/* 2. Main Workspace (Discord Server Rail + Channels + Grand Vinyl & Lyric Stage) */}
@@ -198,6 +238,13 @@ export const App: React.FC = () => {
             searchFilter={searchFilter}
             activeAlbum={activeAlbum}
             onSelectAlbum={setActiveAlbum}
+            friendPlayback={friendPlayback}
+            friendLiveProgressMs={friendLiveProgressMs}
+            isLoadingFriend={isLoadingFriend}
+            isConnectingFriend={isConnectingFriend}
+            onConnectFriendSpotify={connectFriendSpotify}
+            onRefreshFriendSpotify={refetchFriendSpotify}
+            onListenAlong={handleListenAlong}
           />
         </div>
 

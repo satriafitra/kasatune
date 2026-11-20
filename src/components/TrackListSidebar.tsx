@@ -17,6 +17,8 @@ import {
 } from 'lucide-react';
 import type { BackendRadioheadTrack } from '../api/backend';
 import type { AlbumFilterType } from './DiscordServerRail';
+import type { FriendPlaybackState } from '../hooks/useFriendSpotify';
+import { FriendSpotifyCard } from './FriendSpotifyCard';
 
 interface TrackListSidebarProps {
   tracks: BackendRadioheadTrack[];
@@ -26,6 +28,13 @@ interface TrackListSidebarProps {
   searchFilter: string;
   activeAlbum: AlbumFilterType;
   onSelectAlbum: (album: AlbumFilterType) => void;
+  friendPlayback?: FriendPlaybackState | null;
+  friendLiveProgressMs?: number;
+  isLoadingFriend?: boolean;
+  isConnectingFriend?: boolean;
+  onConnectFriendSpotify?: () => void;
+  onRefreshFriendSpotify?: () => void;
+  onListenAlong?: (trackTitle: string, progressMs: number) => void;
 }
 
 export const TrackListSidebar: React.FC<TrackListSidebarProps> = ({
@@ -35,6 +44,13 @@ export const TrackListSidebar: React.FC<TrackListSidebarProps> = ({
   isPlaying,
   searchFilter,
   activeAlbum,
+  friendPlayback = null,
+  friendLiveProgressMs = 0,
+  isLoadingFriend = false,
+  isConnectingFriend = false,
+  onConnectFriendSpotify = () => {},
+  onRefreshFriendSpotify = () => {},
+  onListenAlong = () => {},
 }) => {
   const filteredTracks = tracks.filter((t) => {
     const matchesAlbum = activeAlbum === 'all' || t.album.toLowerCase() === activeAlbum.toLowerCase();
@@ -130,6 +146,17 @@ export const TrackListSidebar: React.FC<TrackListSidebarProps> = ({
           })
         )}
       </div>
+
+      {/* Real-time Friend Spotify Presence Card */}
+      <FriendSpotifyCard
+        playbackState={friendPlayback}
+        liveProgressMs={friendLiveProgressMs}
+        isLoading={isLoadingFriend}
+        isConnecting={isConnectingFriend}
+        onConnectSpotify={onConnectFriendSpotify}
+        onRefresh={onRefreshFriendSpotify}
+        onListenAlong={onListenAlong}
+      />
 
       {/* Discord User Presence Footer */}
       <div className="h-14 px-3 bg-[#0B0C0E] border-t border-[#282B32] flex items-center justify-between flex-shrink-0">
