@@ -165,11 +165,20 @@ export const App: React.FC = () => {
       pause();
     }
 
-    // C. Sync Playtime Drift (if drifted > 1.5 seconds)
+    // C. Strict Playtime Synchronization:
     const friendSec = friendLiveProgressMs / 1000;
     const drift = Math.abs(audioCurrentTimeSec - friendSec);
-    if (drift > 1.5 && (friendPlayback.isPlaying || audioCurrentTimeSec === 0)) {
-      seekToSeconds(friendSec);
+
+    if (!friendPlayback.isPlaying) {
+      // When friend is paused: STRICT LOCK. Bottom bar and friend card are 100% identical to the millisecond!
+      if (drift > 0.05) {
+        seekToSeconds(friendSec);
+      }
+    } else {
+      // When friend is playing: drift correction if drifted > 1.0 second
+      if (drift > 1.0) {
+        seekToSeconds(friendSec);
+      }
     }
   }, [
     friendPlayback?.isPlaying,
