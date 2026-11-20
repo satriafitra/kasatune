@@ -47,8 +47,8 @@ func NewSpotifyService(clientID, clientSecret string) *SpotifyService {
 		friendName:     "deriana_ (JuraganBengkel)",
 		deviceName:     "Spotify for Windows (deriana_)",
 		playlistName:   "Nippon Cahadja Asia, Nippon Pelindoeng Asia, Nippon Pemimpin Asia",
-		isPlaying:      true, // Currently playing Roselia - Proud of oneself!
-		pausedOffsetMs: 0,
+		isPlaying:      true, // Active Spotify Playback: What is my LIFE? - いきづらい部!
+		pausedOffsetMs: 43000, // 00:43 as screenshotted by friend in Discord
 		simStartTime:   time.Now(),
 		simTrackIdx:    0,
 		subscribers:    make(map[chan *models.FriendPlaybackState]struct{}),
@@ -496,20 +496,17 @@ func (s *SpotifyService) getFriendCurrentState() *models.FriendPlaybackState {
 	var elapsedMs int
 	if s.isPlaying {
 		elapsedMs = s.pausedOffsetMs + int(time.Since(s.simStartTime).Milliseconds())
-		if elapsedMs >= currentTrack.DurationMs {
-			// Advance to next song in friend's playlist
-			s.simTrackIdx = (s.simTrackIdx + 1) % len(s.friendTracks)
-			s.simStartTime = time.Now()
-			s.pausedOffsetMs = 0
-			currentTrack = s.friendTracks[s.simTrackIdx]
-			elapsedMs = 0
+		if currentTrack.DurationMs > 0 && elapsedMs >= currentTrack.DurationMs {
+			elapsedMs = currentTrack.DurationMs
 		}
 	} else {
 		elapsedMs = s.pausedOffsetMs
 	}
 
 	previewURL := currentTrack.PreviewURL
-	if currentTrack.ID == "liella-sing-shine-smile" {
+	if currentTrack.ID == "ikizulive-what-is-my-life" {
+		previewURL = "https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview211/v4/40/2b/3f/402b3faf-4c2d-74c3-3e43-3983b5f68d8b/mzaf_11448353083308887647.plus.aac.p.m4a"
+	} else if currentTrack.ID == "liella-sing-shine-smile" {
 		previewURL = "/liella_sing_shine_smile.m4a"
 	} else if currentTrack.ID == "hollow-hunger" {
 		previewURL = "/hollow_hunger_itunes.m4a"
