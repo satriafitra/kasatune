@@ -56,7 +56,7 @@ export const TrackListSidebar: React.FC<TrackListSidebarProps> = ({
           <span className="font-extrabold text-sm text-white tracking-tight truncate">
             {activeAlbum === 'all' ? 'Radiohead Masters' : activeAlbum}
           </span>
-          <span className="w-4 h-4 rounded-full bg-[#BFE7EA] text-[#0B0C0E] text-[10px] font-black flex items-center justify-center flex-shrink-0 shadow-[0_0_8px_#BFE7EA]">
+          <span className="w-4 h-4 rounded-md bg-[#BFE7EA] text-[#0B0C0E] text-[10px] font-black flex items-center justify-center flex-shrink-0 shadow-[0_0_8px_#BFE7EA]">
             ✓
           </span>
         </div>
@@ -133,11 +133,11 @@ export const TrackListSidebar: React.FC<TrackListSidebarProps> = ({
 
       {/* Discord User Presence Footer */}
       <div className="h-14 px-3 bg-[#0B0C0E] border-t border-[#282B32] flex items-center justify-between flex-shrink-0">
-        <div className="flex items-center gap-2 min-w-0">
-          <div className="relative w-8 h-8 rounded-full bg-gradient-to-tr from-[#E89B5B] to-[#BFE7EA] flex items-center justify-center text-xs font-bold text-black flex-shrink-0">
+        <div className="flex items-center gap-2.5 min-w-0">
+          <div className="relative w-8 h-8 rounded-lg bg-gradient-to-br from-[#E89B5B] to-[#D46743] flex items-center justify-center text-xs font-black text-white flex-shrink-0 shadow-sm">
             <span>RY</span>
             {/* Discord Online Green Dot */}
-            <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-[#23A55A] border-2 border-[#0B0C0E]" />
+            <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-[#23A55A] border-2 border-[#0B0C0E]" />
           </div>
 
           <div className="min-w-0 flex flex-col justify-center">

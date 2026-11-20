@@ -58,7 +58,6 @@ export const DynamicLyrics: React.FC<DynamicLyricsProps> = ({
   }, [activeIndex, autoScroll]);
 
   const [r, g, b] = colors.dominantColor || [232, 155, 91];
-  const [r2, g2, b2] = colors.palette[1] || [r, g, b];
   const albumColorRgb = `rgb(${r}, ${g}, ${b})`;
   const albumColorGlow = `rgba(${r}, ${g}, ${b}, 0.8)`;
 
@@ -68,7 +67,7 @@ export const DynamicLyrics: React.FC<DynamicLyricsProps> = ({
     <div
       className="w-full h-full bg-[#141619] rounded-lg border border-[#282B32] flex flex-col overflow-hidden select-none transition-all duration-[1200ms] relative shadow-lg"
       style={{
-        background: `linear-gradient(180deg, rgba(${r}, ${g}, ${b}, 0.28) 0%, rgba(${r2}, ${g2}, ${b2}, 0.12) 45%, rgba(17, 18, 21, 0.98) 85%, #141619 100%)`,
+        background: `linear-gradient(180deg, rgba(${r}, ${g}, ${b}, 0.22) 0%, rgba(${r}, ${g}, ${b}, 0.06) 45%, rgba(17, 18, 21, 0.98) 85%, #141619 100%)`,
       }}
     >
       {/* Top Discord Channel Header */}
@@ -124,7 +123,7 @@ export const DynamicLyrics: React.FC<DynamicLyricsProps> = ({
                 style={{ borderColor: `rgba(${r}, ${g}, ${b}, 0.4)` }}
               >
                 <span
-                  className="w-2.5 h-2.5 rounded-full"
+                  className="w-2.5 h-2.5 rounded-sm"
                   style={{ backgroundColor: albumColorRgb, boxShadow: `0 0 10px ${albumColorGlow}` }}
                 />
                 <span>Intro Instrumental &bull; Vocals at {formatTime(lyrics[0].timeMs)}</span>
@@ -150,7 +149,7 @@ export const DynamicLyrics: React.FC<DynamicLyricsProps> = ({
                   {/* Active Line Accent Pill */}
                   {isActive && (
                     <div
-                      className="w-1.5 h-7 rounded-full flex-shrink-0 mr-3 animate-in fade-in zoom-in-75 duration-200"
+                      className="w-1.5 h-7 rounded-sm flex-shrink-0 mr-3 animate-in fade-in zoom-in-75 duration-200"
                       style={{
                         backgroundColor: albumColorRgb,
                         boxShadow: `0 0 14px ${albumColorGlow}`,

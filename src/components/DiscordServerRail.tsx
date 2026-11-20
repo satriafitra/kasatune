@@ -71,7 +71,7 @@ export const DiscordServerRail: React.FC<DiscordServerRailProps> = ({
           <React.Fragment key={server.id}>
             {/* Divider after Kasatune Home Icon */}
             {index === 1 && (
-              <div className="w-8 h-[2px] bg-[#282B32] rounded-full my-1" />
+              <div className="w-8 h-[2px] bg-[#282B32] rounded-md my-1" />
             )}
 
             <div
@@ -82,7 +82,7 @@ export const DiscordServerRail: React.FC<DiscordServerRailProps> = ({
             >
               {/* Discord Pill Indicator (Left Edge) in vibrant Ice Blue */}
               <div
-                className={`absolute left-0 w-1 bg-[#BFE7EA] rounded-r-full transition-all duration-200 shadow-[0_0_8px_#BFE7EA] ${
+                className={`absolute left-0 w-1 bg-[#BFE7EA] rounded-r-md transition-all duration-200 shadow-[0_0_8px_#BFE7EA] ${
                   isActive
                     ? 'h-10 opacity-100'
                     : isHovered
@@ -129,7 +129,7 @@ export const DiscordServerRail: React.FC<DiscordServerRailProps> = ({
         );
       })}
 
-      <div className="w-8 h-[2px] bg-[#282B32] rounded-full my-1" />
+      <div className="w-8 h-[2px] bg-[#282B32] rounded-md my-1" />
 
       {/* Reconnect / Sync Backend Bubble */}
       <div

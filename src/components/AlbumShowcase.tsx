@@ -131,10 +131,9 @@ export const AlbumShowcase: React.FC<AlbumShowcaseProps> = ({
             <div className="flex items-center justify-center sm:justify-start gap-3 pt-2">
               <button
                 onClick={onTogglePlay}
-                className="h-10 px-5 rounded-full text-white flex items-center gap-2 hover:scale-105 active:scale-95 transition-all text-xs font-bold"
+                className="h-10 px-6 rounded-lg text-white flex items-center gap-2.5 hover:scale-[1.02] active:scale-[0.98] transition-all text-xs font-black tracking-wide shadow-md bg-gradient-to-r from-[#E89B5B] to-[#D46743] hover:from-[#f0a667] hover:to-[#df734f]"
                 style={{
-                  background: `linear-gradient(135deg, ${albumColorRgb}, #D46743)`,
-                  boxShadow: `0 4px 18px ${albumColorGlow}`,
+                  boxShadow: '0 4px 20px rgba(212, 103, 67, 0.4)',
                 }}
                 title={isPlaying ? 'Pause' : 'Play'}
               >
@@ -153,7 +152,7 @@ export const AlbumShowcase: React.FC<AlbumShowcaseProps> = ({
 
               <button
                 onClick={() => setIsLiked(!isLiked)}
-                className={`p-2 transition-colors rounded-full bg-[#0B0C0E]/80 border border-[#282B32] hover:bg-[#1C1E22] ${
+                className={`h-10 w-10 flex items-center justify-center transition-all rounded-lg bg-[#0B0C0E]/80 border border-[#282B32] hover:border-[#E89B5B]/50 hover:bg-[#1C1E22] ${
                   isLiked ? 'text-[#D46743]' : 'text-[#A0A5AD] hover:text-white'
                 }`}
                 title={isLiked ? 'Remove from favorites' : 'Save to favorites'}
@@ -162,7 +161,7 @@ export const AlbumShowcase: React.FC<AlbumShowcaseProps> = ({
               </button>
 
               <button
-                className="p-2 text-[#A0A5AD] hover:text-white rounded-full bg-[#0B0C0E]/80 border border-[#282B32] hover:bg-[#1C1E22] transition-colors"
+                className="h-10 w-10 flex items-center justify-center text-[#A0A5AD] hover:text-white rounded-lg bg-[#0B0C0E]/80 border border-[#282B32] hover:border-[#BFE7EA]/50 hover:bg-[#1C1E22] transition-colors"
                 title="More options"
               >
                 <MoreHorizontal className="w-4 h-4" />
@@ -210,7 +209,7 @@ export const AlbumShowcase: React.FC<AlbumShowcaseProps> = ({
                 style={
                   isActive
                     ? {
-                        borderLeft: `3px solid ${albumColorRgb}`,
+                        borderLeft: '3px solid #BFE7EA',
                       }
                     : {}
                 }

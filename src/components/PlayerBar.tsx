@@ -145,10 +145,9 @@ export const PlayerBar: React.FC<PlayerBarProps> = ({
 
           <button
             onClick={onTogglePlay}
-            className="w-9 h-9 rounded-full text-white flex items-center justify-center transition-all hover:scale-105 active:scale-95 shadow-md"
+            className="w-9 h-9 rounded-lg text-white flex items-center justify-center transition-all duration-150 hover:scale-105 active:scale-95 shadow-md bg-gradient-to-br from-[#E89B5B] to-[#D46743] hover:from-[#f0a667] hover:to-[#df734f]"
             style={{
-              background: `linear-gradient(135deg, ${albumColorRgb}, #D46743)`,
-              boxShadow: `0 2px 14px rgba(${r}, ${g}, ${b}, 0.55)`,
+              boxShadow: '0 2px 14px rgba(212, 103, 67, 0.45)',
             }}
             title={isPlaying ? 'Pause (Space)' : 'Play (Space)'}
           >
@@ -191,18 +190,18 @@ export const PlayerBar: React.FC<PlayerBarProps> = ({
             className="flex-1 h-3 flex items-center cursor-pointer group relative"
           >
             {/* Background bar */}
-            <div className="w-full h-1 bg-[#282B32] rounded-full overflow-hidden relative group-hover:h-1.5 transition-all">
-              {/* Progress bar filled with sunset to ice cyan gradient */}
+            <div className="w-full h-1 bg-[#282B32] rounded-md overflow-hidden relative group-hover:h-1.5 transition-all">
+              {/* Progress bar filled with harmonious Kasatune Sunset gradient */}
               <div
-                className="h-full bg-gradient-to-r from-[#E89B5B] via-[#D46743] to-[#BFE7EA] transition-all duration-75"
+                className="h-full bg-gradient-to-r from-[#D46743] to-[#E89B5B] transition-all duration-75"
                 style={{ width: `${progressRatio * 100}%` }}
               />
             </div>
 
-            {/* Hover thumb dot in vibrant Ice Blue */}
+            {/* Hover thumb in vibrant Ice Blue */}
             {isScrubbingHover && (
               <div
-                className="absolute w-3.5 h-3.5 rounded-full bg-[#BFE7EA] border-2 border-white shadow-[0_0_10px_#BFE7EA] -translate-x-1/2 pointer-events-none"
+                className="absolute w-3 h-3 rounded-sm bg-[#BFE7EA] border border-white shadow-[0_0_8px_#BFE7EA] -translate-x-1/2 pointer-events-none"
                 style={{ left: `${progressRatio * 100}%` }}
               />
             )}
@@ -222,7 +221,7 @@ export const PlayerBar: React.FC<PlayerBarProps> = ({
           title={`Song BPM: ${bpm}`}
         >
           <span
-            className="w-2 h-2 rounded-full transition-transform duration-75 bg-[#BFE7EA]"
+            className="w-2 h-2 rounded-sm transition-transform duration-75 bg-[#BFE7EA]"
             style={{
               boxShadow: beatPulse > 0.4 ? '0 0 10px #BFE7EA' : 'none',
               transform: `scale(${1 + beatPulse * 0.9})`,
