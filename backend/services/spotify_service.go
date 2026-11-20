@@ -388,8 +388,95 @@ func (s *SpotifyService) fetchFriendProfile() {
 	}
 }
 
+func (s *SpotifyService) fetchLanyardState(userID string) *models.FriendPlaybackState {
+	client := &http.Client{Timeout: 2 * time.Second}
+	resp, err := client.Get("https://api.lanyard.rest/v1/users/" + userID)
+	if err != nil || resp.StatusCode != http.StatusOK {
+		return nil
+	}
+	defer resp.Body.Close()
+
+	var data struct {
+		Success bool `json:"success"`
+		Data    struct {
+			ListeningToSpotify bool `json:"listening_to_spotify"`
+			DiscordUser        struct {
+				Username   string `json:"username"`
+				GlobalName string `json:"global_name"`
+			} `json:"discord_user"`
+			Spotify struct {
+				Song        string `json:"song"`
+				Artist      string `json:"artist"`
+				Album       string `json:"album"`
+				AlbumArtURL string `json:"album_art_url"`
+				TrackID     string `json:"track_id"`
+				Timestamps  struct {
+					Start int64 `json:"start"`
+					End   int64 `json:"end"`
+				} `json:"timestamps"`
+			} `json:"spotify"`
+		} `json:"data"`
+	}
+
+	if err := json.NewDecoder(resp.Body).Decode(&data); err == nil && data.Success && data.Data.ListeningToSpotify {
+		sp := data.Data.Spotify
+		durationMs := int(sp.Timestamps.End - sp.Timestamps.Start)
+		now := time.Now().UnixMilli()
+		progressMs := int(now - sp.Timestamps.Start)
+		if progressMs < 0 {
+			progressMs = 0
+		}
+		if durationMs > 0 && progressMs > durationMs {
+			progressMs = durationMs
+		}
+
+		fName := data.Data.DiscordUser.GlobalName
+		if fName == "" {
+			fName = data.Data.DiscordUser.Username
+		}
+
+		previewURL := ""
+		for _, t := range s.friendTracks {
+			if strings.EqualFold(t.Title, sp.Song) && t.PreviewURL != "" {
+				previewURL = t.PreviewURL
+				break
+			}
+		}
+
+		return &models.FriendPlaybackState{
+			IsConnected:  true,
+			IsPlaying:    true,
+			ProgressMs:   progressMs,
+			Timestamp:    now,
+			DeviceName:   "Spotify on Desktop (Discord Live)",
+			DeviceType:   "Computer",
+			Simulated:    false,
+			FriendName:   fName,
+			PlaylistName: s.playlistName,
+			Playlist:     s.friendTracks,
+			ClientID:     s.clientID,
+			Track: &models.SpotifyTrackItem{
+				ID:         sp.TrackID,
+				Title:      sp.Song,
+				Artist:     sp.Artist,
+				Album:      sp.Album,
+				CoverURL:   sp.AlbumArtURL,
+				DurationMs: durationMs,
+				SpotifyURL: "https://open.spotify.com/track/" + sp.TrackID,
+				PreviewURL: previewURL,
+			},
+		}
+	}
+	return nil
+}
+
 // GetNowPlaying returns real-time friend playback state
 func (s *SpotifyService) GetNowPlaying() *models.FriendPlaybackState {
+	// 1. Check Discord Lanyard real-time presence (deriana_ ID: 759609270974414848)
+	if lanyardState := s.fetchLanyardState("759609270974414848"); lanyardState != nil {
+		return lanyardState
+	}
+
 	s.mu.RLock()
 	token := s.accessToken
 	expAt := s.expiresAt

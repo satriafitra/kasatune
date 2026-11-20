@@ -99,7 +99,7 @@ export function useFriendSpotify() {
 
   // Friend Discord ID for Lanyard Real-Time Broadcast
   const [discordUserId, setDiscordUserIdState] = useState<string>(() => {
-    return localStorage.getItem('kasatune_discord_user_id') || '';
+    return localStorage.getItem('kasatune_discord_user_id') || '759609270974414848';
   });
 
   const setDiscordUserId = useCallback((id: string) => {
