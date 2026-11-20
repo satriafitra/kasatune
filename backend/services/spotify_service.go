@@ -44,18 +44,56 @@ func NewSpotifyService(clientID, clientSecret string) *SpotifyService {
 	svc := &SpotifyService{
 		clientID:       clientID,
 		clientSecret:   clientSecret,
-		friendName:     "Hideri",
-		deviceName:     "Spotify for Windows (Hideri)",
+		friendName:     "deriana_ (JuraganBengkel)",
+		deviceName:     "Spotify for Windows (deriana_)",
 		playlistName:   "Nippon Cahadja Asia, Nippon Pelindoeng Asia, Nippon Pemimpin Asia",
-		isPlaying:      false, // PAUSED as screenshotted by friend in media_1795158272142_f296e561.jpg!
-		pausedOffsetMs: 155000, // 2:35 as screenshotted by friend
+		isPlaying:      true, // Currently playing Roselia - Proud of oneself!
+		pausedOffsetMs: 0,
 		simStartTime:   time.Now(),
 		simTrackIdx:    0,
 		subscribers:    make(map[chan *models.FriendPlaybackState]struct{}),
 	}
 
 	svc.loadFriendTracks()
+	svc.loadSavedToken()
 	return svc
+}
+
+func (s *SpotifyService) loadSavedToken() {
+	paths := []string{
+		"spotify_token.json",
+		"C:/webtify-be/spotify_token.json",
+		"C:/webtify/backend/spotify_token.json",
+	}
+
+	for _, p := range paths {
+		data, err := os.ReadFile(p)
+		if err == nil {
+			var t struct {
+				AccessToken  string `json:"access_token"`
+				RefreshToken string `json:"refresh_token"`
+				ExpiresIn    int    `json:"expires_in"`
+			}
+			if err := json.Unmarshal(data, &t); err == nil && t.AccessToken != "" {
+				s.accessToken = t.AccessToken
+				s.refreshToken = t.RefreshToken
+				s.expiresAt = time.Now().Add(time.Hour)
+				log.Printf("[SpotifyService] Restored saved token from %s\n", p)
+				return
+			}
+		}
+	}
+}
+
+func (s *SpotifyService) saveToken(access, refresh string, expiresIn int) {
+	t := map[string]interface{}{
+		"access_token":  access,
+		"refresh_token": refresh,
+		"expires_in":    expiresIn,
+	}
+	bytes, _ := json.MarshalIndent(t, "", "  ")
+	_ = os.WriteFile("C:/webtify-be/spotify_token.json", bytes, 0644)
+	_ = os.WriteFile("C:/webtify/backend/spotify_token.json", bytes, 0644)
 }
 
 func (s *SpotifyService) loadFriendTracks() {
@@ -259,6 +297,7 @@ func (s *SpotifyService) ExchangeCode(code, redirectURI string) (*models.Spotify
 	s.expiresAt = time.Now().Add(time.Duration(tokenResp.ExpiresIn-60) * time.Second)
 	s.mu.Unlock()
 
+	s.saveToken(tokenResp.AccessToken, tokenResp.RefreshToken, tokenResp.ExpiresIn)
 	go s.fetchFriendProfile()
 
 	log.Printf("[SpotifyService] Token exchanged successfully. Expires in %d seconds.\n", tokenResp.ExpiresIn)
@@ -474,11 +513,13 @@ func (s *SpotifyService) getFriendCurrentState() *models.FriendPlaybackState {
 		previewURL = "/liella_sing_shine_smile.m4a"
 	} else if currentTrack.ID == "hollow-hunger" {
 		previewURL = "/hollow_hunger_itunes.m4a"
+	} else if currentTrack.ID == "roselia-proud-of-oneself" {
+		previewURL = "https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview221/v4/7d/60/d5/7d60d5d5-221c-8172-46c6-872b98bdbcfb/mzaf_12757904917594910654.plus.aac.p.m4a"
 	}
 
 	spotifyURL := currentTrack.SpotifyURL
 	if spotifyURL == "" {
-		spotifyURL = "https://open.spotify.com/track/6Uqf3r70vB2ZJkM55K3FvM"
+		spotifyURL = "https://open.spotify.com/track/5u0wN1Zk7z7yE7xW2tVv1K"
 	}
 
 	return &models.FriendPlaybackState{

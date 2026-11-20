@@ -69,7 +69,9 @@ export const TrackListSidebar: React.FC<TrackListSidebarProps> = ({
       t.artist.toLowerCase() === 'yorushika' ||
       t.artist.toLowerCase().includes('kanaria') ||
       t.artist.toLowerCase() === 'yoasobi' ||
-      t.artist.toLowerCase() === 'eve';
+      t.artist.toLowerCase() === 'eve' ||
+      t.artist.toLowerCase().includes('roselia') ||
+      t.title.toLowerCase().includes('proud of oneself');
 
     const matchesAlbum =
       activeAlbum === 'friend'

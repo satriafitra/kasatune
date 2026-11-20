@@ -103,28 +103,30 @@ export const App: React.FC = () => {
   useEffect(() => {
     if (!hasInitialFriendSyncedRef.current && tracks.length > 0 && activeAlbum === 'friend') {
       const friendTrack =
-        tracks.find(
-          (t) =>
-            t.id === 'liella-sing-shine-smile' ||
-            t.title.toLowerCase().includes('sing！shine！smile') ||
-            t.title.toLowerCase().includes('sing! shine! smile') ||
-            t.artist.toLowerCase().includes('liella')
-        ) || tracks[0];
+        (friendPlayback?.track &&
+          tracks.find(
+            (t) =>
+              t.id === friendPlayback.track?.id ||
+              t.title.toLowerCase().includes(friendPlayback.track?.title?.toLowerCase() || '')
+          )) ||
+        tracks.find((t) => t.id === 'roselia-proud-of-oneself') ||
+        tracks[0];
 
       if (friendTrack) {
         selectTrack(friendTrack);
-        // Load track without autoplay since friend is currently PAUSED at 2:35!
         loadTrack(
           friendTrack.previewUrl,
           friendTrack.bpm,
-          friendTrack.durationMs > 0 ? friendTrack.durationMs / 1000 : 266,
-          false
+          friendTrack.durationMs > 0 ? friendTrack.durationMs / 1000 : 235,
+          friendPlayback?.isPlaying ?? true
         );
-        seekToSeconds(155); // 2:35 (155s) as in friend's Spotify screenshot
+        if (friendPlayback?.progressMs) {
+          seekToSeconds(friendPlayback.progressMs / 1000);
+        }
         hasInitialFriendSyncedRef.current = true;
       }
     }
-  }, [tracks, activeAlbum, selectTrack, loadTrack, seekToSeconds]);
+  }, [tracks, activeAlbum, selectTrack, loadTrack, seekToSeconds, friendPlayback]);
 
   // Master Real-Time Friend Spotify Synchronization Engine
   useEffect(() => {
@@ -212,7 +214,9 @@ export const App: React.FC = () => {
       t.artist.toLowerCase() === 'yorushika' ||
       t.artist.toLowerCase().includes('kanaria') ||
       t.artist.toLowerCase() === 'yoasobi' ||
-      t.artist.toLowerCase() === 'eve';
+      t.artist.toLowerCase() === 'eve' ||
+      t.artist.toLowerCase().includes('roselia') ||
+      t.title.toLowerCase().includes('proud of oneself');
 
     if (activeAlbum === 'friend') return isFriendTrack;
     if (activeAlbum === 'all') return true;
@@ -225,7 +229,9 @@ export const App: React.FC = () => {
       setActiveAlbum(album);
       if (album === 'friend') {
         const friendSong =
-          tracks.find(
+          tracks.find((t) => t.id === 'roselia-proud-of-oneself') ||
+          tracks.find((t) => t.id === 'liella-sing-shine-smile') ||
+          tracks[0];
             (t) =>
               t.id === 'liella-sing-shine-smile' ||
               t.title.toLowerCase().includes('sing！shine！smile') ||
