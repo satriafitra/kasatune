@@ -147,7 +147,7 @@ export const AlbumShowcase: React.FC<AlbumShowcaseProps> = ({
             </div>
 
             {/* Song Title */}
-            <h1 className="text-2xl sm:text-4xl font-black text-white tracking-tight leading-tight truncate drop-shadow-md">
+            <h1 className="text-2xl sm:text-4xl font-extrabold text-white tracking-tight leading-tight truncate">
               {title}
             </h1>
 
@@ -169,20 +169,17 @@ export const AlbumShowcase: React.FC<AlbumShowcaseProps> = ({
             <div className="flex items-center justify-center sm:justify-start gap-3 pt-2">
               <button
                 onClick={onTogglePlay}
-                className="h-10 px-6 rounded-lg text-white flex items-center gap-2.5 hover:scale-[1.02] active:scale-[0.98] transition-all text-xs font-black tracking-wide shadow-md bg-gradient-to-r from-[#E89B5B] to-[#D46743] hover:from-[#f0a667] hover:to-[#df734f]"
-                style={{
-                  boxShadow: '0 4px 20px rgba(212, 103, 67, 0.4)',
-                }}
+                className="h-9 px-4 rounded-md bg-[#1DB954] hover:bg-[#1ed760] text-black flex items-center gap-2 text-xs font-bold transition-colors active:scale-95 shadow-sm"
                 title={isPlaying ? 'Pause' : 'Play'}
               >
                 {isPlaying ? (
                   <>
-                    <Pause className="w-4 h-4 fill-white stroke-white" />
+                    <Pause className="w-3.5 h-3.5 fill-black stroke-black" />
                     <span>Pause</span>
                   </>
                 ) : (
                   <>
-                    <Play className="w-4 h-4 fill-white stroke-white translate-x-0.5" />
+                    <Play className="w-3.5 h-3.5 fill-black stroke-black translate-x-0.5" />
                     <span>Play Master</span>
                   </>
                 )}
@@ -190,16 +187,16 @@ export const AlbumShowcase: React.FC<AlbumShowcaseProps> = ({
 
               <button
                 onClick={() => setIsLiked(!isLiked)}
-                className={`h-10 w-10 flex items-center justify-center transition-all rounded-lg bg-[#0B0C0E]/80 border border-[#282B32] hover:border-[#E89B5B]/50 hover:bg-[#1C1E22] ${
-                  isLiked ? 'text-[#D46743]' : 'text-[#A0A5AD] hover:text-white'
+                className={`h-9 w-9 flex items-center justify-center transition-colors rounded-md bg-[#141619] border border-[#282B32] hover:bg-[#1C1E22] ${
+                  isLiked ? 'text-[#1DB954]' : 'text-[#A0A5AD] hover:text-white'
                 }`}
                 title={isLiked ? 'Remove from favorites' : 'Save to favorites'}
               >
-                <Heart className={`w-4 h-4 ${isLiked ? 'fill-[#D46743]' : ''}`} />
+                <Heart className={`w-4 h-4 ${isLiked ? 'fill-[#1DB954]' : ''}`} />
               </button>
 
               <button
-                className="h-10 w-10 flex items-center justify-center text-[#A0A5AD] hover:text-white rounded-lg bg-[#0B0C0E]/80 border border-[#282B32] hover:border-[#BFE7EA]/50 hover:bg-[#1C1E22] transition-colors"
+                className="h-9 w-9 flex items-center justify-center text-[#A0A5AD] hover:text-white rounded-md bg-[#141619] border border-[#282B32] hover:bg-[#1C1E22] transition-colors"
                 title="More options"
               >
                 <MoreHorizontal className="w-4 h-4" />

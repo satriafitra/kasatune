@@ -208,10 +208,10 @@ export const PlayerBar: React.FC<PlayerBarProps> = ({
               />
             </div>
 
-            {/* Hover thumb in vibrant Ice Blue */}
+            {/* Hover thumb in clean white */}
             {isScrubbingHover && (
               <div
-                className="absolute w-3 h-3 rounded-sm bg-[#BFE7EA] border border-white shadow-[0_0_8px_#BFE7EA] -translate-x-1/2 pointer-events-none"
+                className="absolute w-2.5 h-2.5 rounded-full bg-white shadow-sm -translate-x-1/2 pointer-events-none"
                 style={{ left: `${progressRatio * 100}%` }}
               />
             )}

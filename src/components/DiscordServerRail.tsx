@@ -193,8 +193,8 @@ export const DiscordServerRail: React.FC<DiscordServerRailProps> = ({
               <div
                 className={`absolute left-0 w-1 ${
                   server.isSpotify
-                    ? 'bg-[#1DB954] shadow-[0_0_8px_#1DB954]'
-                    : 'bg-[#BFE7EA] shadow-[0_0_8px_#BFE7EA]'
+                    ? 'bg-[#1DB954]'
+                    : 'bg-[#BFE7EA]'
                 } rounded-r-md transition-all duration-200 ${
                   isActive
                     ? 'h-10 opacity-100'
@@ -206,11 +206,11 @@ export const DiscordServerRail: React.FC<DiscordServerRailProps> = ({
 
               {/* Server Squircle Icon */}
               <div
-                className={`relative w-12 h-12 flex items-center justify-center transition-all duration-200 overflow-hidden shadow-md border ${
+                className={`relative w-12 h-12 flex items-center justify-center transition-all duration-200 overflow-hidden border ${
                   isActive
                     ? server.isSpotify
-                      ? 'rounded-[16px] ring-2 ring-[#1DB954] border-transparent shadow-[0_0_14px_rgba(29,185,84,0.6)]'
-                      : 'rounded-[16px] ring-2 ring-[#BFE7EA] border-transparent shadow-[0_0_14px_rgba(191,231,234,0.45)]'
+                      ? 'rounded-[16px] ring-2 ring-[#1DB954] border-transparent'
+                      : 'rounded-[16px] ring-2 ring-[#BFE7EA] border-transparent'
                     : isHovered
                     ? 'rounded-[16px] bg-[#1C1E22] border-[#282B32]'
                     : 'rounded-[24px] bg-[#141619] border-[#282B32]/70'
@@ -235,7 +235,7 @@ export const DiscordServerRail: React.FC<DiscordServerRailProps> = ({
                       {server.name.replace(/[^a-zA-Z0-9]/g, '').slice(0, 3)}
                     </div>
                     {server.isSpotify && (
-                      <span className="absolute bottom-1 right-1 w-2.5 h-2.5 rounded-full bg-[#1DB954] border border-[#0B0C0E] shadow-[0_0_6px_#1DB954] z-20" />
+                      <span className="absolute bottom-1 right-1 w-2.5 h-2.5 rounded-full bg-[#1DB954] border border-[#0B0C0E] z-20" />
                     )}
                   </>
                 ) : (

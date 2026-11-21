@@ -172,7 +172,7 @@ export const TrackListSidebar: React.FC<TrackListSidebarProps> = ({
                 <div className="flex items-center gap-2.5 min-w-0">
                   <div className="flex-shrink-0 flex items-center justify-center">
                     {isActive && isPlaying ? (
-                      <Volume2 className="w-4 h-4 text-[#BFE7EA] animate-pulse drop-shadow-[0_0_8px_#BFE7EA]" />
+                      <Volume2 className="w-4 h-4 text-[#BFE7EA]" />
                     ) : (
                       <Hash
                         className={`w-4 h-4 transition-colors ${
@@ -198,7 +198,7 @@ export const TrackListSidebar: React.FC<TrackListSidebarProps> = ({
 
                 {/* Right Active Indicator */}
                 {isActive && (
-                  <span className="w-2 h-2 rounded-full bg-[#BFE7EA] shadow-[0_0_8px_#BFE7EA] flex-shrink-0" />
+                  <span className="w-2 h-2 rounded-full bg-[#BFE7EA] flex-shrink-0" />
                 )}
               </div>
             );
