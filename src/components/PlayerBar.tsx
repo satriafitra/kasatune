@@ -130,7 +130,7 @@ export const PlayerBar: React.FC<PlayerBarProps> = ({
           <button
             onClick={onToggleShuffle}
             className={`p-1.5 transition-colors rounded hover:bg-[#1C1E22] ${
-              isShuffle ? 'text-[#BFE7EA] drop-shadow-[0_0_8px_#BFE7EA]' : 'text-[#A0A5AD] hover:text-white'
+              isShuffle ? 'text-[#BFE7EA]' : 'text-[#A0A5AD] hover:text-white'
             }`}
             title="Shuffle"
           >
@@ -139,30 +139,28 @@ export const PlayerBar: React.FC<PlayerBarProps> = ({
 
           <button
             onClick={onPrevTrack}
-            className="p-1.5 text-[#A0A5AD] hover:text-[#BFE7EA] transition-colors rounded hover:bg-[#1C1E22]"
+            className="p-1.5 text-[#A0A5AD] hover:text-white transition-colors rounded hover:bg-[#1C1E22]"
             title="Previous (ArrowLeft)"
           >
             <SkipBack className="w-4 h-4 fill-current" />
           </button>
 
+          {/* Clean Play / Pause Icon Button (No Shape Kotak / Directly the Icon) */}
           <button
             onClick={onTogglePlay}
-            className="w-9 h-9 rounded-lg text-white flex items-center justify-center transition-all duration-150 hover:scale-105 active:scale-95 shadow-md bg-gradient-to-br from-[#E89B5B] to-[#D46743] hover:from-[#f0a667] hover:to-[#df734f]"
-            style={{
-              boxShadow: '0 2px 14px rgba(212, 103, 67, 0.45)',
-            }}
+            className="p-1 text-white hover:text-[#BFE7EA] transition-all duration-150 hover:scale-110 active:scale-95 flex items-center justify-center focus:outline-none"
             title={isPlaying ? 'Pause (Space)' : 'Play (Space)'}
           >
             {isPlaying ? (
-              <Pause className="w-4 h-4 fill-white stroke-white" />
+              <Pause className="w-6 h-6 fill-current stroke-current" />
             ) : (
-              <Play className="w-4 h-4 fill-white stroke-white translate-x-0.5" />
+              <Play className="w-6 h-6 fill-current stroke-current translate-x-0.5" />
             )}
           </button>
 
           <button
             onClick={onNextTrack}
-            className="p-1.5 text-[#A0A5AD] hover:text-[#BFE7EA] transition-colors rounded hover:bg-[#1C1E22]"
+            className="p-1.5 text-[#A0A5AD] hover:text-white transition-colors rounded hover:bg-[#1C1E22]"
             title="Next (ArrowRight)"
           >
             <SkipForward className="w-4 h-4 fill-current" />
@@ -171,7 +169,7 @@ export const PlayerBar: React.FC<PlayerBarProps> = ({
           <button
             onClick={onToggleRepeat}
             className={`p-1.5 transition-colors rounded hover:bg-[#1C1E22] ${
-              isRepeat ? 'text-[#BFE7EA] drop-shadow-[0_0_8px_#BFE7EA]' : 'text-[#A0A5AD] hover:text-white'
+              isRepeat ? 'text-[#BFE7EA]' : 'text-[#A0A5AD] hover:text-white'
             }`}
             title="Repeat"
           >
@@ -215,38 +213,32 @@ export const PlayerBar: React.FC<PlayerBarProps> = ({
         </div>
       </div>
 
-      {/* Right: BPM pulse badge, Lyrics Toggle & Volume Slider */}
-      <div className="flex items-center gap-3 min-w-[180px] justify-end">
-        {/* Metronome Beat Indicator with glowing Ice Blue dot */}
+      {/* Right: BPM badge, Lyrics Toggle & Volume Slider */}
+      <div className="flex items-center gap-2 sm:gap-3 min-w-0 sm:min-w-[180px] justify-end flex-shrink-0">
+        {/* Metronome Beat Indicator without AI glow */}
         <div
-          className="hidden lg:flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-[#141619] border border-[#282B32] text-[11px] text-[#BFE7EA]"
+          className="hidden xl:flex items-center gap-1.5 px-2 py-0.5 rounded bg-[#141619] border border-[#282B32] text-[10px] text-[#A0A5AD]"
           title={`Song BPM: ${bpm}`}
         >
-          <span
-            className="w-2 h-2 rounded-sm transition-transform duration-75 bg-[#BFE7EA]"
-            style={{
-              boxShadow: beatPulse > 0.4 ? '0 0 10px #BFE7EA' : 'none',
-              transform: `scale(${1 + beatPulse * 0.9})`,
-            }}
-          />
-          <span className="font-mono text-[10px] font-bold text-[#BFE7EA]">{bpm} BPM</span>
+          <span className="w-1.5 h-1.5 rounded-full bg-[#BFE7EA]" />
+          <span className="font-mono text-[10px] font-semibold text-[#A0A5AD]">{bpm} BPM</span>
         </div>
 
-        {/* Lyrics Toggle Button */}
+        {/* Clean Lyrics Toggle Button (No Border Box) */}
         <button
           onClick={onToggleLyrics}
-          className={`p-2 rounded-md transition-all border ${
+          className={`p-1.5 rounded transition-colors flex items-center justify-center ${
             showLyrics
-              ? 'text-[#BFE7EA] bg-[#1C1E22] border-[#BFE7EA]/40 shadow-[0_0_10px_rgba(191,231,234,0.3)]'
-              : 'text-[#656A74] border-transparent hover:bg-[#141619] hover:text-white'
+              ? 'text-[#BFE7EA] hover:text-white'
+              : 'text-[#656A74] hover:text-[#A0A5AD]'
           }`}
           title="Toggle Lyrics"
         >
           <Mic2 className="w-4 h-4" />
         </button>
 
-        {/* Volume Slider */}
-        <div className="flex items-center gap-2">
+        {/* Volume Slider (Hidden on extra small mobile screens) */}
+        <div className="hidden sm:flex items-center gap-2">
           <button
             onClick={() => onVolumeChange(volume === 0 ? 0.85 : 0)}
             className="text-[#A0A5AD] hover:text-white transition-colors p-1"

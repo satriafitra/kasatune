@@ -13,7 +13,7 @@ import {
   Search,
   Settings,
   RefreshCw,
-  Radio,
+  Music2,
   Hash,
 } from 'lucide-react';
 
@@ -31,6 +31,8 @@ interface NavbarProps {
   friendTrackTitle?: string;
   isFriendConnected?: boolean;
   onConnectFriendSpotify?: () => void;
+  mobileView?: 'player' | 'lyrics' | 'sidebar';
+  onSelectMobileView?: (view: 'player' | 'lyrics' | 'sidebar') => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -47,6 +49,8 @@ export const Navbar: React.FC<NavbarProps> = ({
   friendTrackTitle,
   isFriendConnected = false,
   onConnectFriendSpotify = () => {},
+  mobileView = 'player',
+  onSelectMobileView = () => {},
 }) => {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [tempClientId, setTempClientId] = useState(clientId);
@@ -78,84 +82,105 @@ export const Navbar: React.FC<NavbarProps> = ({
           </button>
         </div>
 
-        {/* Brand Pill */}
-        <div className="flex items-center gap-2 pl-2">
-          <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-[#E89B5B] to-[#D46743] flex items-center justify-center text-white shadow-[0_2px_12px_rgba(212,103,67,0.45)]">
-            <Radio className="w-4 h-4 stroke-[2.5]" />
+        {/* Authentic Music Brand Logo (No AI Slop) */}
+        <div className="flex items-center gap-2.5 pl-1">
+          <div className="w-8 h-8 rounded-lg bg-[#1DB954] flex items-center justify-center text-black shadow-sm flex-shrink-0">
+            <Music2 className="w-4 h-4 stroke-[2.5]" />
           </div>
-          <span className="font-extrabold text-sm text-white tracking-tight">
-            Kasatune
-          </span>
-
-          <div className="hidden sm:flex items-center gap-1 text-[11px] font-bold text-[#BFE7EA] bg-[#141619] border border-[#282B32] px-2 py-0.5 rounded-md shadow-sm">
-            <Hash className="w-3 h-3 text-[#BFE7EA]" />
-            <span>radiohead-masters</span>
+          <div className="flex flex-col">
+            <span className="font-extrabold text-sm text-white tracking-tight leading-none">
+              Kasatune
+            </span>
+            <span className="text-[10px] text-[#949BA4] font-medium leading-tight pt-0.5">
+              Music Studio
+            </span>
           </div>
         </div>
       </div>
 
-      {/* Center: Search Bar with vibrant Ice Blue search icon */}
-      <div className="flex-1 max-w-md relative">
-        <div className="relative flex items-center">
-          <Search className="w-4 h-4 absolute left-3 text-[#BFE7EA]" />
+      {/* Mobile View Switcher (Visible on < md) */}
+      <div className="flex md:hidden items-center p-0.5 rounded-lg bg-[#141619] border border-[#282B32] text-xs">
+        <button
+          onClick={() => onSelectMobileView('player')}
+          className={`px-2.5 py-1 rounded-md font-semibold transition-colors ${
+            mobileView === 'player' ? 'bg-[#282B32] text-white' : 'text-[#949BA4]'
+          }`}
+        >
+          Lagu
+        </button>
+        <button
+          onClick={() => onSelectMobileView('lyrics')}
+          className={`px-2.5 py-1 rounded-md font-semibold transition-colors ${
+            mobileView === 'lyrics' ? 'bg-[#282B32] text-white' : 'text-[#949BA4]'
+          }`}
+        >
+          Lirik
+        </button>
+        <button
+          onClick={() => onSelectMobileView('sidebar')}
+          className={`px-2.5 py-1 rounded-md font-semibold transition-colors ${
+            mobileView === 'sidebar' ? 'bg-[#282B32] text-white' : 'text-[#949BA4]'
+          }`}
+        >
+          Koleksi
+        </button>
+      </div>
+
+      {/* Center: Search Bar with clean minimalist styling */}
+      <div className="hidden md:flex flex-1 max-w-md relative">
+        <div className="w-full relative flex items-center">
+          <Search className="w-4 h-4 absolute left-3 text-[#949BA4]" />
           <input
             type="text"
             value={searchQuery}
             onChange={(e) => onSearchChange(e.target.value)}
-            placeholder="Search Radiohead songs, albums..."
-            className="w-full h-8 pl-9 pr-14 rounded-md bg-[#141619] hover:bg-[#1C1E22] focus:bg-[#1C1E22] border border-[#282B32] focus:border-[#BFE7EA] text-xs text-white placeholder-[#656A74] focus:outline-none focus:ring-1 focus:ring-[#BFE7EA]/50 transition-all shadow-inner"
+            placeholder="Search songs, artists, albums..."
+            className="w-full h-8 pl-9 pr-14 rounded-md bg-[#141619] hover:bg-[#1C1E22] focus:bg-[#1C1E22] border border-[#282B32] focus:border-[#BFE7EA] text-xs text-white placeholder-[#656A74] focus:outline-none transition-colors"
           />
-          <kbd className="hidden sm:inline-block absolute right-2.5 px-1.5 py-0.5 text-[10px] font-mono text-[#BFE7EA] bg-[#0B0C0E] border border-[#282B32] rounded shadow-sm">
+          <kbd className="hidden sm:inline-block absolute right-2.5 px-1.5 py-0.5 text-[10px] font-mono text-[#949BA4] bg-[#0B0C0E] border border-[#282B32] rounded">
             Ctrl+K
           </kbd>
         </div>
       </div>
 
-      {/* Right: Go Backend Status & Account Controls */}
-      <div className="flex items-center gap-2.5">
-        {/* Friend Spotify Live Status Pill */}
+      {/* Right: Clean Status Indicators & Account Controls */}
+      <div className="flex items-center gap-2">
+        {/* Friend Live Status Pill (Simplified, No Neon AI Glare) */}
         <div
           onClick={onConnectFriendSpotify}
-          className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-[#141619] border border-[#282B32] hover:border-[#1DB954]/50 text-xs cursor-pointer hover:bg-[#1C1E22] transition-colors"
+          className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-[#141619] border border-[#282B32] hover:border-[#383C45] text-xs cursor-pointer hover:bg-[#1C1E22] transition-colors"
           title={
             isFriendConnected
-              ? 'Friend Spotify is connected & detecting in real-time'
-              : 'Click to connect Friend Spotify via OAuth'
+              ? 'Friend Spotify is connected'
+              : 'Click to connect Friend Spotify'
           }
         >
-          <span className="relative flex h-2 w-2">
-            {isFriendConnected && (
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#1DB954] opacity-75" />
-            )}
-            <span
-              className={`relative inline-flex rounded-full h-2 w-2 ${
-                isFriendConnected ? 'bg-[#1DB954] shadow-[0_0_8px_#1DB954]' : 'bg-[#1DB954]/60'
-              }`}
-            />
-          </span>
-          <span className="font-semibold text-[11px] text-white hidden md:inline truncate max-w-[140px]">
-            {friendTrackTitle ? `Friend: ${friendTrackTitle}` : 'Spotify Live'}
+          <span
+            className={`w-2 h-2 rounded-full flex-shrink-0 ${
+              isFriendConnected ? 'bg-[#1DB954]' : 'bg-[#656A74]'
+            }`}
+          />
+          <span className="font-semibold text-[11px] text-[#A0A5AD] hidden sm:inline truncate max-w-[130px]">
+            {friendTrackTitle ? friendTrackTitle : 'Spotify Live'}
           </span>
         </div>
 
-        {/* Backend Status Pill */}
+        {/* Backend Status Pill (Clean, No Glow) */}
         <div
-          className="flex items-center gap-2 px-2.5 py-1 rounded-md bg-[#141619] border border-[#282B32] text-xs cursor-pointer hover:bg-[#1C1E22] transition-colors"
+          className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-[#141619] border border-[#282B32] text-xs cursor-pointer hover:bg-[#1C1E22] transition-colors"
           title="Click to re-ping Go Backend"
           onClick={onRefreshBackend}
         >
           <span
-            className={`w-2 h-2 rounded-full ${
-              isBackendOnline
-                ? 'bg-[#23A55A] shadow-[0_0_8px_#23A55A]'
-                : 'bg-[#FEE75C] shadow-[0_0_8px_#FEE75C]'
+            className={`w-2 h-2 rounded-full flex-shrink-0 ${
+              isBackendOnline ? 'bg-[#23A55A]' : 'bg-[#FEE75C]'
             }`}
           />
           <span className="font-semibold text-[11px] text-[#A0A5AD] hidden sm:inline">
             {isBackendOnline ? 'Go API Online' : 'Connecting'}
           </span>
           <RefreshCw
-            className={`w-3 h-3 text-[#BFE7EA] ${isLoading ? 'animate-spin' : ''}`}
+            className={`w-3 h-3 text-[#A0A5AD] ${isLoading ? 'animate-spin' : ''}`}
           />
         </div>
 
@@ -163,14 +188,14 @@ export const Navbar: React.FC<NavbarProps> = ({
         {isAuthenticated ? (
           <button
             onClick={onLogout}
-            className="px-3 py-1 rounded-md bg-[#1C1E22] hover:bg-[#ED4245] text-white text-xs font-semibold transition-colors border border-[#282B32]"
+            className="px-2.5 py-1 rounded-md bg-[#1C1E22] hover:bg-[#ED4245] text-white text-xs font-semibold transition-colors border border-[#282B32]"
           >
             Disconnect
           </button>
         ) : (
           <button
             onClick={() => setIsSettingsOpen(true)}
-            className="px-3 py-1 rounded-md bg-[#141619] hover:bg-[#1C1E22] text-[#BFE7EA] border border-[#282B32] hover:border-[#BFE7EA] text-xs font-semibold shadow-sm transition-colors flex items-center gap-1.5"
+            className="px-2.5 py-1 rounded-md bg-[#141619] hover:bg-[#1C1E22] text-[#A0A5AD] hover:text-white border border-[#282B32] text-xs font-semibold transition-colors flex items-center gap-1.5"
           >
             <Settings className="w-3.5 h-3.5" />
             <span className="hidden sm:inline">Settings</span>

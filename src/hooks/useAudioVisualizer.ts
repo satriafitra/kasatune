@@ -33,7 +33,7 @@ export interface AudioVisualizerControls {
   pause: () => void;
   togglePlay: () => Promise<void>;
   seekToSeconds: (seconds: number) => void;
-  loadTrack: (url: string, bpm: number, durationSec: number, autoPlay?: boolean) => void;
+  loadTrack: (url: string, bpm: number, durationSec: number, autoPlay?: boolean, initialTimeSec?: number) => void;
   visualizerData: VisualizerData;
 }
 
@@ -230,6 +230,13 @@ export function useAudioVisualizer(
       }
       setCurrentTime(currentTimeRef.current);
 
+      // Throttled persistence of playtime across page refresh (every ~1 sec)
+      if (Math.round(currentTimeRef.current * 10) % 10 === 0) {
+        try {
+          localStorage.setItem('kasatune_saved_playtime', String(currentTimeRef.current));
+        } catch {}
+      }
+
       if (currentTimeRef.current >= durationRef.current) {
         setIsPlaying(false);
         isPlayingRef.current = false;
@@ -240,22 +247,30 @@ export function useAudioVisualizer(
     return () => clearInterval(interval);
   }, [isPlaying]);
 
-  // Clean Track Switcher: Guarantees 100% synchronization on track skip
-  const loadTrack = useCallback((url: string, newBpm: number, durationSec: number, autoPlay: boolean = true) => {
+  // Clean Track Switcher: Guarantees 100% synchronization on track skip, supporting initial playtime persistence
+  const loadTrack = useCallback((url: string, newBpm: number, durationSec: number, autoPlay: boolean = true, initialTimeSec: number = 0) => {
     const audio = audioRef.current;
     if (!audio) return;
 
-    // Reset clock
-    setCurrentTime(0);
-    currentTimeRef.current = 0;
-    setDuration(durationSec > 0 ? durationSec : 266);
-    durationRef.current = durationSec > 0 ? durationSec : 266;
+    const safeDuration = durationSec > 0 ? durationSec : 266;
+    const safeInitial = Math.max(0, Math.min(safeDuration, initialTimeSec));
+
+    // Initialize clock
+    setCurrentTime(safeInitial);
+    currentTimeRef.current = safeInitial;
+    setDuration(safeDuration);
+    durationRef.current = safeDuration;
     setCurrentBpm(newBpm > 0 ? newBpm : 128);
 
     audio.pause();
-    audio.currentTime = 0;
     audio.src = url;
     audio.load();
+
+    if (safeInitial > 0) {
+      audio.currentTime = safeInitial;
+    } else {
+      audio.currentTime = 0;
+    }
 
     setupWebAudio();
 
@@ -302,6 +317,9 @@ export function useAudioVisualizer(
       audioRef.current.pause();
       setIsPlaying(false);
       isPlayingRef.current = false;
+      try {
+        localStorage.setItem('kasatune_saved_playtime', String(currentTimeRef.current));
+      } catch {}
     }
   }, []);
 
@@ -318,6 +336,9 @@ export function useAudioVisualizer(
     const clampedSec = Math.max(0, Math.min(durationRef.current, seconds));
     currentTimeRef.current = clampedSec;
     setCurrentTime(clampedSec);
+    try {
+      localStorage.setItem('kasatune_saved_playtime', String(clampedSec));
+    } catch {}
 
     if (audio && audio.duration && !isNaN(audio.duration) && audio.duration > 0) {
       // Map to audio element duration cleanly

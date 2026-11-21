@@ -25,8 +25,17 @@ import type { BackendRadioheadTrack } from './api/backend';
 export const App: React.FC = () => {
   const [showLyrics, setShowLyrics] = useState(true);
   const [searchFilter, setSearchFilter] = useState('');
-  const [activeAlbum, setActiveAlbum] = useState<AlbumFilterType>('friend');
-  const [isFriendSyncConnected, setIsFriendSyncConnected] = useState<boolean>(true);
+  const [mobileView, setMobileView] = useState<'player' | 'lyrics' | 'sidebar'>('player');
+
+  // Persistence: Default to standalone Mode Mandiri on refresh, not auto-connecting to friend sync
+  const [activeAlbum, setActiveAlbum] = useState<AlbumFilterType>(() => {
+    try {
+      const saved = localStorage.getItem('kasatune_active_album');
+      if (saved && saved !== 'friend') return saved as AlbumFilterType;
+    } catch {}
+    return 'all';
+  });
+  const [isFriendSyncConnected, setIsFriendSyncConnected] = useState<boolean>(false);
 
   // 1. Spotify PKCE Auth
   const {
@@ -101,35 +110,36 @@ export const App: React.FC = () => {
     toggleFriendPlayback,
   } = useFriendSpotify();
 
-  // Auto-align with Friend's Spotify session on mount
-  const hasInitialFriendSyncedRef = useRef(false);
+  // Session & Playtime Persistence: Restore exact track & progress position on refresh
+  const hasRestoredSavedTrackRef = useRef(false);
   useEffect(() => {
-    if (!hasInitialFriendSyncedRef.current && tracks.length > 0 && activeAlbum === 'friend') {
-      const friendTrack =
-        (friendPlayback?.track &&
-          tracks.find(
-            (t) =>
-              t.id === friendPlayback.track?.id ||
-              t.title.toLowerCase().includes(friendPlayback.track?.title?.toLowerCase() || '')
-          )) ||
-        tracks.find((t) => t.id === 'roselia-proud-of-oneself') ||
-        tracks[0];
+    if (!hasRestoredSavedTrackRef.current && tracks.length > 0) {
+      hasRestoredSavedTrackRef.current = true;
+      try {
+        const savedTrackId = localStorage.getItem('kasatune_saved_track_id');
+        const savedTimeStr = localStorage.getItem('kasatune_saved_playtime');
+        const savedTime = savedTimeStr ? parseFloat(savedTimeStr) : 0;
 
-      if (friendTrack) {
-        selectTrack(friendTrack);
-        loadTrack(
-          friendTrack.previewUrl,
-          friendTrack.bpm,
-          friendTrack.durationMs > 0 ? friendTrack.durationMs / 1000 : 235,
-          friendPlayback?.isPlaying ?? true
-        );
-        if (friendPlayback?.progressMs) {
-          seekToSeconds(friendPlayback.progressMs / 1000);
+        const targetTrack =
+          (savedTrackId && tracks.find((t) => t.id === savedTrackId)) ||
+          tracks.find((t) => t.id === 'rh-creep') ||
+          tracks[0];
+
+        if (targetTrack) {
+          selectTrack(targetTrack);
+          loadTrack(
+            targetTrack.previewUrl,
+            targetTrack.bpm,
+            targetTrack.durationMs > 0 ? targetTrack.durationMs / 1000 : 238,
+            false, // Do not auto-blast audio on refresh
+            savedTime // Exact saved playtime restored!
+          );
         }
-        hasInitialFriendSyncedRef.current = true;
+      } catch (e) {
+        console.error('Failed to restore saved track/playtime', e);
       }
     }
-  }, [tracks, activeAlbum, selectTrack, loadTrack, seekToSeconds, friendPlayback]);
+  }, [tracks, selectTrack, loadTrack]);
 
   // Master Real-Time Friend Spotify Synchronization Engine
   useEffect(() => {
@@ -240,6 +250,10 @@ export const App: React.FC = () => {
   const handleSelectAlbum = useCallback(
     (album: AlbumFilterType) => {
       setActiveAlbum(album);
+      try {
+        localStorage.setItem('kasatune_active_album', album);
+      } catch {}
+
       if (album === 'friend') {
         const friendSong =
           tracks.find((t) => t.id === 'roselia-proud-of-oneself') ||
@@ -258,6 +272,9 @@ export const App: React.FC = () => {
         const matchedTrack = tracks.find((t) => matchesAlbumFilter(t, album)) || tracks[0];
         if (matchedTrack) {
           selectTrack(matchedTrack);
+          try {
+            localStorage.setItem('kasatune_saved_track_id', matchedTrack.id);
+          } catch {}
           loadTrack(
             matchedTrack.previewUrl,
             matchedTrack.bpm,
@@ -274,9 +291,15 @@ export const App: React.FC = () => {
   const handleSwitchToMyMusic = useCallback(() => {
     setIsFriendSyncConnected(false);
     setActiveAlbum('radiohead');
+    try {
+      localStorage.setItem('kasatune_active_album', 'radiohead');
+    } catch {}
     const rhTrack = tracks.find((t) => t.artist.toLowerCase() === 'radiohead') || tracks[0];
     if (rhTrack) {
       selectTrack(rhTrack);
+      try {
+        localStorage.setItem('kasatune_saved_track_id', rhTrack.id);
+      } catch {}
       loadTrack(
         rhTrack.previewUrl,
         rhTrack.bpm,
@@ -299,6 +322,9 @@ export const App: React.FC = () => {
 
       if (matchedTrack) {
         selectTrack(matchedTrack);
+        try {
+          localStorage.setItem('kasatune_saved_track_id', matchedTrack.id);
+        } catch {}
         loadTrack(
           matchedTrack.previewUrl,
           matchedTrack.bpm,
@@ -318,6 +344,14 @@ export const App: React.FC = () => {
     if (activeAlbum === 'friend' && friendPlayback && !friendPlayback.isPlaying) {
       setIsFriendSyncConnected(false);
     }
+
+    try {
+      localStorage.setItem('kasatune_saved_track_id', track.id);
+      localStorage.setItem('kasatune_active_album', activeAlbum);
+    } catch {}
+
+    // On mobile, auto-navigate to player stage upon selecting a track
+    setMobileView('player');
 
     if (track.id === activeTrack.id) {
       if (!isPlaying) {
@@ -416,20 +450,26 @@ export const App: React.FC = () => {
         }
         isFriendConnected={friendPlayback?.isConnected}
         onConnectFriendSpotify={connectFriendSpotify}
+        mobileView={mobileView}
+        onSelectMobileView={setMobileView}
       />
 
-      {/* 2. Main Workspace (Discord Server Rail + Channels + Grand Vinyl & Lyric Stage) */}
-      <main className="flex-1 flex overflow-hidden min-h-0 bg-[#0B0C0E]">
-        {/* Col 1: Discord Server Rail (72px) */}
-        <DiscordServerRail
-          activeAlbum={activeAlbum}
-          onSelectAlbum={handleSelectAlbum}
-          onRefreshBackend={refetchTracks}
-          isBackendOnline={isBackendOnline}
-        />
+      {/* 2. Main Workspace (Responsive: Discord Server Rail + Channels + Grand Vinyl & Lyric Stage) */}
+      <main className="flex-1 flex overflow-hidden min-h-0 bg-[#0B0C0E] relative">
+        {/* Col 1: Discord Server Rail (72px) - Visible on desktop, and on mobile when in 'sidebar' view */}
+        <div className={`h-full flex-shrink-0 ${mobileView === 'sidebar' ? 'block' : 'hidden md:block'}`}>
+          <DiscordServerRail
+            activeAlbum={activeAlbum}
+            onSelectAlbum={(alb) => {
+              handleSelectAlbum(alb);
+            }}
+            onRefreshBackend={refetchTracks}
+            isBackendOnline={isBackendOnline}
+          />
+        </div>
 
-        {/* Col 2: Discord Channel & Queue Drawer (260px hidden on mobile) */}
-        <div className="h-full flex-shrink-0 hidden md:block">
+        {/* Col 2: Discord Channel & Queue Drawer - Visible on desktop, and on mobile when in 'sidebar' view */}
+        <div className={`h-full flex-shrink-0 ${mobileView === 'sidebar' ? 'flex-1 md:flex-initial md:w-64 sm:md:w-72 block' : 'hidden md:block'}`}>
           <TrackListSidebar
             tracks={displayTracks}
             activeTrackId={activeTrack.id}
@@ -455,9 +495,9 @@ export const App: React.FC = () => {
         </div>
 
         {/* Col 3 & 4: Grand Vinyl Studio & Live Lyric Stage */}
-        <div className="flex-1 h-full min-w-0 p-2 gap-2 flex overflow-hidden">
+        <div className={`flex-1 h-full min-w-0 p-2 gap-2 overflow-hidden ${mobileView === 'sidebar' ? 'hidden md:flex' : 'flex'}`}>
           {/* Main Album Vinyl & Discography Stage */}
-          <div className="flex-1 h-full min-w-0">
+          <div className={`flex-1 h-full min-w-0 ${mobileView === 'lyrics' ? 'hidden lg:block' : 'block'}`}>
             <AlbumShowcase
               track={activeTrack}
               tracks={displayTracks}
@@ -474,9 +514,13 @@ export const App: React.FC = () => {
             />
           </div>
 
-          {/* Live Lyrics Theater (Collapsible or Full-Height) */}
-          {showLyrics && (
-            <div className="w-[320px] lg:w-[380px] xl:w-[440px] 2xl:w-[480px] h-full flex-shrink-0 hidden lg:block animate-in fade-in duration-300">
+          {/* Live Lyrics Theater (Collapsible or Full-Height on mobile) */}
+          {(showLyrics || mobileView === 'lyrics') && (
+            <div className={`h-full flex-shrink-0 animate-in fade-in duration-200 ${
+              mobileView === 'lyrics'
+                ? 'w-full block lg:w-[360px] xl:w-[420px]'
+                : 'hidden lg:block lg:w-[360px] xl:w-[420px]'
+            }`}>
               <DynamicLyrics
                 lyrics={lyrics}
                 plainLyrics={plainLyrics}
@@ -515,7 +559,12 @@ export const App: React.FC = () => {
         colors={albumColors}
         beatPulse={visualizerData.beatPulse}
         showLyrics={showLyrics}
-        onToggleLyrics={() => setShowLyrics(!showLyrics)}
+        onToggleLyrics={() => {
+          setShowLyrics((prev) => !prev);
+          if (window.innerWidth < 1024) {
+            setMobileView((prev) => (prev === 'lyrics' ? 'player' : 'lyrics'));
+          }
+        }}
       />
     </div>
   );

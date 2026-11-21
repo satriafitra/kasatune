@@ -81,11 +81,11 @@ export const FriendSpotifyCard: React.FC<FriendSpotifyCardProps> = ({
   return (
     <div className="mx-2 mb-2 p-2.5 rounded-lg bg-[#0E1013] border border-[#282B32] shadow-md flex flex-col gap-2 transition-all select-none">
       {/* 1. Multi-Friend Switcher Header */}
-      <div className="flex flex-col gap-1.5">
+      <div className="flex flex-col gap-2">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-1.5">
-            <Radio className="w-3.5 h-3.5 text-[#BFE7EA]" />
-            <span className="text-[10px] font-black uppercase tracking-wider text-[#A0A5AD]">
+            <Radio className="w-3.5 h-3.5 text-[#1DB954]" />
+            <span className="text-[11px] font-bold uppercase tracking-wider text-[#949BA4]">
               Pilih Teman (Live Sync)
             </span>
           </div>
@@ -93,7 +93,7 @@ export const FriendSpotifyCard: React.FC<FriendSpotifyCardProps> = ({
           <div className="flex items-center gap-1">
             <button
               onClick={onRefresh}
-              className="p-1 rounded text-[#656A74] hover:text-white hover:bg-[#1C1E22] transition-colors"
+              className="p-1 rounded text-[#949BA4] hover:text-white hover:bg-[#1C1E22] transition-colors"
               title="Refresh Lanyard session"
             >
               <RefreshCw className={`w-3 h-3 ${isLoading ? 'animate-spin' : ''}`} />
@@ -101,10 +101,10 @@ export const FriendSpotifyCard: React.FC<FriendSpotifyCardProps> = ({
 
             <button
               onClick={() => setIsEditingDiscord((p) => !p)}
-              className={`px-1.5 py-0.5 rounded text-[9px] font-medium border transition-colors flex items-center gap-1 ${
+              className={`px-2 py-0.5 rounded text-[10px] font-medium border transition-colors flex items-center gap-1 ${
                 isEditingDiscord
                   ? 'bg-[#5865F2] border-[#5865F2] text-white'
-                  : 'bg-[#1C1E22] border-[#282B32] text-[#A0A5AD] hover:text-white'
+                  : 'bg-[#1C1E22] border-[#282B32] text-[#949BA4] hover:text-white'
               }`}
               title="Masukkan Discord User ID kustom"
             >
@@ -115,7 +115,7 @@ export const FriendSpotifyCard: React.FC<FriendSpotifyCardProps> = ({
         </div>
 
         {/* Friend Selector Tabs - Clean Responsive Cards with full readable names */}
-        <div className="grid grid-cols-3 gap-1 pt-0.5">
+        <div className="grid grid-cols-3 gap-1.5">
           {KNOWN_FRIENDS.map((f) => {
             const isSelected = discordUserId === f.id;
             const live = friendsLiveMap[f.id];
@@ -125,10 +125,10 @@ export const FriendSpotifyCard: React.FC<FriendSpotifyCardProps> = ({
               <button
                 key={f.id}
                 onClick={() => handleSelectPreset(f.id)}
-                className={`p-1.5 rounded-lg border text-left transition-all flex flex-col gap-1 relative overflow-hidden group ${
+                className={`p-2 rounded-lg border text-left transition-colors flex flex-col gap-1.5 relative overflow-hidden ${
                   isSelected
-                    ? 'bg-[#1C2026] border-[#1DB954] shadow-[0_0_10px_rgba(29,185,84,0.2)] ring-1 ring-[#1DB954]'
-                    : 'bg-[#141619] border-[#282B32] hover:bg-[#181A1F] hover:border-[#383C45]'
+                    ? 'bg-[#161B18] border-[#1DB954] ring-1 ring-[#1DB954]/50'
+                    : 'bg-[#141619] border-[#282B32] hover:bg-[#1C1E22] hover:border-[#383C45]'
                 }`}
                 title={`Pilih ${f.name} (@${f.username}) - ${f.tag}`}
               >
@@ -137,23 +137,23 @@ export const FriendSpotifyCard: React.FC<FriendSpotifyCardProps> = ({
                     <img
                       src={f.avatarUrl}
                       alt={f.name}
-                      className="w-5 h-5 rounded-md object-cover bg-[#0B0C0E]"
+                      className="w-6 h-6 rounded-md object-cover bg-[#0B0C0E]"
                     />
                     {/* Live playing beacon */}
                     <span
                       className={`absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full border border-[#0E1013] ${
-                        isFriendPlaying ? 'bg-[#1DB954] shadow-[0_0_4px_#1DB954]' : 'bg-[#656A74]'
+                        isFriendPlaying ? 'bg-[#1DB954]' : 'bg-[#656A74]'
                       }`}
                     />
                   </div>
 
                   <span
-                    className={`text-[7.5px] font-mono px-1 rounded font-bold uppercase ${
+                    className={`text-[8px] font-mono px-1 py-0.5 rounded font-bold uppercase tracking-wider ${
                       isSelected
-                        ? 'bg-[#1DB954] text-black font-extrabold'
+                        ? 'bg-[#1DB954] text-black'
                         : isFriendPlaying
                         ? 'bg-[#1DB954]/20 text-[#1DB954]'
-                        : 'bg-[#282B32] text-[#656A74]'
+                        : 'bg-[#282B32] text-[#949BA4]'
                     }`}
                   >
                     {isSelected ? 'AKTIF' : isFriendPlaying ? 'PLAY' : 'IDLE'}
@@ -162,12 +162,12 @@ export const FriendSpotifyCard: React.FC<FriendSpotifyCardProps> = ({
 
                 <div className="min-w-0 w-full">
                   <p
-                    className="text-[9.5px] font-bold text-white truncate leading-tight"
+                    className="text-xs font-semibold text-white truncate leading-tight"
                     title={f.name}
                   >
                     {f.name}
                   </p>
-                  <p className="text-[7.5px] text-[#A0A5AD] truncate leading-none pt-0.5">
+                  <p className="text-[10px] text-[#949BA4] truncate leading-tight pt-0.5">
                     {f.tag}
                   </p>
                 </div>
@@ -178,25 +178,21 @@ export const FriendSpotifyCard: React.FC<FriendSpotifyCardProps> = ({
       </div>
 
       {/* Mode Switcher Segmented Control */}
-      <div className="grid grid-cols-2 p-0.5 rounded-lg bg-[#08090B] border border-[#282B32]/90 text-[10px] font-bold">
+      <div className="grid grid-cols-2 p-1 rounded-lg bg-[#0B0C0E] border border-[#282B32] text-xs font-medium gap-1">
         <button
           onClick={() => {
             if (!isConnected) onToggleConnect();
           }}
-          className={`py-1 rounded-md flex items-center justify-center gap-1.5 transition-all ${
+          className={`py-1.5 rounded-md flex items-center justify-center gap-1.5 transition-colors ${
             isConnected
-              ? 'bg-[#1DB954]/20 border border-[#1DB954]/50 text-[#1DB954] shadow-sm'
-              : 'text-[#656A74] hover:text-[#A0A5AD]'
+              ? 'bg-[#1DB954]/15 border border-[#1DB954]/30 text-[#1DB954] font-semibold'
+              : 'text-[#949BA4] hover:text-white border border-transparent'
           }`}
           title="Sinkronkan pemutaran dengan lagu teman secara real-time"
         >
           <span
             className={`w-1.5 h-1.5 rounded-full ${
-              isConnected
-                ? isPlaying
-                  ? 'bg-[#1DB954] animate-ping'
-                  : 'bg-[#1DB954]'
-                : 'bg-[#656A74]'
+              isConnected ? 'bg-[#1DB954]' : 'bg-[#656A74]'
             }`}
           />
           <span>Live Sync Teman</span>
@@ -206,22 +202,22 @@ export const FriendSpotifyCard: React.FC<FriendSpotifyCardProps> = ({
           onClick={() => {
             if (isConnected) onToggleConnect();
           }}
-          className={`py-1 rounded-md flex items-center justify-center gap-1.5 transition-all ${
+          className={`py-1.5 rounded-md flex items-center justify-center gap-1.5 transition-colors ${
             !isConnected
-              ? 'bg-[#BFE7EA]/20 border border-[#BFE7EA]/50 text-[#BFE7EA] shadow-sm'
-              : 'text-[#656A74] hover:text-[#A0A5AD]'
+              ? 'bg-[#282B32] border border-[#3E4249] text-white font-semibold'
+              : 'text-[#949BA4] hover:text-white border border-transparent'
           }`}
           title="Bebas memutar musik sendiri tanpa sinkronisasi teman"
         >
-          <Headphones className="w-3 h-3 text-[#BFE7EA]" />
+          <Headphones className="w-3.5 h-3.5 text-[#949BA4]" />
           <span>Mode Mandiri</span>
         </button>
       </div>
 
       {/* Custom Discord User ID Form */}
       {isEditingDiscord && (
-        <div className="p-2 rounded bg-[#141619] border border-[#5865F2]/40 flex flex-col gap-1.5 text-[10px]">
-          <div className="text-[#A0A5AD] leading-tight">
+        <div className="p-2.5 rounded-lg bg-[#141619] border border-[#5865F2]/40 flex flex-col gap-2 text-xs">
+          <div className="text-[#949BA4] leading-tight">
             Masukkan <b>Discord User ID</b> teman baru kamu:
           </div>
           <div className="flex items-center gap-1">
@@ -230,11 +226,11 @@ export const FriendSpotifyCard: React.FC<FriendSpotifyCardProps> = ({
               value={inputDiscordId}
               onChange={(e) => setInputDiscordId(e.target.value)}
               placeholder="Contoh: 519781597155950602"
-              className="flex-1 bg-[#0E1013] border border-[#282B32] rounded px-2 py-1 text-white text-[11px] font-mono outline-none focus:border-[#5865F2]"
+              className="flex-1 bg-[#0E1013] border border-[#282B32] rounded px-2.5 py-1 text-white text-xs font-mono outline-none focus:border-[#5865F2]"
             />
             <button
               onClick={handleSaveDiscordId}
-              className="px-2 py-1 bg-[#5865F2] hover:bg-[#4752C4] text-white rounded font-bold transition-colors flex items-center"
+              className="px-2.5 py-1 bg-[#5865F2] hover:bg-[#4752C4] text-white rounded font-bold transition-colors flex items-center"
               title="Simpan ID"
             >
               <Check className="w-3 h-3" />
@@ -246,7 +242,7 @@ export const FriendSpotifyCard: React.FC<FriendSpotifyCardProps> = ({
               <X className="w-3 h-3" />
             </button>
           </div>
-          <div className="text-[9px] text-[#656A74]">
+          <div className="text-[10px] text-[#656A74]">
             *Teman kamu harus join server <b>discord.gg/lanyard</b> sekali saja.
           </div>
         </div>
@@ -255,27 +251,27 @@ export const FriendSpotifyCard: React.FC<FriendSpotifyCardProps> = ({
       {/* 2. State Cards (Disconnected / Playing / Standby) */}
       {!isConnected ? (
         /* Disconnected / Autonomous Mode Card */
-        <div className="p-2.5 rounded-lg bg-[#141619] border border-[#BFE7EA]/30 flex flex-col gap-2">
-          <div className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded-lg bg-[#BFE7EA]/15 border border-[#BFE7EA]/30 flex items-center justify-center text-[#BFE7EA] flex-shrink-0">
+        <div className="p-3 rounded-lg bg-[#141619] border border-[#282B32] flex flex-col gap-2.5">
+          <div className="flex items-start gap-2.5">
+            <div className="w-7 h-7 rounded-md bg-[#1C1E22] border border-[#282B32] flex items-center justify-center text-[#949BA4] flex-shrink-0 mt-0.5">
               <Headphones className="w-4 h-4" />
             </div>
             <div className="min-w-0 flex-1">
               <div className="flex items-center justify-between">
-                <span className="text-[11px] font-bold text-[#BFE7EA]">Mode Mandiri Aktif</span>
-                <span className="text-[8px] font-mono px-1.5 py-0.5 rounded bg-[#BFE7EA]/20 text-[#BFE7EA] font-bold">
-                  OFFLINE
+                <span className="text-xs font-bold text-white">Mode Mandiri Aktif</span>
+                <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-[#282B32] text-[#949BA4] font-semibold">
+                  STANDALONE
                 </span>
               </div>
-              <p className="text-[9.5px] text-[#A0A5AD] leading-tight pt-0.5">
-                Kamu bebas memutar Radiohead &amp; album lain tanpa terikat playlist teman.
+              <p className="text-xs text-[#949BA4] leading-relaxed pt-1">
+                Kamu bebas memutar Radiohead &amp; album artis lain tanpa terikat playlist teman.
               </p>
             </div>
           </div>
 
           <button
             onClick={onToggleConnect}
-            className="w-full h-8 px-3 rounded-lg bg-[#1DB954] hover:bg-[#1ed760] text-black text-xs font-black flex items-center justify-center gap-2 transition-all shadow-md active:scale-95"
+            className="w-full h-8 px-3 rounded-md bg-[#1DB954] hover:bg-[#1ed760] text-black text-xs font-bold flex items-center justify-center gap-2 transition-all active:scale-[0.98]"
             title="Sambungkan kembali ke Live Sync Spotify teman"
           >
             <Radio className="w-3.5 h-3.5" />

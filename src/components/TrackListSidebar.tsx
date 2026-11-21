@@ -134,15 +134,6 @@ export const TrackListSidebar: React.FC<TrackListSidebarProps> = ({
           <span className="font-extrabold text-sm text-white tracking-tight truncate">
             {getCategoryTitle(activeAlbum)}
           </span>
-          <span
-            className={`w-4 h-4 rounded-md text-[10px] font-black flex items-center justify-center flex-shrink-0 ${
-              activeAlbum === 'friend'
-                ? 'bg-[#1DB954] text-black shadow-[0_0_8px_#1DB954]'
-                : 'bg-[#BFE7EA] text-[#0B0C0E] shadow-[0_0_8px_#BFE7EA]'
-            }`}
-          >
-            ✓
-          </span>
         </div>
         <ChevronDown className="w-4 h-4 text-[#A0A5AD]" />
       </div>

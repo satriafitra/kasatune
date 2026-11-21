@@ -9,7 +9,7 @@
  */
 
 import React, { useState } from 'react';
-import { Radio, Disc, Sparkles } from 'lucide-react';
+import { Music2, Disc, Sparkles } from 'lucide-react';
 
 export type AlbumFilterType =
   | 'friend'
@@ -68,93 +68,93 @@ const SERVERS: ServerItem[] = [
   {
     id: 'radiohead',
     name: 'Radiohead (Semua Album)',
-    imageUrl: 'https://is1-ssl.mzstatic.com/image/thumb/Music116/v4/07/60/ba/0760ba0f-148c-b18f-d0ff-169ee96f3af5/634904078164.png/600x600bb.jpg',
+    imageUrl: '/covers/radiohead.jpg',
   },
   {
     id: 'Pablo Honey',
     name: 'Radiohead - Pablo Honey (1993)',
     year: 1993,
-    imageUrl: 'https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/78/a4/ec/78a4ec7b-c6d6-c9c8-441b-660486e56a89/634904077969.png/600x600bb.jpg',
+    imageUrl: '/covers/pablo_honey.jpg',
   },
   {
     id: 'The Bends',
     name: 'Radiohead - The Bends (1995)',
     year: 1995,
-    imageUrl: 'https://is1-ssl.mzstatic.com/image/thumb/Music126/v4/1b/a9/5c/1ba95cac-b245-d386-63fb-6b857aa9dce8/634904078065.png/600x600bb.jpg',
+    imageUrl: '/covers/the_bends.jpg',
   },
   {
     id: 'OK Computer',
     name: 'Radiohead - OK Computer (1997)',
     year: 1997,
-    imageUrl: 'https://is1-ssl.mzstatic.com/image/thumb/Music116/v4/07/60/ba/0760ba0f-148c-b18f-d0ff-169ee96f3af5/634904078164.png/600x600bb.jpg',
+    imageUrl: '/covers/ok_computer.jpg',
   },
   {
     id: 'Kid A',
     name: 'Radiohead - Kid A (2000)',
     year: 2000,
-    imageUrl: 'https://is1-ssl.mzstatic.com/image/thumb/Music122/v4/bd/8e/13/bd8e1358-b367-a689-cb84-cebd0b067dc4/634904078263.png/600x600bb.jpg',
+    imageUrl: '/covers/kid_a.jpg',
   },
   {
     id: 'Amnesiac',
     name: 'Radiohead - Amnesiac (2001)',
     year: 2001,
-    imageUrl: 'https://is1-ssl.mzstatic.com/image/thumb/Music122/v4/43/d8/ec/43d8ec17-0e96-dba9-21d9-4cdf9d98f2bf/634904078362.png/600x600bb.jpg',
+    imageUrl: '/covers/amnesiac.jpg',
   },
   {
     id: 'Hail to the Thief',
     name: 'Radiohead - Hail to the Thief (2003)',
     year: 2003,
-    imageUrl: 'https://is1-ssl.mzstatic.com/image/thumb/Music116/v4/3c/95/1d/3c951d73-f6c6-12dd-34b4-cc95f63e210c/634904078560.png/600x600bb.jpg',
+    imageUrl: '/covers/hail_to_the_thief.jpg',
   },
   {
     id: 'In Rainbows',
     name: 'Radiohead - In Rainbows (2007)',
     year: 2007,
-    imageUrl: 'https://is1-ssl.mzstatic.com/image/thumb/Music126/v4/dd/50/c7/dd50c790-99ac-d3d0-5ab8-e3891fb8fd52/634904032463.png/600x600bb.jpg',
+    imageUrl: '/covers/in_rainbows.jpg',
   },
   {
     id: 'The King of Limbs',
     name: 'Radiohead - The King of Limbs (2011)',
     year: 2011,
-    imageUrl: 'https://is1-ssl.mzstatic.com/image/thumb/Music126/v4/af/b6/7b/afb67b4e-6cf8-10b3-31f1-1389e301166d/634904078768.png/600x600bb.jpg',
+    imageUrl: '/covers/the_king_of_limbs.jpg',
   },
   {
     id: 'A Moon Shaped Pool',
     name: 'Radiohead - A Moon Shaped Pool (2016)',
     year: 2016,
-    imageUrl: 'https://is1-ssl.mzstatic.com/image/thumb/Music124/v4/b7/f2/5d/b7f25d91-4320-47c8-146a-6f84d5bc7e78/cover.jpg/600x600bb.jpg',
+    imageUrl: '/covers/a_moon_shaped_pool.jpg',
   },
 
   // 4. New Requested Artists
   {
     id: 'jkt48',
     name: 'JKT48',
-    imageUrl: 'https://is1-ssl.mzstatic.com/image/thumb/Music113/v4/92/ca/f4/92caf4e4-a9e4-e88d-77dc-428132d5f95d/cover.jpg/600x600bb.jpg',
+    imageUrl: '/covers/jkt48.jpg',
   },
   {
     id: 'leserafim',
     name: 'LE SSERAFIM',
-    imageUrl: 'https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/38/95/ed/3895ed80-ba5b-7846-ce5b-b49805a818ef/198704101359_Cover.jpg/600x600bb.jpg',
+    imageUrl: '/covers/leserafim.jpg',
   },
   {
     id: 'twice',
     name: 'TWICE',
-    imageUrl: 'https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/30/7c/9c/307c9c54-5be0-990d-8f0b-85190f857312/8809928953700_Cover.jpg/600x600bb.jpg',
+    imageUrl: '/covers/twice.jpg',
   },
   {
     id: 'aespa',
     name: 'aespa',
-    imageUrl: 'https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/d5/c1/f5/d5c1f505-f588-775f-df05-c672a8ec22e9/888735949562_Cover.jpg/600x600bb.jpg',
+    imageUrl: '/covers/aespa.jpg',
   },
   {
     id: 'h2h',
     name: 'Hearts2Hearts (H2H)',
-    imageUrl: 'https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/00/a4/c1/00a4c1fb-c2c9-83c9-af2e-44cb5da80bc4/888735956140.png/600x600bb.jpg',
+    imageUrl: '/covers/h2h.jpg',
   },
   {
     id: 'RUNW',
     name: 'RUNW (Runway Hits)',
-    imageUrl: 'https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/40/7d/f5/407df595-1203-41db-9e84-9d303b5d43ca/26UMGIM41541.rgb.jpg/600x600bb.jpg',
+    imageUrl: '/covers/runw.jpg',
   },
 ];
 
@@ -217,14 +217,15 @@ export const DiscordServerRail: React.FC<DiscordServerRailProps> = ({
                 }`}
               >
                 {server.isHome ? (
-                  <div className="w-full h-full bg-gradient-to-br from-[#E89B5B] to-[#D46743] flex items-center justify-center text-white">
-                    <Radio className="w-6 h-6 stroke-[2.5]" />
+                  <div className="w-full h-full bg-[#1DB954] flex items-center justify-center text-black">
+                    <Music2 className="w-5 h-5 stroke-[2.5]" />
                   </div>
                 ) : server.imageUrl ? (
                   <>
                     <img
                       src={server.imageUrl}
                       alt={server.name}
+                      referrerPolicy="no-referrer"
                       onError={(e) => {
                         (e.currentTarget as HTMLElement).style.display = 'none';
                       }}
