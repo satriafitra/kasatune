@@ -162,9 +162,25 @@ export function useAudioVisualizer(
       isPlayingRef.current = true;
     };
 
+    const handleTimeUpdate = () => {
+      if (!audio || audio.paused || isNaN(audio.currentTime)) return;
+      if (audio.duration && audio.duration >= durationRef.current - 5) {
+        currentTimeRef.current = audio.currentTime;
+        setCurrentTime(audio.currentTime);
+      } else if (audio.duration && audio.duration > 0) {
+        const clipDur = audio.duration;
+        const loop = Math.floor(currentTimeRef.current / clipDur);
+        const synced = Math.min(durationRef.current, loop * clipDur + audio.currentTime);
+        currentTimeRef.current = synced;
+        setCurrentTime(synced);
+      }
+    };
+
     audio.addEventListener('ended', handleEnded);
     audio.addEventListener('pause', handlePause);
     audio.addEventListener('play', handlePlay);
+    audio.addEventListener('timeupdate', handleTimeUpdate);
+    audio.addEventListener('seeked', handleTimeUpdate);
 
     if (initialUrl) {
       audio.src = initialUrl;
@@ -175,6 +191,8 @@ export function useAudioVisualizer(
       audio.removeEventListener('ended', handleEnded);
       audio.removeEventListener('pause', handlePause);
       audio.removeEventListener('play', handlePlay);
+      audio.removeEventListener('timeupdate', handleTimeUpdate);
+      audio.removeEventListener('seeked', handleTimeUpdate);
       audio.pause();
       audio.src = '';
       if (audioContextRef.current && audioContextRef.current.state !== 'closed') {
@@ -183,20 +201,33 @@ export function useAudioVisualizer(
     };
   }, []);
 
-  // High-precision clock ticker (ticks every 50ms)
+  // High-precision clock ticker (ticks every 25ms, strictly locked to audio decode position)
   useEffect(() => {
     if (!isPlaying) return;
 
     let lastTick = performance.now();
     const interval = setInterval(() => {
+      const audio = audioRef.current;
       const now = performance.now();
       const deltaSec = (now - lastTick) / 1000;
       lastTick = now;
 
-      currentTimeRef.current = Math.min(
-        durationRef.current,
-        currentTimeRef.current + deltaSec
-      );
+      if (audio && !audio.paused && !isNaN(audio.currentTime) && audio.currentTime >= 0) {
+        if (audio.duration && audio.duration >= durationRef.current - 5) {
+          currentTimeRef.current = audio.currentTime;
+        } else if (audio.duration && audio.duration > 0) {
+          const clipDur = audio.duration;
+          const loop = Math.floor(currentTimeRef.current / clipDur);
+          currentTimeRef.current = Math.min(durationRef.current, loop * clipDur + audio.currentTime);
+        } else {
+          currentTimeRef.current = audio.currentTime;
+        }
+      } else {
+        currentTimeRef.current = Math.min(
+          durationRef.current,
+          currentTimeRef.current + deltaSec
+        );
+      }
       setCurrentTime(currentTimeRef.current);
 
       if (currentTimeRef.current >= durationRef.current) {
@@ -204,7 +235,7 @@ export function useAudioVisualizer(
         isPlayingRef.current = false;
         if (onEndedRef.current) onEndedRef.current();
       }
-    }, 50);
+    }, 25);
 
     return () => clearInterval(interval);
   }, [isPlaying]);

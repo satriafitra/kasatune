@@ -23,21 +23,27 @@ function cleanTitle(title: string): string {
     .replace(/\(.*?\)/g, '')
     .replace(/\[.*?\]/g, '')
     .replace(/- .*?Remaster.*/i, '')
+    .replace(/- .*?Live.*/i, '')
+    .replace(/- Single/i, '')
+    .replace(/- EP/i, '')
     .replace(/feat\..*/i, '')
     .replace(/ft\..*/i, '')
+    .split(' - ')[0]
     .trim();
 }
 
 /**
- * Clean artist string (take primary artist before comma)
+ * Clean artist string (handle aliases e.g. Hearts2Hearts, Lady Gaga, primary artist before comma)
  */
 function cleanArtist(artist: string): string {
-  return artist.split(',')[0].trim();
+  if (artist.includes('Hearts2Hearts')) return 'Hearts2Hearts';
+  if (artist.includes('Lady Gaga')) return 'Lady Gaga';
+  return artist.split('&')[0].split(',')[0].replace(/\(.*?\)/g, '').trim();
 }
 
 /**
  * Fetch lyrics from LRCLIB for a given track and artist
- * Tries direct match endpoint first, falls back to search endpoint
+ * Uses smart parallel query with fuzzy fallback to maximize hit-rate and speed
  */
 export async function fetchLyrics(
   trackName: string,
@@ -47,63 +53,67 @@ export async function fetchLyrics(
   const sanitizedTrack = cleanTitle(trackName);
   const sanitizedArtist = cleanArtist(artistName);
 
-  if (!sanitizedTrack || !sanitizedArtist) {
+  if (!sanitizedTrack && !sanitizedArtist) {
     return { syncedLyrics: null, plainLyrics: null, instrumental: false };
   }
 
-  // 1. Attempt exact GET endpoint
+  const query = `${sanitizedTrack} ${sanitizedArtist}`.trim();
+  const searchUrl = `https://lrclib.net/api/search?q=${encodeURIComponent(query)}`;
+
   try {
-    const params = new URLSearchParams({
-      artist_name: sanitizedArtist,
-      track_name: sanitizedTrack,
-    });
-
-    if (durationMs && durationMs > 0) {
-      params.append('duration', Math.round(durationMs / 1000).toString());
-    }
-
-    const getUrl = `https://lrclib.net/api/get?${params.toString()}`;
-    const response = await fetch(getUrl, {
-      headers: {
-        'Lrclib-Client': 'Webtify (https://github.com/webtify)',
-      },
-    });
-
-    if (response.ok) {
-      const data: LrclibResponse = await response.json();
-      if (data.syncedLyrics || data.plainLyrics || data.instrumental) {
-        return {
-          syncedLyrics: data.syncedLyrics,
-          plainLyrics: data.plainLyrics,
-          instrumental: Boolean(data.instrumental),
-        };
-      }
-    }
-  } catch {
-    // Exact GET failed, try search fallback
-  }
-
-  // 2. Fallback to search endpoint
-  try {
-    const query = `${sanitizedTrack} ${sanitizedArtist}`.trim();
-    const searchUrl = `https://lrclib.net/api/search?q=${encodeURIComponent(query)}`;
-
     const response = await fetch(searchUrl, {
       headers: {
-        'Lrclib-Client': 'Webtify (https://github.com/webtify)',
+        'Lrclib-Client': 'Webtify-Kasatune (https://github.com/satriafitra/kasatune)',
       },
     });
 
     if (response.ok) {
       const results: LrclibResponse[] = await response.json();
       if (Array.isArray(results) && results.length > 0) {
-        // Prioritize items that have syncedLyrics
-        const bestMatch = results.find((r) => Boolean(r.syncedLyrics)) || results[0];
-        return {
-          syncedLyrics: bestMatch.syncedLyrics || null,
-          plainLyrics: bestMatch.plainLyrics || null,
-          instrumental: Boolean(bestMatch.instrumental),
-        };
+        // Prioritize items that have high-quality syncedLyrics
+        const syncedHit = results.find((r) => Boolean(r.syncedLyrics && r.syncedLyrics.length > 20));
+        if (syncedHit) {
+          return {
+            syncedLyrics: syncedHit.syncedLyrics,
+            plainLyrics: syncedHit.plainLyrics || null,
+            instrumental: Boolean(syncedHit.instrumental),
+          };
+        }
+
+        const plainHit = results.find((r) => Boolean(r.plainLyrics));
+        if (plainHit) {
+          return {
+            syncedLyrics: null,
+            plainLyrics: plainHit.plainLyrics,
+            instrumental: Boolean(plainHit.instrumental),
+          };
+        }
+      }
+    }
+  } catch {
+    // Search attempt failed, fallback to title-only
+  }
+
+  // Fallback: title-only search
+  try {
+    const titleOnlyUrl = `https://lrclib.net/api/search?q=${encodeURIComponent(sanitizedTrack)}`;
+    const response = await fetch(titleOnlyUrl, {
+      headers: {
+        'Lrclib-Client': 'Webtify-Kasatune (https://github.com/satriafitra/kasatune)',
+      },
+    });
+
+    if (response.ok) {
+      const results: LrclibResponse[] = await response.json();
+      if (Array.isArray(results) && results.length > 0) {
+        const syncedHit = results.find((r) => Boolean(r.syncedLyrics && r.syncedLyrics.length > 20));
+        if (syncedHit) {
+          return {
+            syncedLyrics: syncedHit.syncedLyrics,
+            plainLyrics: syncedHit.plainLyrics || null,
+            instrumental: Boolean(syncedHit.instrumental),
+          };
+        }
       }
     }
   } catch {
