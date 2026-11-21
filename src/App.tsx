@@ -468,8 +468,8 @@ export const App: React.FC = () => {
           />
         </div>
 
-        {/* Col 2: Discord Channel & Queue Drawer - Visible on desktop, and on mobile when in 'sidebar' view */}
-        <div className={`h-full flex-shrink-0 ${mobileView === 'sidebar' ? 'flex-1 md:flex-initial md:w-64 sm:md:w-72 block' : 'hidden md:block'}`}>
+        {/* Col 2: Discord Channel & Queue Drawer - Full width on mobile, standard drawer width on desktop */}
+        <div className={`h-full ${mobileView === 'sidebar' ? 'flex-1 min-w-0 block' : 'hidden md:block flex-shrink-0 md:w-64 lg:w-72'}`}>
           <TrackListSidebar
             tracks={displayTracks}
             activeTrackId={activeTrack.id}

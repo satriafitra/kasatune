@@ -127,7 +127,7 @@ export const TrackListSidebar: React.FC<TrackListSidebarProps> = ({
   });
 
   return (
-    <aside className="w-64 sm:w-72 h-full bg-[#111215] border-r border-[#282B32] flex flex-col overflow-hidden select-none flex-shrink-0">
+    <aside className="w-full h-full bg-[#111215] border-r border-[#282B32] flex flex-col overflow-hidden select-none">
       {/* Top Discord Server Title Header */}
       <div className="h-12 px-4 flex items-center justify-between border-b border-[#282B32] bg-[#141619] hover:bg-[#1C1E22] transition-colors cursor-pointer shadow-sm">
         <div className="flex items-center gap-1.5 min-w-0">
