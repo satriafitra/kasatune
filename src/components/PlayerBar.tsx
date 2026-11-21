@@ -47,6 +47,7 @@ interface PlayerBarProps {
   beatPulse?: number;
   showLyrics: boolean;
   onToggleLyrics: () => void;
+  onOpenPlayer?: () => void;
 }
 
 export const PlayerBar: React.FC<PlayerBarProps> = ({
@@ -71,6 +72,7 @@ export const PlayerBar: React.FC<PlayerBarProps> = ({
   beatPulse = 0,
   showLyrics,
   onToggleLyrics,
+  onOpenPlayer,
 }) => {
   const [isLiked, setIsLiked] = useState(false);
   const [isScrubbingHover, setIsScrubbingHover] = useState(false);
@@ -90,13 +92,18 @@ export const PlayerBar: React.FC<PlayerBarProps> = ({
 
   return (
     <footer className="h-20 w-full bg-[#0B0C0E] border-t border-[#282B32] px-4 flex items-center justify-between gap-4 select-none z-50">
-      {/* Left: Now Playing Widget */}
-      <div className="flex items-center gap-3 min-w-[180px] max-w-[280px]">
+      {/* Left: Now Playing Widget (Click to open full player screen on mobile) */}
+      <div
+        onClick={onOpenPlayer}
+        className="flex items-center gap-2.5 sm:gap-3 min-w-[120px] sm:min-w-[180px] max-w-[280px] cursor-pointer group"
+        title="Buka Layar Pemutar"
+      >
         {albumImageUrl && (
-          <div className="w-14 h-14 min-w-[56px] min-h-[56px] max-w-[56px] max-h-[56px] rounded-md overflow-hidden flex-shrink-0 bg-[#141619] border border-[#282B32] shadow-md">
+          <div className="w-12 h-12 sm:w-14 sm:h-14 min-w-[48px] min-h-[48px] sm:min-w-[56px] sm:min-h-[56px] rounded-md overflow-hidden flex-shrink-0 bg-[#141619] border border-[#282B32] shadow-md group-hover:border-[#BFE7EA]/40 transition-colors">
             <img
               src={albumImageUrl}
               alt={trackTitle}
+              referrerPolicy="no-referrer"
               onError={(e) => {
                 (e.currentTarget as HTMLElement).style.display = 'none';
               }}
@@ -105,15 +112,18 @@ export const PlayerBar: React.FC<PlayerBarProps> = ({
           </div>
         )}
         <div className="min-w-0 flex flex-col justify-center">
-          <span className="text-xs sm:text-sm font-bold text-white truncate hover:text-[#BFE7EA] cursor-pointer transition-colors">
+          <span className="text-xs sm:text-sm font-bold text-white truncate group-hover:text-[#BFE7EA] transition-colors">
             {trackTitle}
           </span>
-          <span className="text-[11px] text-[#A0A5AD] truncate hover:text-white cursor-pointer transition-colors">
+          <span className="text-[11px] text-[#A0A5AD] truncate group-hover:text-white transition-colors">
             {artistName}
           </span>
         </div>
         <button
-          onClick={() => setIsLiked(!isLiked)}
+          onClick={(e) => {
+            e.stopPropagation();
+            setIsLiked(!isLiked);
+          }}
           className={`p-1.5 transition-colors ml-0.5 rounded hover:bg-[#1C1E22] ${
             isLiked ? 'text-[#D46743]' : 'text-[#656A74] hover:text-white'
           }`}

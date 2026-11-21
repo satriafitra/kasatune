@@ -25,7 +25,7 @@ import type { BackendRadioheadTrack } from './api/backend';
 export const App: React.FC = () => {
   const [showLyrics, setShowLyrics] = useState(true);
   const [searchFilter, setSearchFilter] = useState('');
-  const [mobileView, setMobileView] = useState<'player' | 'lyrics' | 'sidebar'>('player');
+  const [mobileView, setMobileView] = useState<'player' | 'lyrics' | 'sidebar'>('sidebar');
 
   // Persistence: Default to standalone Mode Mandiri on refresh, not auto-connecting to friend sync
   const [activeAlbum, setActiveAlbum] = useState<AlbumFilterType>(() => {
@@ -565,6 +565,7 @@ export const App: React.FC = () => {
             setMobileView((prev) => (prev === 'lyrics' ? 'player' : 'lyrics'));
           }
         }}
+        onOpenPlayer={() => setMobileView('player')}
       />
     </div>
   );

@@ -64,10 +64,10 @@ export const Navbar: React.FC<NavbarProps> = ({
   const currentRedirectUri = window.location.origin + window.location.pathname;
 
   return (
-    <header className="h-14 w-full bg-[#0B0C0E] border-b border-[#282B32] px-4 flex items-center justify-between gap-4 select-none z-30">
-      {/* Left: History Arrows & Kasatune Brand */}
-      <div className="flex items-center gap-3">
-        <div className="flex items-center gap-1">
+    <header className="h-14 w-full bg-[#0B0C0E] border-b border-[#282B32] px-3 sm:px-4 flex items-center justify-between gap-2 sm:gap-4 select-none z-30">
+      {/* Left: History Arrows (Desktop only) & Kasatune Brand */}
+      <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
+        <div className="hidden md:flex items-center gap-1">
           <button
             className="w-7 h-7 rounded-md bg-[#141619] hover:bg-[#1C1E22] text-[#A0A5AD] hover:text-white flex items-center justify-center transition-colors border border-[#282B32]/60"
             title="Back"
@@ -83,15 +83,15 @@ export const Navbar: React.FC<NavbarProps> = ({
         </div>
 
         {/* Authentic Music Brand Logo (No AI Slop) */}
-        <div className="flex items-center gap-2.5 pl-1">
-          <div className="w-8 h-8 rounded-lg bg-[#1DB954] flex items-center justify-center text-black shadow-sm flex-shrink-0">
+        <div className="flex items-center gap-2 md:gap-2.5">
+          <div className="w-7 h-7 md:w-8 md:h-8 rounded-lg bg-[#1DB954] flex items-center justify-center text-black shadow-sm flex-shrink-0">
             <Music2 className="w-4 h-4 stroke-[2.5]" />
           </div>
           <div className="flex flex-col">
             <span className="font-extrabold text-sm text-white tracking-tight leading-none">
               Kasatune
             </span>
-            <span className="text-[10px] text-[#949BA4] font-medium leading-tight pt-0.5">
+            <span className="hidden md:inline text-[10px] text-[#949BA4] font-medium leading-tight pt-0.5">
               Music Studio
             </span>
           </div>
@@ -102,31 +102,31 @@ export const Navbar: React.FC<NavbarProps> = ({
       <div className="flex md:hidden items-center p-0.5 rounded-lg bg-[#141619] border border-[#282B32] text-xs">
         <button
           onClick={() => onSelectMobileView('player')}
-          className={`px-2.5 py-1 rounded-md font-semibold transition-colors ${
-            mobileView === 'player' ? 'bg-[#282B32] text-white' : 'text-[#949BA4]'
+          className={`px-2.5 py-1 rounded-md font-semibold text-xs transition-colors ${
+            mobileView === 'player' ? 'bg-[#282B32] text-white shadow-sm' : 'text-[#949BA4]'
           }`}
         >
           Lagu
         </button>
         <button
           onClick={() => onSelectMobileView('lyrics')}
-          className={`px-2.5 py-1 rounded-md font-semibold transition-colors ${
-            mobileView === 'lyrics' ? 'bg-[#282B32] text-white' : 'text-[#949BA4]'
+          className={`px-2.5 py-1 rounded-md font-semibold text-xs transition-colors ${
+            mobileView === 'lyrics' ? 'bg-[#282B32] text-white shadow-sm' : 'text-[#949BA4]'
           }`}
         >
           Lirik
         </button>
         <button
           onClick={() => onSelectMobileView('sidebar')}
-          className={`px-2.5 py-1 rounded-md font-semibold transition-colors ${
-            mobileView === 'sidebar' ? 'bg-[#282B32] text-white' : 'text-[#949BA4]'
+          className={`px-2.5 py-1 rounded-md font-semibold text-xs transition-colors ${
+            mobileView === 'sidebar' ? 'bg-[#282B32] text-white shadow-sm' : 'text-[#949BA4]'
           }`}
         >
           Koleksi
         </button>
       </div>
 
-      {/* Center: Search Bar with clean minimalist styling */}
+      {/* Center: Search Bar with clean minimalist styling (Desktop) */}
       <div className="hidden md:flex flex-1 max-w-md relative">
         <div className="w-full relative flex items-center">
           <Search className="w-4 h-4 absolute left-3 text-[#949BA4]" />
@@ -143,8 +143,8 @@ export const Navbar: React.FC<NavbarProps> = ({
         </div>
       </div>
 
-      {/* Right: Clean Status Indicators & Account Controls */}
-      <div className="flex items-center gap-2">
+      {/* Right Controls: Desktop full status & settings, Mobile single sleek icon button */}
+      <div className="hidden md:flex items-center gap-2">
         {/* Friend Live Status Pill (Simplified, No Neon AI Glare) */}
         <div
           onClick={onConnectFriendSpotify}
@@ -160,7 +160,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               isFriendConnected ? 'bg-[#1DB954]' : 'bg-[#656A74]'
             }`}
           />
-          <span className="font-semibold text-[11px] text-[#A0A5AD] hidden sm:inline truncate max-w-[130px]">
+          <span className="font-semibold text-[11px] text-[#A0A5AD] truncate max-w-[130px]">
             {friendTrackTitle ? friendTrackTitle : 'Spotify Live'}
           </span>
         </div>
@@ -176,7 +176,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               isBackendOnline ? 'bg-[#23A55A]' : 'bg-[#FEE75C]'
             }`}
           />
-          <span className="font-semibold text-[11px] text-[#A0A5AD] hidden sm:inline">
+          <span className="font-semibold text-[11px] text-[#A0A5AD]">
             {isBackendOnline ? 'Go API Online' : 'Connecting'}
           </span>
           <RefreshCw
@@ -184,7 +184,7 @@ export const Navbar: React.FC<NavbarProps> = ({
           />
         </div>
 
-        {/* Settings Button */}
+        {/* Settings Button (Desktop) */}
         {isAuthenticated ? (
           <button
             onClick={onLogout}
@@ -198,9 +198,25 @@ export const Navbar: React.FC<NavbarProps> = ({
             className="px-2.5 py-1 rounded-md bg-[#141619] hover:bg-[#1C1E22] text-[#A0A5AD] hover:text-white border border-[#282B32] text-xs font-semibold transition-colors flex items-center gap-1.5"
           >
             <Settings className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">Settings</span>
+            <span>Settings</span>
           </button>
         )}
+      </div>
+
+      {/* Mobile Right: Single Sleek Status & Settings Icon Button */}
+      <div className="flex md:hidden items-center flex-shrink-0">
+        <button
+          onClick={() => setIsSettingsOpen(true)}
+          className="w-8 h-8 rounded-lg bg-[#141619] hover:bg-[#1C1E22] border border-[#282B32] flex items-center justify-center text-[#A0A5AD] hover:text-white transition-colors relative"
+          title="Kasatune Settings & Connection"
+        >
+          <Settings className="w-4 h-4" />
+          <span
+            className={`absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full ${
+              isBackendOnline ? 'bg-[#23A55A]' : 'bg-[#FEE75C]'
+            }`}
+          />
+        </button>
       </div>
 
       {/* Settings Modal (Deep Obsidian Style) */}

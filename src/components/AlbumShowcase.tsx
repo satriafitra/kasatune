@@ -233,11 +233,7 @@ export const AlbumShowcase: React.FC<AlbumShowcaseProps> = ({
                 onMouseEnter={() => setHoveredTrackId(t.id)}
                 onMouseLeave={() => setHoveredTrackId(null)}
                 onClick={() => {
-                  if (isActive) {
-                    onTogglePlay();
-                  } else {
-                    onSelectTrack(t);
-                  }
+                  onSelectTrack(t);
                 }}
                 className={`grid grid-cols-[20px_1fr_auto] md:grid-cols-[20px_4fr_3fr_auto] gap-4 px-3 py-2 rounded-md text-sm items-center cursor-pointer transition-all ${
                   isActive
