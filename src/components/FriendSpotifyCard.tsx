@@ -334,7 +334,9 @@ export const FriendSpotifyCard: React.FC<FriendSpotifyCardProps> = ({
                     <img
                       src={track.coverUrl}
                       alt={track.title}
-                      crossOrigin="anonymous"
+                      onError={(e) => {
+                        (e.currentTarget as HTMLElement).style.display = 'none';
+                      }}
                       className="w-full h-full object-cover block"
                     />
                   </div>

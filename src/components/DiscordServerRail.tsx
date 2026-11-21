@@ -134,22 +134,22 @@ const SERVERS: ServerItem[] = [
   {
     id: 'leserafim',
     name: 'LE SSERAFIM',
-    imageUrl: 'https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/e5/23/e8/e523e80f-90e6-ee3d-24e0-7ee429d2bf73/196922904664_Cover.jpg/600x600bb.jpg',
+    imageUrl: 'https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/38/95/ed/3895ed80-ba5b-7846-ce5b-b49805a818ef/198704101359_Cover.jpg/600x600bb.jpg',
   },
   {
     id: 'twice',
     name: 'TWICE',
-    imageUrl: 'https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/8e/3c/6f/8e3c6f96-52c6-3023-7fa3-69a4c84705a6/196922998632_Cover.jpg/600x600bb.jpg',
+    imageUrl: 'https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/30/7c/9c/307c9c54-5be0-990d-8f0b-85190f857312/8809928953700_Cover.jpg/600x600bb.jpg',
   },
   {
     id: 'aespa',
     name: 'aespa',
-    imageUrl: 'https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/21/df/f2/21dff2f8-b3f8-6536-f00a-b31c5ee9a691/888735957819.png/600x600bb.jpg',
+    imageUrl: 'https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/d5/c1/f5/d5c1f505-f588-775f-df05-c672a8ec22e9/888735949562_Cover.jpg/600x600bb.jpg',
   },
   {
     id: 'h2h',
     name: 'Hearts2Hearts (H2H)',
-    imageUrl: 'https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/55/b2/16/55b2169a-eab0-38e9-8df725f8f2d6/888735954603.png/600x600bb.jpg',
+    imageUrl: 'https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/00/a4/c1/00a4c1fb-c2c9-83c9-af2e-44cb5da80bc4/888735956140.png/600x600bb.jpg',
   },
   {
     id: 'RUNW',
@@ -225,11 +225,16 @@ export const DiscordServerRail: React.FC<DiscordServerRailProps> = ({
                     <img
                       src={server.imageUrl}
                       alt={server.name}
-                      crossOrigin="anonymous"
-                      className="w-full h-full object-cover"
+                      onError={(e) => {
+                        (e.currentTarget as HTMLElement).style.display = 'none';
+                      }}
+                      className="w-full h-full object-cover relative z-10"
                     />
+                    <div className="absolute inset-0 flex items-center justify-center font-bold text-xs text-white/90 uppercase select-none pointer-events-none bg-[#1C1E22]">
+                      {server.name.replace(/[^a-zA-Z0-9]/g, '').slice(0, 3)}
+                    </div>
                     {server.isSpotify && (
-                      <span className="absolute bottom-1 right-1 w-2.5 h-2.5 rounded-full bg-[#1DB954] border border-[#0B0C0E] shadow-[0_0_6px_#1DB954]" />
+                      <span className="absolute bottom-1 right-1 w-2.5 h-2.5 rounded-full bg-[#1DB954] border border-[#0B0C0E] shadow-[0_0_6px_#1DB954] z-20" />
                     )}
                   </>
                 ) : (

@@ -127,7 +127,9 @@ export const AlbumShowcase: React.FC<AlbumShowcaseProps> = ({
               <img
                 src={imageUrl}
                 alt={title}
-                crossOrigin="anonymous"
+                onError={(e) => {
+                  (e.currentTarget as HTMLElement).style.display = 'none';
+                }}
                 className="w-full h-full object-cover"
               />
             </div>
@@ -262,11 +264,13 @@ export const AlbumShowcase: React.FC<AlbumShowcaseProps> = ({
 
                 {/* Title + Thumbnail + Artist */}
                 <div className="flex items-center gap-3 min-w-0">
-                  <div className="w-10 h-10 min-w-[40px] min-h-[40px] max-w-[40px] max-h-[40px] rounded-md overflow-hidden flex-shrink-0 bg-[#0B0C0E] border border-[#282B32]/70 shadow-sm">
+                  <div className="w-10 h-10 min-w-[40px] min-h-[40px] max-w-[40px] max-h-[40px] rounded-md overflow-hidden flex-shrink-0 bg-[#0B0C0E] border border-[#282B32]/70 shadow-sm relative">
                     <img
                       src={t.coverUrl}
                       alt={t.title}
-                      crossOrigin="anonymous"
+                      onError={(e) => {
+                        (e.currentTarget as HTMLElement).style.display = 'none';
+                      }}
                       className="w-full h-full object-cover block"
                     />
                   </div>

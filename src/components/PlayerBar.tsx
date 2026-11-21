@@ -97,7 +97,9 @@ export const PlayerBar: React.FC<PlayerBarProps> = ({
             <img
               src={albumImageUrl}
               alt={trackTitle}
-              crossOrigin="anonymous"
+              onError={(e) => {
+                (e.currentTarget as HTMLElement).style.display = 'none';
+              }}
               className="w-full h-full object-cover block"
             />
           </div>

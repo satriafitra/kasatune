@@ -441,9 +441,9 @@ const mergedList: BackendRadioheadTrack[] = [];
 const seenIds = new Set<string>();
 
 [
+  ...(musicLibraryData as unknown as BackendRadioheadTrack[]),
   ...(friendTracksData as unknown as BackendRadioheadTrack[]),
   ...PRELOADED_TRACKS,
-  ...(musicLibraryData as unknown as BackendRadioheadTrack[]),
 ].forEach((t) => {
   const normKey = `${t.artist}-${t.title}`.toLowerCase();
   if (!seenIds.has(t.id) && !seenIds.has(normKey)) {
