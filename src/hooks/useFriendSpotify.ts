@@ -9,7 +9,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import friendTracksData from '../data/friend_tracks.json';
 
-const API_BASE = 'http://localhost:8080';
+const API_BASE = (import.meta.env.VITE_BACKEND_URL as string) || 'http://localhost:8080';
 const DEFAULT_CLIENT_ID = '272c12f48c18494fb5ac490cd10a8b2b';
 
 export interface FriendTrack {

@@ -27,7 +27,7 @@ export interface BackendApiResponse<T> {
   data: T;
 }
 
-const BACKEND_BASE_URL = 'http://localhost:8080';
+const BACKEND_BASE_URL = (import.meta.env.VITE_BACKEND_URL as string) || 'http://localhost:8080';
 
 /**
  * Check if the Go backend server is reachable and healthy
