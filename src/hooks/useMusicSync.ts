@@ -15,8 +15,9 @@ import {
   type BackendRadioheadTrack,
 } from '../api/backend';
 import friendTracksData from '../data/friend_tracks.json';
+import musicLibraryData from '../data/music_library.json';
 
-export const DEFAULT_RADIOHEAD_TRACKS: BackendRadioheadTrack[] = [
+const PRELOADED_TRACKS: BackendRadioheadTrack[] = [
   ...(friendTracksData as unknown as BackendRadioheadTrack[]),
   {
     id: 'rh-creep',
@@ -434,6 +435,25 @@ export const DEFAULT_RADIOHEAD_TRACKS: BackendRadioheadTrack[] = [
     dominantColors: ['#1C2541', '#0B132B', '#1E1F22'],
   },
 ];
+
+// Helper to deduplicate tracks by ID and title
+const mergedList: BackendRadioheadTrack[] = [];
+const seenIds = new Set<string>();
+
+[
+  ...(friendTracksData as unknown as BackendRadioheadTrack[]),
+  ...PRELOADED_TRACKS,
+  ...(musicLibraryData as unknown as BackendRadioheadTrack[]),
+].forEach((t) => {
+  const normKey = `${t.artist}-${t.title}`.toLowerCase();
+  if (!seenIds.has(t.id) && !seenIds.has(normKey)) {
+    seenIds.add(t.id);
+    seenIds.add(normKey);
+    mergedList.push(t);
+  }
+});
+
+export const DEFAULT_RADIOHEAD_TRACKS: BackendRadioheadTrack[] = mergedList;
 
 export interface SyncedMusicState {
   tracks: BackendRadioheadTrack[];

@@ -509,6 +509,7 @@ func NewStore() *Store {
 		},
 	}
 	store.loadFriendTracks()
+	store.loadMusicLibrary()
 	return store
 }
 
@@ -554,6 +555,26 @@ func (s *Store) loadFriendTracks() {
 			var fTracks []models.RadioheadTrack
 			if err := json.Unmarshal(data, &fTracks); err == nil && len(fTracks) > 0 {
 				s.tracks = append(fTracks, s.tracks[1:]...)
+				return
+			}
+		}
+	}
+}
+
+func (s *Store) loadMusicLibrary() {
+	paths := []string{
+		"music_library.json",
+		"C:/webtify-be/music_library.json",
+		"C:/webtify/src/data/music_library.json",
+		"C:/webtify/backend/music_library.json",
+	}
+
+	for _, p := range paths {
+		data, err := os.ReadFile(p)
+		if err == nil {
+			var libTracks []models.RadioheadTrack
+			if err := json.Unmarshal(data, &libTracks); err == nil && len(libTracks) > 0 {
+				s.tracks = append(s.tracks, libTracks...)
 				return
 			}
 		}

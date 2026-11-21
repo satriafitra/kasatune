@@ -11,7 +11,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Navbar } from './components/Navbar';
 import { DiscordServerRail, type AlbumFilterType } from './components/DiscordServerRail';
-import { TrackListSidebar } from './components/TrackListSidebar';
+import { TrackListSidebar, matchesAlbumFilter } from './components/TrackListSidebar';
 import { AlbumShowcase } from './components/AlbumShowcase';
 import { DynamicLyrics } from './components/DynamicLyrics';
 import { PlayerBar } from './components/PlayerBar';
@@ -233,31 +233,8 @@ export const App: React.FC = () => {
     loadTrack,
   ]);
 
-  // Filter tracks based on active Discord Server (Hideri Spotify vs Radiohead albums)
-  const displayTracks = tracks.filter((t) => {
-    const isFriendTrack =
-      t.artist.toLowerCase().includes('liella') ||
-      t.album.toLowerCase().includes('shine') ||
-      t.album.toLowerCase().includes('mirai') ||
-      t.album.toLowerCase().includes('overlord') ||
-      t.album.toLowerCase().includes('hideri') ||
-      t.album.toLowerCase().includes('book') ||
-      t.album.toLowerCase().includes('負け犬') ||
-      t.artist.toLowerCase() === 'oxt' ||
-      t.artist.toLowerCase() === 'yorushika' ||
-      t.artist.toLowerCase().includes('kanaria') ||
-      t.artist.toLowerCase() === 'yoasobi' ||
-      t.artist.toLowerCase() === 'eve' ||
-      t.artist.toLowerCase().includes('roselia') ||
-      t.artist.toLowerCase().includes('ikizulive') ||
-      t.artist.toLowerCase().includes('いきづらい部') ||
-      t.title.toLowerCase().includes('what is my life') ||
-      t.title.toLowerCase().includes('proud of oneself');
-
-    if (activeAlbum === 'friend') return isFriendTrack;
-    if (activeAlbum === 'all') return true;
-    return !isFriendTrack && t.album.toLowerCase() === activeAlbum.toLowerCase();
-  });
+  // Filter tracks based on active Discord Server (Friend Spotify, Radiohead albums, or new artists)
+  const displayTracks = tracks.filter((t) => matchesAlbumFilter(t, activeAlbum));
 
   // Switch Discord Server category & automatically load the primary track
   const handleSelectAlbum = useCallback(
@@ -277,16 +254,37 @@ export const App: React.FC = () => {
         );
         const targetSec = (friendLiveProgressMs > 0 ? friendLiveProgressMs : 155000) / 1000;
         seekToSeconds(targetSec);
-      } else if (album === 'all') {
-        const rhSong = tracks.find((t) => t.artist === 'Radiohead') || tracks[0];
-        selectTrack(rhSong);
       } else {
-        const albumTrack = tracks.find((t) => t.album.toLowerCase() === album.toLowerCase());
-        if (albumTrack) selectTrack(albumTrack);
+        const matchedTrack = tracks.find((t) => matchesAlbumFilter(t, album)) || tracks[0];
+        if (matchedTrack) {
+          selectTrack(matchedTrack);
+          loadTrack(
+            matchedTrack.previewUrl,
+            matchedTrack.bpm,
+            matchedTrack.durationMs > 0 ? matchedTrack.durationMs / 1000 : 238,
+            true // Auto-play when selecting personal albums!
+          );
+        }
       }
     },
     [tracks, selectTrack, loadTrack, friendPlayback?.isPlaying, friendLiveProgressMs, seekToSeconds]
   );
+
+  // Switch to Autonomous / Personal Music Mode (Radiohead / JKT48 / etc.)
+  const handleSwitchToMyMusic = useCallback(() => {
+    setIsFriendSyncConnected(false);
+    setActiveAlbum('radiohead');
+    const rhTrack = tracks.find((t) => t.artist.toLowerCase() === 'radiohead') || tracks[0];
+    if (rhTrack) {
+      selectTrack(rhTrack);
+      loadTrack(
+        rhTrack.previewUrl,
+        rhTrack.bpm,
+        rhTrack.durationMs > 0 ? rhTrack.durationMs / 1000 : 238,
+        true
+      );
+    }
+  }, [tracks, selectTrack, loadTrack]);
 
   // Listen Along with Friend: Matches song & syncs playtime position in real time!
   const handleListenAlong = useCallback(
@@ -316,6 +314,11 @@ export const App: React.FC = () => {
 
   // Synchronous Track Change Handler: Guarantees audio & lyrics stay 100% in sync and AUTOPLAYS
   const handleSelectTrack = useCallback((track: BackendRadioheadTrack) => {
+    // If friend is not playing and user explicitly chose a track, switch to autonomous mode
+    if (activeAlbum === 'friend' && friendPlayback && !friendPlayback.isPlaying) {
+      setIsFriendSyncConnected(false);
+    }
+
     if (track.id === activeTrack.id) {
       if (!isPlaying) {
         togglePlay();
@@ -329,7 +332,7 @@ export const App: React.FC = () => {
         true // Immediately start playing on click!
       );
     }
-  }, [activeTrack.id, isPlaying, togglePlay, selectTrack, loadTrack]);
+  }, [activeAlbum, friendPlayback, activeTrack.id, isPlaying, togglePlay, selectTrack, loadTrack]);
 
   const handleNextTrack = useCallback(() => {
     if (tracks.length === 0) return;
@@ -447,6 +450,7 @@ export const App: React.FC = () => {
             friendsLiveMap={friendsLiveMap}
             onSetDiscordUserId={setDiscordUserId}
             onToggleFriendSync={() => setIsFriendSyncConnected((prev) => !prev)}
+            onSwitchToMyMusic={handleSwitchToMyMusic}
           />
         </div>
 

@@ -1,14 +1,27 @@
 /**
  * FriendSpotifyCard Component (Discord Spotify Rich Presence & Multi-Friend Switcher)
  * Features:
- * - Multi-Friend Selector: Instant 1-click switching between Friend A, Friend B, Friend C, or custom Discord ID
+ * - Multi-Friend Selector: Instant 1-click switching between Friend A (JuraganBengkel), Friend B (Len), Friend C (NeoNekooo), or custom Discord ID
  * - Real-time Live Status: Pulsing green dot for friends actively listening to Spotify, gray for idle
- * - Condition 1: Friend actively playing -> Real-time playtime scrubber, title, artist, album art
- * - Condition 2: Friend idle / standby -> Clean, informative Discord Standby stage with avatar and automatic wake-up
+ * - Mode Switcher: Smooth toggle between [🟢 Live Sync Teman] and [🎧 Mode Mandiri (Bebas Putar Musik)]
+ * - Standby State: Clear message + 1-click [🎧 Putar Musik Sendiri] to listen to Radiohead / other artists freely
+ * - Disconnected Mode: Clean stage with 1-click [🟢 Sambungkan Kembali Live Sync]
  */
 
 import React, { useState } from 'react';
-import { ExternalLink, Sparkles, RefreshCw, CheckCircle2, MessageSquare, Check, X, Radio, Music2, Moon } from 'lucide-react';
+import {
+  ExternalLink,
+  Sparkles,
+  RefreshCw,
+  CheckCircle2,
+  MessageSquare,
+  Check,
+  X,
+  Radio,
+  Music2,
+  Moon,
+  Headphones,
+} from 'lucide-react';
 import type { FriendPlaybackState, FriendLiveInfo } from '../hooks/useFriendSpotify';
 import { KNOWN_FRIENDS } from '../hooks/useFriendSpotify';
 import { formatTime } from '../utils/lrcParser';
@@ -25,6 +38,7 @@ interface FriendSpotifyCardProps {
   onConnectSpotify: () => void;
   onRefresh: () => void;
   onToggleConnect: () => void;
+  onSwitchToMyMusic?: () => void;
 }
 
 export const FriendSpotifyCard: React.FC<FriendSpotifyCardProps> = ({
@@ -39,6 +53,7 @@ export const FriendSpotifyCard: React.FC<FriendSpotifyCardProps> = ({
   onConnectSpotify,
   onRefresh,
   onToggleConnect,
+  onSwitchToMyMusic,
 }) => {
   const [isEditingDiscord, setIsEditingDiscord] = useState(false);
   const [inputDiscordId, setInputDiscordId] = useState(discordUserId);
@@ -64,7 +79,7 @@ export const FriendSpotifyCard: React.FC<FriendSpotifyCardProps> = ({
   const activeName = playbackState?.friendName || activePreset?.name || 'Teman';
 
   return (
-    <div className="mx-2 mb-2 p-3 rounded-lg bg-[#0E1013] border border-[#282B32] shadow-md flex flex-col gap-2.5 transition-all select-none">
+    <div className="mx-2 mb-2 p-2.5 rounded-lg bg-[#0E1013] border border-[#282B32] shadow-md flex flex-col gap-2 transition-all select-none">
       {/* 1. Multi-Friend Switcher Header */}
       <div className="flex flex-col gap-1.5">
         <div className="flex items-center justify-between">
@@ -99,8 +114,8 @@ export const FriendSpotifyCard: React.FC<FriendSpotifyCardProps> = ({
           </div>
         </div>
 
-        {/* Friend Selector Tabs */}
-        <div className="grid grid-cols-3 gap-1.5 pt-0.5">
+        {/* Friend Selector Tabs - Clean Responsive Cards with full readable names */}
+        <div className="grid grid-cols-3 gap-1 pt-0.5">
           {KNOWN_FRIENDS.map((f) => {
             const isSelected = discordUserId === f.id;
             const live = friendsLiveMap[f.id];
@@ -115,25 +130,25 @@ export const FriendSpotifyCard: React.FC<FriendSpotifyCardProps> = ({
                     ? 'bg-[#1C2026] border-[#1DB954] shadow-[0_0_10px_rgba(29,185,84,0.2)] ring-1 ring-[#1DB954]'
                     : 'bg-[#141619] border-[#282B32] hover:bg-[#181A1F] hover:border-[#383C45]'
                 }`}
-                title={`Klik untuk menyelaraskan dengan ${f.name} (${f.username})`}
+                title={`Pilih ${f.name} (@${f.username}) - ${f.tag}`}
               >
                 <div className="flex items-center justify-between">
-                  <div className="relative">
+                  <div className="relative flex-shrink-0">
                     <img
                       src={f.avatarUrl}
                       alt={f.name}
                       className="w-5 h-5 rounded-md object-cover bg-[#0B0C0E]"
                     />
-                    {/* Live playing badge */}
+                    {/* Live playing beacon */}
                     <span
                       className={`absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full border border-[#0E1013] ${
-                        isFriendPlaying ? 'bg-[#1DB954]' : 'bg-[#656A74]'
+                        isFriendPlaying ? 'bg-[#1DB954] shadow-[0_0_4px_#1DB954]' : 'bg-[#656A74]'
                       }`}
                     />
                   </div>
 
                   <span
-                    className={`text-[8px] font-mono px-1 rounded font-bold uppercase ${
+                    className={`text-[7.5px] font-mono px-1 rounded font-bold uppercase ${
                       isSelected
                         ? 'bg-[#1DB954] text-black font-extrabold'
                         : isFriendPlaying
@@ -145,11 +160,14 @@ export const FriendSpotifyCard: React.FC<FriendSpotifyCardProps> = ({
                   </span>
                 </div>
 
-                <div className="min-w-0">
-                  <p className="text-[10px] font-bold text-white truncate leading-tight">
+                <div className="min-w-0 w-full">
+                  <p
+                    className="text-[9.5px] font-bold text-white truncate leading-tight"
+                    title={f.name}
+                  >
                     {f.name}
                   </p>
-                  <p className="text-[8px] text-[#A0A5AD] truncate leading-none pt-0.5">
+                  <p className="text-[7.5px] text-[#A0A5AD] truncate leading-none pt-0.5">
                     {f.tag}
                   </p>
                 </div>
@@ -157,6 +175,47 @@ export const FriendSpotifyCard: React.FC<FriendSpotifyCardProps> = ({
             );
           })}
         </div>
+      </div>
+
+      {/* Mode Switcher Segmented Control */}
+      <div className="grid grid-cols-2 p-0.5 rounded-lg bg-[#08090B] border border-[#282B32]/90 text-[10px] font-bold">
+        <button
+          onClick={() => {
+            if (!isConnected) onToggleConnect();
+          }}
+          className={`py-1 rounded-md flex items-center justify-center gap-1.5 transition-all ${
+            isConnected
+              ? 'bg-[#1DB954]/20 border border-[#1DB954]/50 text-[#1DB954] shadow-sm'
+              : 'text-[#656A74] hover:text-[#A0A5AD]'
+          }`}
+          title="Sinkronkan pemutaran dengan lagu teman secara real-time"
+        >
+          <span
+            className={`w-1.5 h-1.5 rounded-full ${
+              isConnected
+                ? isPlaying
+                  ? 'bg-[#1DB954] animate-ping'
+                  : 'bg-[#1DB954]'
+                : 'bg-[#656A74]'
+            }`}
+          />
+          <span>Live Sync Teman</span>
+        </button>
+
+        <button
+          onClick={() => {
+            if (isConnected) onToggleConnect();
+          }}
+          className={`py-1 rounded-md flex items-center justify-center gap-1.5 transition-all ${
+            !isConnected
+              ? 'bg-[#BFE7EA]/20 border border-[#BFE7EA]/50 text-[#BFE7EA] shadow-sm'
+              : 'text-[#656A74] hover:text-[#A0A5AD]'
+          }`}
+          title="Bebas memutar musik sendiri tanpa sinkronisasi teman"
+        >
+          <Headphones className="w-3 h-3 text-[#BFE7EA]" />
+          <span>Mode Mandiri</span>
+        </button>
       </div>
 
       {/* Custom Discord User ID Form */}
@@ -193,140 +252,176 @@ export const FriendSpotifyCard: React.FC<FriendSpotifyCardProps> = ({
         </div>
       )}
 
-      {/* 2. Active Friend Status Card */}
-      <div className="p-2.5 rounded-lg bg-[#141619] border border-[#282B32]/80 flex flex-col gap-2">
-        {/* Active Friend Header */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2 min-w-0">
-            {activeAvatar ? (
-              <img
-                src={activeAvatar}
-                alt={activeName}
-                className="w-7 h-7 rounded-lg object-cover border border-[#282B32] flex-shrink-0"
-              />
-            ) : (
-              <div className="w-7 h-7 rounded-lg bg-[#5865F2] flex items-center justify-center text-xs font-bold text-white flex-shrink-0">
-                {activeName.slice(0, 1)}
-              </div>
-            )}
-            <div className="min-w-0 flex flex-col justify-center">
-              <span className="text-[11px] font-bold text-white truncate leading-tight">
-                {activeName}
-              </span>
-              <span className="text-[9px] text-[#A0A5AD] truncate leading-none pt-0.5">
-                {isPlaying ? 'Mendengarkan di Spotify' : 'Standby / Tidak memutar lagu'}
-              </span>
+      {/* 2. State Cards (Disconnected / Playing / Standby) */}
+      {!isConnected ? (
+        /* Disconnected / Autonomous Mode Card */
+        <div className="p-2.5 rounded-lg bg-[#141619] border border-[#BFE7EA]/30 flex flex-col gap-2">
+          <div className="flex items-center gap-2">
+            <div className="w-7 h-7 rounded-lg bg-[#BFE7EA]/15 border border-[#BFE7EA]/30 flex items-center justify-center text-[#BFE7EA] flex-shrink-0">
+              <Headphones className="w-4 h-4" />
             </div>
-          </div>
-
-          <span
-            className={`text-[9px] font-mono px-1.5 py-0.5 rounded font-bold flex items-center gap-1 ${
-              isPlaying
-                ? 'bg-[#1DB954]/20 text-[#1DB954] border border-[#1DB954]/40'
-                : 'bg-[#282B32] text-[#A0A5AD]'
-            }`}
-          >
-            <span
-              className={`w-1.5 h-1.5 rounded-full ${
-                isPlaying ? 'bg-[#1DB954] animate-ping' : 'bg-[#656A74]'
-              }`}
-            />
-            <span>{isPlaying ? 'PLAYING' : 'STANDBY'}</span>
-          </span>
-        </div>
-
-        {/* Condition 1: Friend Playing Song */}
-        {isPlaying && track ? (
-          <div className="pt-1 flex flex-col gap-1.5 border-t border-[#282B32]/50">
-            <div className="flex items-center gap-2.5 min-w-0">
-              {track.coverUrl && (
-                <div className="w-9 h-9 min-w-[36px] min-h-[36px] max-w-[36px] max-h-[36px] rounded-md overflow-hidden bg-[#0B0C0E] border border-[#282B32] flex-shrink-0">
-                  <img
-                    src={track.coverUrl}
-                    alt={track.title}
-                    crossOrigin="anonymous"
-                    className="w-full h-full object-cover block"
-                  />
-                </div>
-              )}
-              <div className="min-w-0 flex-1">
-                <p className="text-xs font-bold text-white truncate leading-tight hover:text-[#BFE7EA]">
-                  {track.title}
-                </p>
-                <p className="text-[10px] text-[#A0A5AD] truncate">
-                  {track.artist} &bull; {track.album}
-                </p>
-              </div>
-              {track.spotifyUrl && (
-                <a
-                  href={track.spotifyUrl}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="text-[#656A74] hover:text-[#1DB954] p-1 transition-colors flex-shrink-0"
-                  title="Open on Spotify"
-                >
-                  <ExternalLink className="w-3.5 h-3.5" />
-                </a>
-              )}
-            </div>
-
-            {/* Real-time Playtime Scrubber & Live Counter */}
-            <div className="space-y-1 pt-0.5">
-              <div className="w-full h-1 bg-[#282B32] rounded-md overflow-hidden relative">
-                <div
-                  className="h-full bg-gradient-to-r from-[#1DB954] to-[#BFE7EA] transition-all duration-200"
-                  style={{ width: `${progressRatio * 100}%` }}
-                />
-              </div>
-              <div className="flex items-center justify-between text-[10px] font-mono text-[#656A74]">
-                <span className="text-[#BFE7EA] font-semibold">
-                  {formatTime(liveProgressMs)}
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-bold text-[#BFE7EA]">Mode Mandiri Aktif</span>
+                <span className="text-[8px] font-mono px-1.5 py-0.5 rounded bg-[#BFE7EA]/20 text-[#BFE7EA] font-bold">
+                  OFFLINE
                 </span>
-                <span>{formatTime(durationMs)}</span>
               </div>
+              <p className="text-[9.5px] text-[#A0A5AD] leading-tight pt-0.5">
+                Kamu bebas memutar Radiohead &amp; album lain tanpa terikat playlist teman.
+              </p>
             </div>
           </div>
-        ) : (
-          /* Condition 2: Friend Standby / Not Listening */
-          <div className="pt-2 pb-1 px-1 flex items-center gap-2 text-xs text-[#A0A5AD] border-t border-[#282B32]/50">
-            <Moon className="w-4 h-4 text-[#E89B5B] flex-shrink-0" />
-            <div className="min-w-0 flex-1 text-[10px] leading-snug">
-              <span className="text-white font-semibold">{activeName}</span> sedang tidak memutar lagu.
-              <span className="text-[#656A74] block pt-0.5">
-                Kasatune standby & siap sinkron otomatis begitu lagu diputar.
-              </span>
-            </div>
-          </div>
-        )}
-      </div>
 
-      {/* 3. Primary Connection State Button */}
-      <div className="pt-0.5">
-        {isConnected ? (
           <button
             onClick={onToggleConnect}
-            className="w-full h-8 px-3 rounded-lg bg-[#1DB954]/20 border border-[#1DB954]/50 hover:bg-[#1DB954]/30 text-[#1DB954] text-xs font-bold flex items-center justify-center gap-2 transition-all shadow-sm group"
-            title="Sesi Spotify teman tersambung secara real-time. Klik untuk disconnect."
+            className="w-full h-8 px-3 rounded-lg bg-[#1DB954] hover:bg-[#1ed760] text-black text-xs font-black flex items-center justify-center gap-2 transition-all shadow-md active:scale-95"
+            title="Sambungkan kembali ke Live Sync Spotify teman"
           >
-            <CheckCircle2 className="w-3.5 h-3.5 text-[#1DB954] group-hover:scale-110 transition-transform" />
-            <span>
-              {isPlaying
-                ? `Connected to ${activeName} (Live Sync)`
-                : `Connected to ${activeName} (Standby)`}
+            <Radio className="w-3.5 h-3.5" />
+            <span>Sambungkan Kembali Live Sync</span>
+          </button>
+        </div>
+      ) : (
+        /* Connected Mode Card */
+        <div className="p-2.5 rounded-lg bg-[#141619] border border-[#282B32]/80 flex flex-col gap-2">
+          {/* Active Friend Header */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2 min-w-0">
+              {activeAvatar ? (
+                <img
+                  src={activeAvatar}
+                  alt={activeName}
+                  className="w-7 h-7 rounded-lg object-cover border border-[#282B32] flex-shrink-0"
+                />
+              ) : (
+                <div className="w-7 h-7 rounded-lg bg-[#5865F2] flex items-center justify-center text-xs font-bold text-white flex-shrink-0">
+                  {activeName.slice(0, 1)}
+                </div>
+              )}
+              <div className="min-w-0 flex flex-col justify-center">
+                <span className="text-[11px] font-bold text-white truncate leading-tight" title={activeName}>
+                  {activeName}
+                </span>
+                <span className="text-[9px] text-[#A0A5AD] truncate leading-none pt-0.5">
+                  {isPlaying ? 'Mendengarkan di Spotify' : 'Standby / Tidak memutar lagu'}
+                </span>
+              </div>
+            </div>
+
+            <span
+              className={`text-[8.5px] font-mono px-1.5 py-0.5 rounded font-bold flex items-center gap-1 ${
+                isPlaying
+                  ? 'bg-[#1DB954]/20 text-[#1DB954] border border-[#1DB954]/40'
+                  : 'bg-[#282B32] text-[#A0A5AD]'
+              }`}
+            >
+              <span
+                className={`w-1.5 h-1.5 rounded-full ${
+                  isPlaying ? 'bg-[#1DB954] animate-ping' : 'bg-[#656A74]'
+                }`}
+              />
+              <span>{isPlaying ? 'PLAYING' : 'STANDBY'}</span>
             </span>
-          </button>
-        ) : (
-          <button
-            onClick={onConnectSpotify}
-            disabled={isConnecting}
-            className="w-full h-8 px-3 rounded-lg bg-[#1DB954] hover:bg-[#1ed760] text-black text-xs font-extrabold flex items-center justify-center gap-2 transition-all shadow-md active:scale-95"
-            title="Sambungkan ke akun Spotify teman"
-          >
-            <Sparkles className="w-3.5 h-3.5 fill-current" />
-            <span>{isConnecting ? 'Connecting...' : 'Connect to Friend'}</span>
-          </button>
-        )}
-      </div>
+          </div>
+
+          {/* Condition 1: Friend Playing Song */}
+          {isPlaying && track ? (
+            <div className="pt-1 flex flex-col gap-1.5 border-t border-[#282B32]/50">
+              <div className="flex items-center gap-2 min-w-0">
+                {track.coverUrl && (
+                  <div className="w-9 h-9 min-w-[36px] min-h-[36px] max-w-[36px] max-h-[36px] rounded-md overflow-hidden bg-[#0B0C0E] border border-[#282B32] flex-shrink-0">
+                    <img
+                      src={track.coverUrl}
+                      alt={track.title}
+                      crossOrigin="anonymous"
+                      className="w-full h-full object-cover block"
+                    />
+                  </div>
+                )}
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs font-bold text-white truncate leading-tight hover:text-[#BFE7EA]">
+                    {track.title}
+                  </p>
+                  <p className="text-[10px] text-[#A0A5AD] truncate">
+                    {track.artist} &bull; {track.album}
+                  </p>
+                </div>
+                {track.spotifyUrl && (
+                  <a
+                    href={track.spotifyUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-[#656A74] hover:text-[#1DB954] p-1 transition-colors flex-shrink-0"
+                    title="Open on Spotify"
+                  >
+                    <ExternalLink className="w-3.5 h-3.5" />
+                  </a>
+                )}
+              </div>
+
+              {/* Real-time Playtime Scrubber & Live Counter */}
+              <div className="space-y-1 pt-0.5">
+                <div className="w-full h-1 bg-[#282B32] rounded-md overflow-hidden relative">
+                  <div
+                    className="h-full bg-gradient-to-r from-[#1DB954] to-[#BFE7EA] transition-all duration-200"
+                    style={{ width: `${progressRatio * 100}%` }}
+                  />
+                </div>
+                <div className="flex items-center justify-between text-[10px] font-mono text-[#656A74]">
+                  <span className="text-[#BFE7EA] font-semibold">
+                    {formatTime(liveProgressMs)}
+                  </span>
+                  <span>{formatTime(durationMs)}</span>
+                </div>
+              </div>
+
+              {/* Live Connected Status Button */}
+              <button
+                onClick={onToggleConnect}
+                className="w-full h-7 px-2 mt-0.5 rounded-md bg-[#1DB954]/15 border border-[#1DB954]/40 hover:bg-[#1DB954]/25 text-[#1DB954] text-[10px] font-bold flex items-center justify-center gap-1.5 transition-all shadow-sm"
+                title="Klik untuk disconnect & beralih ke musik mandiri"
+              >
+                <CheckCircle2 className="w-3 h-3 text-[#1DB954]" />
+                <span>Connected (Live Sync) &bull; Klik Disconnect</span>
+              </button>
+            </div>
+          ) : (
+            /* Condition 2: Friend Standby / Not Listening */
+            <div className="pt-2 flex flex-col gap-2 border-t border-[#282B32]/50">
+              <div className="flex items-start gap-2 text-[#A0A5AD]">
+                <Moon className="w-4 h-4 text-[#E89B5B] flex-shrink-0 mt-0.5" />
+                <div className="min-w-0 flex-1 text-[10px] leading-snug">
+                  <span className="text-white font-semibold">{activeName}</span> sedang tidak memutar lagu.
+                  <span className="text-[#656A74] block pt-0.5">
+                    Kasatune standby &amp; siap sinkron otomatis begitu lagu diputar.
+                  </span>
+                </div>
+              </div>
+
+              {/* Action Button: Putar Musik Sendiri (Radiohead / JKT48 / dll) */}
+              <button
+                onClick={onSwitchToMyMusic || onToggleConnect}
+                className="w-full h-8 px-3 rounded-lg bg-gradient-to-r from-[#1C2541] to-[#203A43] hover:from-[#203A43] hover:to-[#2C5364] border border-[#BFE7EA]/40 text-[#BFE7EA] text-xs font-bold flex items-center justify-center gap-2 transition-all shadow-md group active:scale-95"
+                title="Beralih ke mode mandiri dan putar lagu dari koleksi kamu"
+              >
+                <Music2 className="w-3.5 h-3.5 text-[#BFE7EA] group-hover:scale-110 transition-transform" />
+                <span>Putar Musik Sendiri (Radiohead / JKT48 / dll)</span>
+              </button>
+
+              {/* Disconnect Standby Button */}
+              <button
+                onClick={onToggleConnect}
+                className="w-full h-7 px-2 rounded-md bg-[#141619] border border-[#282B32] hover:border-[#656A74] text-[#A0A5AD] hover:text-white text-[9.5px] font-medium flex items-center justify-center gap-1 transition-all"
+                title="Disconnect dari sesi standby teman"
+              >
+                <X className="w-2.5 h-2.5 text-[#656A74]" />
+                <span>Putuskan Sambungan (Disconnect)</span>
+              </button>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 };

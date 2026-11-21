@@ -2,8 +2,9 @@
  * TrackListSidebar Component (Discord Channel & Queue Drawer)
  * Deep obsidian dark surfaces with vibrant Ice Blue (#BFE7EA) channel indicators:
  * - Server title with verified badge
- * - Channel list (# all-songs, # pablo-honey, etc.)
+ * - Channel list (# all-songs, # pablo-honey, # jkt48, etc.)
  * - Instant play track items with glowing Ice Blue equalizer
+ * - Discord Spotify Friend Presence Card with 1-click autonomous switch
  * - Discord User Voice Presence footer
  */
 
@@ -19,6 +20,54 @@ import type { BackendRadioheadTrack } from '../api/backend';
 import type { AlbumFilterType } from './DiscordServerRail';
 import type { FriendPlaybackState, FriendLiveInfo } from '../hooks/useFriendSpotify';
 import { FriendSpotifyCard } from './FriendSpotifyCard';
+
+export const matchesAlbumFilter = (track: BackendRadioheadTrack, activeAlbum: AlbumFilterType): boolean => {
+  const isFriendTrack =
+    track.artist.toLowerCase().includes('liella') ||
+    track.album.toLowerCase().includes('shine') ||
+    track.album.toLowerCase().includes('mirai') ||
+    track.album.toLowerCase().includes('overlord') ||
+    track.album.toLowerCase().includes('hideri') ||
+    track.album.toLowerCase().includes('book') ||
+    track.album.toLowerCase().includes('負け犬') ||
+    track.artist.toLowerCase() === 'oxt' ||
+    track.artist.toLowerCase() === 'yorushika' ||
+    track.artist.toLowerCase().includes('kanaria') ||
+    track.artist.toLowerCase() === 'yoasobi' ||
+    track.artist.toLowerCase() === 'eve' ||
+    track.artist.toLowerCase().includes('roselia') ||
+    track.artist.toLowerCase().includes('ikizulive') ||
+    track.artist.toLowerCase().includes('いきづらい部') ||
+    track.title.toLowerCase().includes('what is my life') ||
+    track.title.toLowerCase().includes('proud of oneself');
+
+  if (activeAlbum === 'friend') return isFriendTrack;
+  if (activeAlbum === 'all') return true;
+  if (activeAlbum === 'radiohead') return track.artist.toLowerCase() === 'radiohead';
+  if (activeAlbum === 'jkt48') return track.artist.toLowerCase().includes('jkt48');
+  if (activeAlbum === 'leserafim') return track.artist.toLowerCase().includes('serafim');
+  if (activeAlbum === 'twice') return track.artist.toLowerCase().includes('twice');
+  if (activeAlbum === 'aespa') return track.artist.toLowerCase().includes('aespa');
+  if (activeAlbum === 'h2h') return track.artist.toLowerCase().includes('heart') || track.artist.toLowerCase().includes('h2h');
+  if (activeAlbum === 'RUNW') return track.title.toLowerCase().includes('runway') || track.album.toLowerCase().includes('runway');
+
+  return track.album.toLowerCase() === activeAlbum.toLowerCase();
+};
+
+const getCategoryTitle = (album: AlbumFilterType): string => {
+  switch (album) {
+    case 'friend': return "Teman (Spotify Live)";
+    case 'all': return "Semua Koleksi (All Music)";
+    case 'radiohead': return "Radiohead (Discography)";
+    case 'jkt48': return "JKT48 Official";
+    case 'leserafim': return "LE SSERAFIM";
+    case 'twice': return "TWICE";
+    case 'aespa': return "aespa";
+    case 'h2h': return "Hearts2Hearts (H2H)";
+    case 'RUNW': return "RUNWAY Hits";
+    default: return album;
+  }
+};
 
 interface TrackListSidebarProps {
   tracks: BackendRadioheadTrack[];
@@ -40,6 +89,7 @@ interface TrackListSidebarProps {
   onRefreshFriendSpotify?: () => void;
   onListenAlong?: (trackTitle: string, progressMs: number) => void;
   onToggleFriendSync?: () => void;
+  onSwitchToMyMusic?: () => void;
 }
 
 export const TrackListSidebar: React.FC<TrackListSidebarProps> = ({
@@ -61,40 +111,17 @@ export const TrackListSidebar: React.FC<TrackListSidebarProps> = ({
   onRefreshFriendSpotify = () => {},
   onListenAlong = () => {},
   onToggleFriendSync = () => {},
+  onSwitchToMyMusic,
 }) => {
   const filteredTracks = tracks.filter((t) => {
-    const isFriendTrack =
-      t.artist.toLowerCase().includes('liella') ||
-      t.album.toLowerCase().includes('shine') ||
-      t.album.toLowerCase().includes('mirai') ||
-      t.album.toLowerCase().includes('overlord') ||
-      t.album.toLowerCase().includes('hideri') ||
-      t.album.toLowerCase().includes('book') ||
-      t.album.toLowerCase().includes('負け犬') ||
-      t.artist.toLowerCase() === 'oxt' ||
-      t.artist.toLowerCase() === 'yorushika' ||
-      t.artist.toLowerCase().includes('kanaria') ||
-      t.artist.toLowerCase() === 'yoasobi' ||
-      t.artist.toLowerCase() === 'eve' ||
-      t.artist.toLowerCase().includes('roselia') ||
-      t.artist.toLowerCase().includes('ikizulive') ||
-      t.artist.toLowerCase().includes('いきづらい部') ||
-      t.title.toLowerCase().includes('what is my life') ||
-      t.title.toLowerCase().includes('proud of oneself');
-
-    const matchesAlbum =
-      activeAlbum === 'friend'
-        ? isFriendTrack
-        : activeAlbum === 'all'
-        ? true
-        : !isFriendTrack && t.album.toLowerCase() === activeAlbum.toLowerCase();
-
+    const matchesAlbum = matchesAlbumFilter(t, activeAlbum);
     const q = searchFilter.toLowerCase();
     const matchesSearch =
       !q ||
       t.title.toLowerCase().includes(q) ||
       t.album.toLowerCase().includes(q) ||
-      t.mood.toLowerCase().includes(q);
+      t.mood.toLowerCase().includes(q) ||
+      t.artist.toLowerCase().includes(q);
 
     return matchesAlbum && matchesSearch;
   });
@@ -105,11 +132,7 @@ export const TrackListSidebar: React.FC<TrackListSidebarProps> = ({
       <div className="h-12 px-4 flex items-center justify-between border-b border-[#282B32] bg-[#141619] hover:bg-[#1C1E22] transition-colors cursor-pointer shadow-sm">
         <div className="flex items-center gap-1.5 min-w-0">
           <span className="font-extrabold text-sm text-white tracking-tight truncate">
-            {activeAlbum === 'friend'
-              ? "Hideri's Spotify (Live)"
-              : activeAlbum === 'all'
-              ? 'Radiohead Masters'
-              : activeAlbum}
+            {getCategoryTitle(activeAlbum)}
           </span>
           <span
             className={`w-4 h-4 rounded-md text-[10px] font-black flex items-center justify-center flex-shrink-0 ${
@@ -177,12 +200,12 @@ export const TrackListSidebar: React.FC<TrackListSidebarProps> = ({
                       {track.title}
                     </p>
                     <p className="text-[10px] text-[#656A74] truncate">
-                      {track.album}
+                      {track.artist} &bull; {track.album}
                     </p>
                   </div>
                 </div>
 
-                {/* Right Disc Indicator */}
+                {/* Right Active Indicator */}
                 {isActive && (
                   <span className="w-2 h-2 rounded-full bg-[#BFE7EA] shadow-[0_0_8px_#BFE7EA] flex-shrink-0" />
                 )}
@@ -192,7 +215,7 @@ export const TrackListSidebar: React.FC<TrackListSidebarProps> = ({
         )}
       </div>
 
-      {/* Real-time Friend Spotify Presence Card */}
+      {/* Real-time Friend Spotify Presence Card with Mode Switcher & Autonomous Option */}
       <FriendSpotifyCard
         playbackState={friendPlayback}
         liveProgressMs={friendLiveProgressMs}
@@ -205,40 +228,41 @@ export const TrackListSidebar: React.FC<TrackListSidebarProps> = ({
         onConnectSpotify={onConnectFriendSpotify}
         onRefresh={onRefreshFriendSpotify}
         onToggleConnect={onToggleFriendSync}
+        onSwitchToMyMusic={onSwitchToMyMusic}
       />
 
       {/* Discord User Presence Footer */}
       <div className="h-14 px-3 bg-[#0B0C0E] border-t border-[#282B32] flex items-center justify-between flex-shrink-0">
         <div className="flex items-center gap-2.5 min-w-0">
-          <div className="relative w-8 h-8 rounded-lg bg-gradient-to-br from-[#E89B5B] to-[#D46743] flex items-center justify-center text-xs font-black text-white flex-shrink-0 shadow-sm">
-            <span>RY</span>
-            {/* Discord Online Green Dot */}
-            <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-[#23A55A] border-2 border-[#0B0C0E]" />
+          <div className="relative">
+            <div className="w-8 h-8 rounded-full bg-[#5865F2] flex items-center justify-center text-white font-black text-xs shadow-md">
+              RY
+            </div>
+            {/* Status dot */}
+            <span className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full bg-[#1DB954] border-2 border-[#0B0C0E]" />
           </div>
-
           <div className="min-w-0 flex flex-col justify-center">
-            <span className="text-xs font-bold text-white truncate leading-tight">
+            <p className="text-xs font-bold text-white truncate leading-tight">
               Radiohead Fan
-            </span>
-            <span className="text-[10px] text-[#BFE7EA] truncate leading-none pt-0.5 font-medium">
-              Listening to Thom Yorke
-            </span>
+            </p>
+            <p className="text-[10px] text-[#656A74] truncate">
+              Listening to Kasatune
+            </p>
           </div>
         </div>
 
-        {/* Discord Action Icons */}
-        <div className="flex items-center text-[#A0A5AD]">
+        <div className="flex items-center gap-1 text-[#A0A5AD]">
           <button
-            className="p-1 hover:bg-[#1C1E22] hover:text-white rounded transition-colors"
-            title="Microphone"
+            className="p-1.5 hover:text-white hover:bg-[#1C1E22] rounded transition-colors"
+            title="Mute Audio"
           >
-            <Mic className="w-3.5 h-3.5" />
+            <Mic className="w-4 h-4" />
           </button>
           <button
-            className="p-1 hover:bg-[#1C1E22] hover:text-white rounded transition-colors"
-            title="Headphones"
+            className="p-1.5 hover:text-white hover:bg-[#1C1E22] rounded transition-colors"
+            title="Deafen Audio"
           >
-            <Headphones className="w-3.5 h-3.5" />
+            <Headphones className="w-4 h-4" />
           </button>
         </div>
       </div>
