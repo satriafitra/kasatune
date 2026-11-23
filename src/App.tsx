@@ -611,7 +611,7 @@ export const App: React.FC = () => {
     : audioCurrentTimeSec * 1000;
   const displayDurationMs = (isFriendMode && friendPlayback?.track?.durationMs)
     ? friendPlayback.track.durationMs
-    : (audioDurationSec > 0 ? audioDurationSec * 1000 : 238000);
+    : (activeTrack.durationMs > 0 ? activeTrack.durationMs : (audioDurationSec > 0 ? audioDurationSec * 1000 : 238000));
 
   return (
     <div className="h-screen w-full bg-[#0B0C0E] text-white flex flex-col overflow-hidden font-sans select-none">

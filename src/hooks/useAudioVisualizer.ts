@@ -137,7 +137,13 @@ export function useAudioVisualizer(
     audioRef.current = audio;
 
     const handleEnded = () => {
-      // Audio file ended naturally: stop playback cleanly without looping
+      // If we haven't reached the end of the full track duration yet, loop the preview seamlessly
+      if (currentTimeRef.current < durationRef.current - 1.5) {
+        audio.currentTime = 0;
+        audio.play().catch(() => {});
+        return;
+      }
+      // Reached actual end of full track duration
       setIsPlaying(false);
       isPlayingRef.current = false;
       if (onEndedRef.current) {
