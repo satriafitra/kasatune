@@ -37,6 +37,14 @@ export function parseLrc(lrcContent: string | null | undefined): LyricLine[] {
 
       const timeMs = minutes * 60 * 1000 + seconds * 1000 + fraction;
 
+      // Filter out credit header tags and metadata lines commonly found in raw LRC files
+      if (
+        timeMs === 0 &&
+        (!text || /^(作词|作曲|编曲|制作人|词：|曲：|Written by|Produced by|Lyrics by|Composer|Producer|Arranger|Lời:|Nhạc:|Phối khí:)/i.test(text))
+      ) {
+        return;
+      }
+
       result.push({
         id: `lyric-${lineIndex}-${matchIndex}-${timeMs}`,
         timeMs,
@@ -56,7 +64,16 @@ export function parseLrc(lrcContent: string | null | undefined): LyricLine[] {
 export function findActiveLyricIndex(lyrics: LyricLine[], currentProgressMs: number): number {
   if (!lyrics || lyrics.length === 0) return -1;
 
-  // If before first timestamp, it is still the instrumental intro: return -1
+  // If first vocal starts almost immediately (<= 2.5s, no long instrumental intro), highlight line 0 from 0:00
+  if (lyrics[0].timeMs <= 2500 && currentProgressMs >= 0) {
+    if (lyrics.length > 1 && currentProgressMs >= lyrics[1].timeMs) {
+      // fall through to loop below
+    } else {
+      return 0;
+    }
+  }
+
+  // If before first timestamp with genuine instrumental intro, return -1
   if (currentProgressMs < lyrics[0].timeMs) {
     return -1;
   }

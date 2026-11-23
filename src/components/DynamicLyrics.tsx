@@ -61,7 +61,7 @@ export const DynamicLyrics: React.FC<DynamicLyricsProps> = ({
   const albumColorRgb = `rgb(${r}, ${g}, ${b})`;
   const albumColorGlow = `rgba(${r}, ${g}, ${b}, 0.8)`;
 
-  const isIntro = lyrics.length > 0 && activeIndex === -1;
+  const isIntro = lyrics.length > 0 && activeIndex === -1 && lyrics[0].timeMs > 2500;
 
   return (
     <div className="w-full h-full bg-[#111215] rounded-lg border border-[#282B32] flex flex-col overflow-hidden select-none relative shadow-sm">
