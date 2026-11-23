@@ -172,115 +172,126 @@ export const App: React.FC = () => {
     }
   }, [tracks, selectTrack, loadTrack, activeAlbum, friendPlayback, friendLiveProgressMs, seekToSeconds]);
 
+  // Track friend sync identity refs to prevent infinite reload loops and seek storms
+  const currentFriendTrackKeyRef = useRef<string>('');
+  const lastSyncedPreviewUrlRef = useRef<string>('');
+  const lastFriendSeekTimeRef = useRef<number>(0);
+
   // Master Real-Time Friend Spotify Synchronization Engine
   useEffect(() => {
-    if (!isFriendSyncConnected || !friendPlayback || activeAlbum !== 'friend') return;
-
-    const currentFriendSec = Math.max(0, friendLiveProgressMs / 1000);
-
-    // A. Sync Active Track automatically when friend switches songs or when audio preview URL becomes available
-    if (friendPlayback.track) {
-      const friendTitle = friendPlayback.track.title.toLowerCase().replace(/！/g, '!').trim();
-      const currentTitle = activeTrack.title.toLowerCase().replace(/！/g, '!').trim();
-      const isDifferentTrack =
-        (friendPlayback.track.id && activeTrack.id && friendPlayback.track.id !== activeTrack.id) ||
-        (!currentTitle.includes(friendTitle) && !friendTitle.includes(currentTitle));
-
-      const needsPreviewUrl = !activeTrack.previewUrl && Boolean(friendPlayback.track.previewUrl);
-
-      if (isDifferentTrack || needsPreviewUrl) {
-        const matched = tracks.find(
-          (t) =>
-            t.id === friendPlayback.track?.id ||
-            t.title.toLowerCase().replace(/！/g, '!').includes(friendTitle) ||
-            friendTitle.includes(t.title.toLowerCase().replace(/！/g, '!'))
-        );
-
-        if (matched) {
-          selectTrack(matched);
-          loadTrack(
-            matched.previewUrl,
-            matched.bpm,
-            matched.durationMs > 0 ? matched.durationMs / 1000 : 266,
-            friendPlayback.isPlaying,
-            currentFriendSec
-          );
-          if (currentFriendSec > 0) {
-            seekToSeconds(currentFriendSec);
-          }
-          return;
-        } else {
-          // Dynamic live track from friend that isn't in preloaded list
-          const dynamicTrack: BackendRadioheadTrack = {
-            id: friendPlayback.track.id,
-            title: friendPlayback.track.title,
-            artist: friendPlayback.track.artist,
-            album: friendPlayback.track.album,
-            year: new Date().getFullYear(),
-            coverUrl: friendPlayback.track.coverUrl || '',
-            previewUrl: friendPlayback.track.previewUrl || '',
-            durationMs: friendPlayback.track.durationMs || 235000,
-            bpm: 120,
-            mood: 'Spotify Live Presence',
-            syncedLyrics: friendPlayback.track.syncedLyrics || '',
-            spotifyUrl: friendPlayback.track.spotifyUrl || '',
-          };
-          selectTrack(dynamicTrack);
-          loadTrack(
-            dynamicTrack.previewUrl,
-            dynamicTrack.bpm,
-            dynamicTrack.durationMs > 0 ? dynamicTrack.durationMs / 1000 : 235,
-            friendPlayback.isPlaying,
-            currentFriendSec
-          );
-          if (currentFriendSec > 0) {
-            seekToSeconds(currentFriendSec);
-          }
-          return;
-        }
-      }
+    if (!isFriendSyncConnected || activeAlbum !== 'friend') {
+      currentFriendTrackKeyRef.current = '';
+      lastSyncedPreviewUrlRef.current = '';
+      return;
     }
 
-    // B. Sync Play / Pause State (When friend pauses -> local pauses! When friend plays -> local plays!)
+    if (!friendPlayback || !friendPlayback.track) return;
+
+    const friendTrack = friendPlayback.track;
+    const friendTrackKey = `${friendTrack.id || ''}:${friendTrack.artist}-${friendTrack.title}`.toLowerCase();
+    const isNewTrack = currentFriendTrackKeyRef.current !== friendTrackKey;
+    const hasNewAudioPreview = Boolean(
+      friendTrack.previewUrl && friendTrack.previewUrl !== lastSyncedPreviewUrlRef.current
+    );
+
+    // 1. Only execute track switch when the song has actually changed or audio preview arrived
+    if (isNewTrack || hasNewAudioPreview) {
+      currentFriendTrackKeyRef.current = friendTrackKey;
+      lastSyncedPreviewUrlRef.current = friendTrack.previewUrl || '';
+
+      const friendTitle = friendTrack.title.toLowerCase().replace(/！/g, '!').trim();
+      const matched = tracks.find(
+        (t) =>
+          (friendTrack.id && t.id === friendTrack.id) ||
+          t.title.toLowerCase().replace(/！/g, '!').includes(friendTitle) ||
+          friendTitle.includes(t.title.toLowerCase().replace(/！/g, '!'))
+      );
+
+      const target: BackendRadioheadTrack = matched
+        ? {
+            ...matched,
+            previewUrl: friendTrack.previewUrl || matched.previewUrl || '',
+            syncedLyrics: friendTrack.syncedLyrics || matched.syncedLyrics || '',
+            durationMs: friendTrack.durationMs || matched.durationMs || 235000,
+          }
+        : {
+            id: friendTrack.id,
+            title: friendTrack.title,
+            artist: friendTrack.artist,
+            album: friendTrack.album,
+            year: new Date().getFullYear(),
+            coverUrl: friendTrack.coverUrl || '',
+            previewUrl: friendTrack.previewUrl || '',
+            durationMs: friendTrack.durationMs || 235000,
+            bpm: 120,
+            mood: 'Spotify Live Presence',
+            syncedLyrics: friendTrack.syncedLyrics || '',
+            spotifyUrl: friendTrack.spotifyUrl || '',
+          };
+
+      if (isNewTrack) {
+        selectTrack(target);
+      }
+
+      const friendSec = Math.max(0, friendLiveProgressMs / 1000);
+      loadTrack(
+        target.previewUrl,
+        target.bpm || 120,
+        (target.durationMs || 235000) / 1000,
+        friendPlayback.isPlaying,
+        friendSec
+      );
+
+      if (friendSec > 0) {
+        seekToSeconds(friendSec);
+      }
+
+      if (friendPlayback.isPlaying) {
+        play();
+      }
+      return;
+    }
+
+    // 2. Play / Pause Sync
     if (friendPlayback.isPlaying && !isPlaying) {
       play();
     } else if (!friendPlayback.isPlaying && isPlaying) {
       pause();
     }
 
-    // C. Strict Playtime Synchronization:
+    // 3. Gentle Drift Correction (Throttled, only when drifted significantly)
     const friendSec = friendLiveProgressMs / 1000;
     const drift = Math.abs(audioCurrentTimeSec - friendSec);
+    const now = Date.now();
 
     if (!friendPlayback.isPlaying) {
-      // When friend is paused: STRICT LOCK. Bottom bar and friend card are 100% identical to the millisecond!
-      if (drift > 0.05) {
+      if (drift > 0.1 && now - lastFriendSeekTimeRef.current > 500) {
+        lastFriendSeekTimeRef.current = now;
         seekToSeconds(friendSec);
       }
     } else {
-      // When friend is playing: drift correction if drifted > 1.0 second
-      if (drift > 1.0) {
+      if (drift > 3.0 && now - lastFriendSeekTimeRef.current > 4000) {
+        lastFriendSeekTimeRef.current = now;
         seekToSeconds(friendSec);
       }
     }
   }, [
-    friendPlayback?.isPlaying,
+    isFriendSyncConnected,
+    activeAlbum,
     friendPlayback?.track?.id,
     friendPlayback?.track?.title,
+    friendPlayback?.track?.artist,
     friendPlayback?.track?.previewUrl,
+    friendPlayback?.isPlaying,
     friendLiveProgressMs,
-    activeAlbum,
-    activeTrack.title,
-    activeTrack.previewUrl,
+    audioCurrentTimeSec,
     tracks,
     isPlaying,
-    audioCurrentTimeSec,
     play,
     pause,
     seekToSeconds,
     selectTrack,
     loadTrack,
-    isFriendSyncConnected,
   ]);
 
   // Filter tracks based on active Discord Server (Friend Spotify, Radiohead albums, or new artists)
@@ -590,6 +601,12 @@ export const App: React.FC = () => {
     seekToSeconds(timeMs / 1000);
   };
 
+  const isFriendMode = isFriendSyncConnected && activeAlbum === 'friend';
+  const displayCurrentTimeMs = isFriendMode ? friendLiveProgressMs : audioCurrentTimeSec * 1000;
+  const displayDurationMs = (isFriendMode && friendPlayback?.track?.durationMs)
+    ? friendPlayback.track.durationMs
+    : (audioDurationSec > 0 ? audioDurationSec * 1000 : 238000);
+
   return (
     <div className="h-screen w-full bg-[#0B0C0E] text-white flex flex-col overflow-hidden font-sans select-none">
       {/* 1. Discord x Spotify Top Navigation Header */}
@@ -688,7 +705,7 @@ export const App: React.FC = () => {
               <DynamicLyrics
                 lyrics={lyrics}
                 plainLyrics={plainLyrics}
-                currentProgressMs={audioCurrentTimeSec * 1000}
+                currentProgressMs={displayCurrentTimeMs}
                 colors={albumColors}
                 isLoading={isLoadingSong}
                 onSeek={handleSeekFromLyrics}
@@ -705,8 +722,8 @@ export const App: React.FC = () => {
         artistName={activeTrack.artist}
         albumName={activeTrack.album}
         albumImageUrl={activeTrack.coverUrl}
-        currentTimeSec={audioCurrentTimeSec}
-        durationSec={audioDurationSec}
+        currentTimeSec={displayCurrentTimeMs / 1000}
+        durationSec={displayDurationMs / 1000}
         bpm={activeTrack.bpm}
         mood={activeTrack.mood}
         isPlaying={isPlaying}

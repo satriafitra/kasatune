@@ -167,12 +167,6 @@ export function useAudioVisualizer(
       if (audio.duration && audio.duration >= durationRef.current - 5) {
         currentTimeRef.current = audio.currentTime;
         setCurrentTime(audio.currentTime);
-      } else if (audio.duration && audio.duration > 0) {
-        const clipDur = audio.duration;
-        const loop = Math.floor(currentTimeRef.current / clipDur);
-        const synced = Math.min(durationRef.current, loop * clipDur + audio.currentTime);
-        currentTimeRef.current = synced;
-        setCurrentTime(synced);
       }
     };
 
@@ -215,12 +209,11 @@ export function useAudioVisualizer(
       if (audio && !audio.paused && !isNaN(audio.currentTime) && audio.currentTime >= 0) {
         if (audio.duration && audio.duration >= durationRef.current - 5) {
           currentTimeRef.current = audio.currentTime;
-        } else if (audio.duration && audio.duration > 0) {
-          const clipDur = audio.duration;
-          const loop = Math.floor(currentTimeRef.current / clipDur);
-          currentTimeRef.current = Math.min(durationRef.current, loop * clipDur + audio.currentTime);
         } else {
-          currentTimeRef.current = audio.currentTime;
+          currentTimeRef.current = Math.min(
+            durationRef.current,
+            currentTimeRef.current + deltaSec
+          );
         }
       } else {
         currentTimeRef.current = Math.min(
@@ -263,26 +256,40 @@ export function useAudioVisualizer(
     setCurrentBpm(newBpm > 0 ? newBpm : 128);
 
     audio.pause();
-    audio.src = url;
-    audio.load();
+    if (url) {
+      audio.src = url;
+      audio.load();
 
-    if (safeInitial > 0) {
-      audio.currentTime = safeInitial;
-    } else {
-      audio.currentTime = 0;
-    }
+      const applyInitialSeek = () => {
+        if (audio.duration && audio.duration > 0) {
+          audio.currentTime = safeInitial % audio.duration;
+        } else {
+          audio.currentTime = 0;
+        }
+      };
 
-    setupWebAudio();
+      if (audio.readyState >= 1 && audio.duration > 0) {
+        applyInitialSeek();
+      } else {
+        audio.addEventListener('loadedmetadata', applyInitialSeek, { once: true });
+      }
 
-    if (autoPlay) {
-      audio.play().then(() => {
-        setIsPlaying(true);
-        isPlayingRef.current = true;
-      }).catch(() => {
+      setupWebAudio();
+
+      if (autoPlay) {
+        audio.play().then(() => {
+          setIsPlaying(true);
+          isPlayingRef.current = true;
+        }).catch(() => {
+          setIsPlaying(false);
+          isPlayingRef.current = false;
+        });
+      } else {
         setIsPlaying(false);
         isPlayingRef.current = false;
-      });
+      }
     } else {
+      audio.src = '';
       setIsPlaying(false);
       isPlayingRef.current = false;
     }

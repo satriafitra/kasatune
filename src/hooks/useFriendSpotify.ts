@@ -8,6 +8,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import friendTracksData from '../data/friend_tracks.json';
+import { fetchLyrics } from '../api/lrclib';
 
 const API_BASE = (import.meta.env.VITE_BACKEND_URL as string) || 'http://localhost:8080';
 const DEFAULT_CLIENT_ID = '272c12f48c18494fb5ac490cd10a8b2b';
@@ -89,59 +90,73 @@ function getSpotifyRedirectUri() {
 
 // Dynamic preview audio finder from iTunes Search API (CORS friendly, instant)
 const audioPreviewCache = new Map<string, string>();
+const audioPreviewInFlight = new Map<string, Promise<string>>();
+
 async function getPreviewAudio(artist: string, title: string): Promise<string> {
   const cleanTitle = title.replace(/\([^)]*\)/g, '').trim();
   const primaryArtist = artist.split(';')[0].split(',')[0].trim();
   const key = `${primaryArtist}-${cleanTitle}`.toLowerCase();
   if (audioPreviewCache.has(key)) return audioPreviewCache.get(key)!;
+  if (audioPreviewInFlight.has(key)) return audioPreviewInFlight.get(key)!;
 
-  try {
-    const q = encodeURIComponent(`${primaryArtist} ${cleanTitle}`);
-    const res = await fetch(`https://itunes.apple.com/search?term=${q}&entity=song&limit=1`);
-    if (res.ok) {
-      const data = await res.json();
-      if (data.results && data.results.length > 0 && data.results[0].previewUrl) {
-        audioPreviewCache.set(key, data.results[0].previewUrl);
-        return data.results[0].previewUrl;
+  const fetchPromise = (async () => {
+    try {
+      const q = encodeURIComponent(`${primaryArtist} ${cleanTitle}`);
+      const res = await fetch(`https://itunes.apple.com/search?term=${q}&entity=song&limit=1`);
+      if (res.ok) {
+        const data = await res.json();
+        if (data.results && data.results.length > 0 && data.results[0].previewUrl) {
+          audioPreviewCache.set(key, data.results[0].previewUrl);
+          return data.results[0].previewUrl;
+        }
       }
-    }
-    // Fallback: search title only
-    const resTitle = await fetch(`https://itunes.apple.com/search?term=${encodeURIComponent(cleanTitle)}&entity=song&limit=1`);
-    if (resTitle.ok) {
-      const dataTitle = await resTitle.json();
-      if (dataTitle.results && dataTitle.results.length > 0 && dataTitle.results[0].previewUrl) {
-        audioPreviewCache.set(key, dataTitle.results[0].previewUrl);
-        return dataTitle.results[0].previewUrl;
+      // Fallback: search title only
+      const resTitle = await fetch(`https://itunes.apple.com/search?term=${encodeURIComponent(cleanTitle)}&entity=song&limit=1`);
+      if (resTitle.ok) {
+        const dataTitle = await resTitle.json();
+        if (dataTitle.results && dataTitle.results.length > 0 && dataTitle.results[0].previewUrl) {
+          audioPreviewCache.set(key, dataTitle.results[0].previewUrl);
+          return dataTitle.results[0].previewUrl;
+        }
       }
+    } catch {
+      // Ignore fetch failure
     }
-  } catch {
-    // Ignore fetch failure
-  }
-  return '';
+    return '';
+  })();
+
+  audioPreviewInFlight.set(key, fetchPromise);
+  const result = await fetchPromise;
+  audioPreviewInFlight.delete(key);
+  return result;
 }
 
-// Dynamic synced lyrics finder from LRCLIB
+// Dynamic synced lyrics finder using LRCLIB smart query engine
 const lyricsCache = new Map<string, string>();
-async function getSyncedLyrics(artist: string, title: string): Promise<string> {
-  const primaryArtist = artist.split(';')[0].split(',')[0].trim();
-  const key = `${primaryArtist}-${title}`.toLowerCase();
-  if (lyricsCache.has(key)) return lyricsCache.get(key)!;
+const lyricsInFlight = new Map<string, Promise<string>>();
 
-  try {
-    const qArtist = encodeURIComponent(primaryArtist);
-    const qTitle = encodeURIComponent(title);
-    const res = await fetch(`https://lrclib.net/api/get?artist_name=${qArtist}&track_name=${qTitle}`);
-    if (res.ok) {
-      const data = await res.json();
-      if (data.syncedLyrics) {
-        lyricsCache.set(key, data.syncedLyrics);
-        return data.syncedLyrics;
+async function getSyncedLyrics(artist: string, title: string, durationMs?: number): Promise<string> {
+  const key = `${artist}-${title}`.toLowerCase();
+  if (lyricsCache.has(key)) return lyricsCache.get(key)!;
+  if (lyricsInFlight.has(key)) return lyricsInFlight.get(key)!;
+
+  const fetchPromise = (async () => {
+    try {
+      const res = await fetchLyrics(title, artist, durationMs);
+      if (res.syncedLyrics && res.syncedLyrics.length > 20) {
+        lyricsCache.set(key, res.syncedLyrics);
+        return res.syncedLyrics;
       }
+    } catch {
+      // Ignore fetch failure
     }
-  } catch {
-    // Ignore fetch failure
-  }
-  return '';
+    return '';
+  })();
+
+  lyricsInFlight.set(key, fetchPromise);
+  const result = await fetchPromise;
+  lyricsInFlight.delete(key);
+  return result;
 }
 
 export function useFriendSpotify() {
@@ -287,10 +302,22 @@ export function useFriendSpotify() {
         let previewUrl = localMatch?.previewUrl || '';
         let syncedLyrics = localMatch?.syncedLyrics || '';
 
+        // If currently playing track is the same song, preserve previously resolved audio and lyrics
+        if (playbackState?.track) {
+          const prev = playbackState.track;
+          if (
+            prev.id === trackId ||
+            (prev.title.toLowerCase() === songTitle.toLowerCase() && prev.artist.toLowerCase() === songArtist.toLowerCase())
+          ) {
+            if (!previewUrl && prev.previewUrl) previewUrl = prev.previewUrl;
+            if (!syncedLyrics && prev.syncedLyrics) syncedLyrics = prev.syncedLyrics;
+          }
+        }
+
         if (!previewUrl || !syncedLyrics) {
           const [foundAudio, foundLyrics] = await Promise.all([
             !previewUrl ? getPreviewAudio(songArtist, songTitle) : Promise.resolve(''),
-            !syncedLyrics ? getSyncedLyrics(songArtist, songTitle) : Promise.resolve(''),
+            !syncedLyrics ? getSyncedLyrics(songArtist, songTitle, durationMs) : Promise.resolve(''),
           ]);
           if (foundAudio) previewUrl = foundAudio;
           if (foundLyrics) syncedLyrics = foundLyrics;
