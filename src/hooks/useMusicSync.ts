@@ -495,7 +495,15 @@ export function useMusicSync(): SyncedMusicState {
     if (health.isOnline) {
       const backendTracks = await fetchRadioheadTracksFromBackend();
       if (backendTracks && backendTracks.length > 0) {
-        setTracks(backendTracks);
+        const merged: BackendRadioheadTrack[] = [...backendTracks];
+        const existingIds = new Set(backendTracks.map((t) => t.id));
+        DEFAULT_RADIOHEAD_TRACKS.forEach((t) => {
+          if (!existingIds.has(t.id)) {
+            merged.push(t);
+            existingIds.add(t.id);
+          }
+        });
+        setTracks(merged);
       }
     }
   }, []);

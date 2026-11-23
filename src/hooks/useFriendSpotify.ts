@@ -17,7 +17,7 @@ const ALL_LOCAL_LIBRARY: any[] = [
 ];
 
 function findLocalTrackMatch(songTitle: string, songArtist: string, trackId?: string) {
-  const clean = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, '');
+  const clean = (s: string) => s.toLowerCase().replace(/[^\p{L}\p{N}]/gu, '');
   const cTitle = clean(songTitle || '');
   const cArtist = clean(songArtist || '');
 
@@ -27,7 +27,7 @@ function findLocalTrackMatch(songTitle: string, songArtist: string, trackId?: st
     const tArtist = clean(t.artist || '');
 
     // Exact title match:
-    if (tTitle.length > 3 && tTitle === cTitle) {
+    if (tTitle.length > 1 && tTitle === cTitle) {
       if (!cArtist || !tArtist || tArtist.includes(cArtist) || cArtist.includes(tArtist)) {
         return true;
       }
@@ -35,7 +35,7 @@ function findLocalTrackMatch(songTitle: string, songArtist: string, trackId?: st
 
     // Both artist and title match:
     const artistMatch = tArtist && cArtist && (tArtist.includes(cArtist) || cArtist.includes(tArtist));
-    if (artistMatch && tTitle.length > 3 && cTitle.length > 3) {
+    if (artistMatch && tTitle.length > 1 && cTitle.length > 1) {
       if (tTitle.includes(cTitle) || cTitle.includes(tTitle)) return true;
     }
 

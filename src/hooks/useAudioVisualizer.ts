@@ -137,18 +137,11 @@ export function useAudioVisualizer(
     audioRef.current = audio;
 
     const handleEnded = () => {
-      // If full song duration hasn't been reached, loop audio seamlessly so it doesn't stop!
-      if (currentTimeRef.current < durationRef.current - 1 && isPlayingRef.current) {
-        audio.currentTime = 0;
-        audio.play().catch(() => {});
-      } else {
-        setIsPlaying(false);
-        isPlayingRef.current = false;
-        setCurrentTime(0);
-        currentTimeRef.current = 0;
-        if (onEndedRef.current) {
-          onEndedRef.current();
-        }
+      // Audio file ended naturally: stop playback cleanly without looping
+      setIsPlaying(false);
+      isPlayingRef.current = false;
+      if (onEndedRef.current) {
+        onEndedRef.current();
       }
     };
 
@@ -164,7 +157,7 @@ export function useAudioVisualizer(
 
     const handleTimeUpdate = () => {
       if (!audio || audio.paused || isNaN(audio.currentTime)) return;
-      if (audio.duration && audio.duration >= durationRef.current - 5) {
+      if (audio.duration && audio.duration >= 45) {
         currentTimeRef.current = audio.currentTime;
         setCurrentTime(audio.currentTime);
       }
@@ -262,11 +255,7 @@ export function useAudioVisualizer(
 
       const applyInitialSeek = () => {
         if (audio.duration && audio.duration > 0) {
-          if (audio.duration >= 45) {
-            audio.currentTime = Math.min(Math.max(0, audio.duration - 0.2), safeInitial);
-          } else {
-            audio.currentTime = safeInitial % audio.duration;
-          }
+          audio.currentTime = Math.min(Math.max(0, audio.duration - 0.2), safeInitial);
         } else {
           audio.currentTime = 0;
         }
@@ -352,12 +341,8 @@ export function useAudioVisualizer(
     } catch {}
 
     if (audio && audio.duration && !isNaN(audio.duration) && audio.duration > 0) {
-      // Map to audio element duration cleanly
-      if (audio.duration >= 45) {
-        audio.currentTime = Math.min(Math.max(0, audio.duration - 0.2), clampedSec);
-      } else {
-        audio.currentTime = clampedSec % audio.duration;
-      }
+      // Safely clamp seek position to audio duration without modulo wrapping (prevents infinite loop cycles)
+      audio.currentTime = Math.min(Math.max(0, audio.duration - 0.2), clampedSec);
     }
   }, []);
 

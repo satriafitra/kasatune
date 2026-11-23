@@ -172,7 +172,7 @@ export const App: React.FC = () => {
 
   // Safe Track Matcher: Prioritizes full studio recordings from library, preventing accidental cross-artist matches
   const resolveTargetTrack = useCallback((friendTrack: FriendTrack, tracksList: BackendRadioheadTrack[]): BackendRadioheadTrack => {
-    const cleanA = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, '');
+    const cleanA = (s: string) => s.toLowerCase().replace(/[^\p{L}\p{N}]/gu, '');
     const fTitle = cleanA(friendTrack.title);
     const fArtist = cleanA(friendTrack.artist);
 
@@ -180,11 +180,11 @@ export const App: React.FC = () => {
       if (friendTrack.id && t.id === friendTrack.id) return true;
       const tTitle = cleanA(t.title);
       const tArtist = cleanA(t.artist);
-      if (tTitle.length > 3 && tTitle === fTitle) {
+      if (tTitle.length > 1 && tTitle === fTitle) {
         if (!fArtist || !tArtist || tArtist.includes(fArtist) || fArtist.includes(tArtist)) return true;
       }
       const artistMatch = tArtist && fArtist && (tArtist.includes(fArtist) || fArtist.includes(tArtist));
-      if (artistMatch && tTitle.length > 3 && fTitle.length > 3) {
+      if (artistMatch && tTitle.length > 1 && fTitle.length > 1) {
         if (tTitle.includes(fTitle) || fTitle.includes(tTitle)) return true;
       }
       return false;
@@ -272,12 +272,16 @@ export const App: React.FC = () => {
 
     // 2. Play / Pause Sync
     if (friendPlayback.isPlaying && !isPlaying) {
-      play();
+      if (audioDurationSec > 0 && audioCurrentTimeSec >= audioDurationSec - 0.5) {
+        // Track finished naturally, do not loop or restart from 0
+      } else {
+        play();
+      }
     } else if (!friendPlayback.isPlaying && isPlaying) {
       pause();
     }
 
-    // 3. Gentle Drift Correction (Throttled, only when drifted significantly)
+    // 3. Gentle Drift Correction (Throttled, only on studio tracks)
     const friendSec = friendLiveProgressMs / 1000;
     const drift = Math.abs(audioCurrentTimeSec - friendSec);
     const now = Date.now();
@@ -288,7 +292,7 @@ export const App: React.FC = () => {
         seekToSeconds(friendSec);
       }
     } else {
-      if (drift > 3.0 && now - lastFriendSeekTimeRef.current > 4000) {
+      if (audioDurationSec >= 45 && drift > 1.2 && now - lastFriendSeekTimeRef.current > 3500) {
         lastFriendSeekTimeRef.current = now;
         seekToSeconds(friendSec);
       }
@@ -600,7 +604,11 @@ export const App: React.FC = () => {
   };
 
   const isFriendMode = isFriendSyncConnected && activeAlbum === 'friend';
-  const displayCurrentTimeMs = isFriendMode ? friendLiveProgressMs : audioCurrentTimeSec * 1000;
+  const displayCurrentTimeMs = isFriendMode
+    ? (isPlaying && audioCurrentTimeSec > 0 && Math.abs(audioCurrentTimeSec * 1000 - friendLiveProgressMs) < 2500
+        ? audioCurrentTimeSec * 1000
+        : friendLiveProgressMs)
+    : audioCurrentTimeSec * 1000;
   const displayDurationMs = (isFriendMode && friendPlayback?.track?.durationMs)
     ? friendPlayback.track.durationMs
     : (audioDurationSec > 0 ? audioDurationSec * 1000 : 238000);
