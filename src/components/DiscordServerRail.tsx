@@ -47,6 +47,8 @@ interface DiscordServerRailProps {
 interface ServerItem {
   id: AlbumFilterType;
   name: string;
+  albumTitle?: string;
+  artistName?: string;
   year?: number;
   imageUrl?: string;
   isHome?: boolean;
@@ -59,6 +61,8 @@ const SERVERS: ServerItem[] = [
   {
     id: 'friend',
     name: "Teman (Spotify Live Sync)",
+    albumTitle: "Spotify Real-Time Friend Activity",
+    artistName: "Spotify Live Presence",
     imageUrl: 'https://is1-ssl.mzstatic.com/image/thumb/Music112/v4/0a/a7/9f/0aa79f8a-101c-f475-c158-66e56d4a378a/JK_ZMCZ-15801.jpg/600x600bb.jpg',
     isSpotify: true,
   },
@@ -67,6 +71,8 @@ const SERVERS: ServerItem[] = [
   {
     id: 'all',
     name: 'Semua Koleksi (All Songs)',
+    albumTitle: 'Semua Album & Lagu (250+ Tracks)',
+    artistName: 'Koleksi Kasatune',
     isHome: true,
   },
 
@@ -74,124 +80,175 @@ const SERVERS: ServerItem[] = [
   {
     id: 'radiohead',
     name: 'Radiohead (Semua Album)',
+    albumTitle: 'Diskografi Lengkap (9 Studio Albums)',
+    artistName: 'Radiohead',
     imageUrl: '/covers/radiohead.jpg',
   },
   {
     id: 'Pablo Honey',
-    name: 'Radiohead - Pablo Honey (1993)',
+    name: 'Radiohead - Pablo Honey',
+    albumTitle: 'Pablo Honey',
+    artistName: 'Radiohead',
     year: 1993,
     imageUrl: '/covers/pablo_honey.jpg',
   },
   {
     id: 'The Bends',
-    name: 'Radiohead - The Bends (1995)',
+    name: 'Radiohead - The Bends',
+    albumTitle: 'The Bends',
+    artistName: 'Radiohead',
     year: 1995,
     imageUrl: '/covers/the_bends.jpg',
   },
   {
     id: 'OK Computer',
-    name: 'Radiohead - OK Computer (1997)',
+    name: 'Radiohead - OK Computer',
+    albumTitle: 'OK Computer',
+    artistName: 'Radiohead',
     year: 1997,
     imageUrl: '/covers/ok_computer.jpg',
   },
   {
     id: 'Kid A',
-    name: 'Radiohead - Kid A (2000)',
+    name: 'Radiohead - Kid A',
+    albumTitle: 'Kid A',
+    artistName: 'Radiohead',
     year: 2000,
     imageUrl: '/covers/kid_a.jpg',
   },
   {
     id: 'Amnesiac',
-    name: 'Radiohead - Amnesiac (2001)',
+    name: 'Radiohead - Amnesiac',
+    albumTitle: 'Amnesiac',
+    artistName: 'Radiohead',
     year: 2001,
     imageUrl: '/covers/amnesiac.jpg',
   },
   {
     id: 'Hail to the Thief',
-    name: 'Radiohead - Hail to the Thief (2003)',
+    name: 'Radiohead - Hail to the Thief',
+    albumTitle: 'Hail to the Thief',
+    artistName: 'Radiohead',
     year: 2003,
     imageUrl: '/covers/hail_to_the_thief.jpg',
   },
   {
     id: 'In Rainbows',
-    name: 'Radiohead - In Rainbows (2007)',
+    name: 'Radiohead - In Rainbows',
+    albumTitle: 'In Rainbows',
+    artistName: 'Radiohead',
     year: 2007,
     imageUrl: '/covers/in_rainbows.jpg',
   },
   {
     id: 'The King of Limbs',
-    name: 'Radiohead - The King of Limbs (2011)',
+    name: 'Radiohead - The King of Limbs',
+    albumTitle: 'The King of Limbs',
+    artistName: 'Radiohead',
     year: 2011,
     imageUrl: '/covers/the_king_of_limbs.jpg',
   },
   {
     id: 'A Moon Shaped Pool',
-    name: 'Radiohead - A Moon Shaped Pool (2016)',
+    name: 'Radiohead - A Moon Shaped Pool',
+    albumTitle: 'A Moon Shaped Pool',
+    artistName: 'Radiohead',
     year: 2016,
     imageUrl: '/covers/a_moon_shaped_pool.jpg',
   },
 
-  // 4. New Requested Artists
+  // 4. Requested Artists
   {
     id: 'jkt48',
     name: 'JKT48',
+    albumTitle: 'Mahagita, Heavy Rotation & Special Singles',
+    artistName: 'JKT48',
     imageUrl: '/covers/jkt48.jpg',
   },
   {
     id: 'leserafim',
     name: 'LE SSERAFIM',
+    albumTitle: 'UNFORGIVEN, ANTIFRAGILE & FEARLESS',
+    artistName: 'LE SSERAFIM',
     imageUrl: '/covers/leserafim.jpg',
   },
   {
     id: 'twice',
     name: 'TWICE',
+    albumTitle: 'Formula of Love, Eyes wide open, Feel Special & FANCY YOU',
+    artistName: 'TWICE',
+    year: 2021,
     imageUrl: '/covers/twice.jpg',
   },
   {
     id: 'aespa',
     name: 'aespa',
+    albumTitle: 'MY WORLD, Savage, Drama & Girls',
+    artistName: 'aespa',
     imageUrl: '/covers/aespa.jpg',
   },
   {
     id: 'h2h',
     name: 'Hearts2Hearts (H2H)',
+    albumTitle: 'Original Singles & Collaborations',
+    artistName: 'Hearts2Hearts',
     imageUrl: '/covers/h2h.jpg',
   },
   {
     id: 'RUNW',
     name: 'RUNW (Runway Hits)',
+    albumTitle: 'Runway Electronic & House Essentials',
+    artistName: 'Various Artists',
     imageUrl: '/covers/runw.jpg',
   },
 
-  // 5. Hip-Hop, Pop & Anime Spotlight (Riski Inrahim, Vander, Playboi Carti, Drake, Bruno Mars, Akuma no Ko)
+  // 5. Hip-Hop, Pop & Anime Spotlight
   {
     id: 'riskiinrahim',
-    name: 'Riski Inrahim (Sdr Kematian)',
+    name: 'Riski Inrahim',
+    albumTitle: 'Sdr Kematian (Saudara Kematian)',
+    artistName: 'Riski Inrahim',
+    year: 2025,
     imageUrl: 'https://cdn-images.dzcdn.net/images/cover/837d6a9b236c8e3fd2c2582d401bf603/500x500-000000-80-0-0.jpg',
   },
   {
     id: 'vander',
-    name: 'vander! / vender! (vandereism)',
+    name: 'vander! / vender!',
+    albumTitle: 'KING MOKONDO, Bencana Alam & Vandereism',
+    artistName: 'Vander (vandereism)',
+    year: 2025,
     imageUrl: 'https://cdn-images.dzcdn.net/images/cover/398631fbbcee960e798eb8e90909c46d/500x500-000000-80-0-0.jpg',
   },
   {
     id: 'playboicarti',
-    name: 'Playboi Carti (Whole Lotta Red)',
+    name: 'Playboi Carti',
+    albumTitle: 'Whole Lotta Red & Die Lit',
+    artistName: 'Playboi Carti',
+    year: 2020,
     imageUrl: 'https://cdn-images.dzcdn.net/images/cover/830206aa13768132e49aebe1bf4b7dfa/500x500-000000-80-0-0.jpg',
   },
   {
     id: 'drake',
-    name: 'Drake (Scorpion & Views)',
+    name: 'Drake',
+    albumTitle: 'Scorpion, Views & Certified Lover Boy',
+    artistName: 'Drake',
+    year: 2018,
     imageUrl: 'https://cdn-images.dzcdn.net/images/cover/93da04d02685718df2e80be403ce89df/500x500-000000-80-0-0.jpg',
   },
   {
     id: 'brunomars',
-    name: 'Bruno Mars (24K Magic)',
+    name: 'Bruno Mars',
+    albumTitle: '24K Magic, Unorthodox Jukebox & Doo-Wops',
+    artistName: 'Bruno Mars',
+    year: 2016,
     imageUrl: 'https://cdn-images.dzcdn.net/images/cover/b467610df7919864ea547eb25da5efb6/500x500-000000-80-0-0.jpg',
   },
   {
     id: 'akumanoko',
-    name: 'Ai Higuchi (悪魔の子 / 最悪最愛)',
+    name: 'Ai Higuchi',
+    albumTitle: '悪魔の子 (Akuma no Ko) / 最悪最愛 (Saiaku Saiai)',
+    artistName: 'Ai Higuchi (Higuchi Ai)',
+    year: 2022,
     imageUrl: 'https://cdn-images.dzcdn.net/images/cover/5f58c42247385f0ef327e57c6b758b90/500x500-000000-80-0-0.jpg',
   },
 ];
@@ -230,6 +287,7 @@ export const DiscordServerRail: React.FC<DiscordServerRailProps> = ({
               onMouseEnter={() => setHoveredId(server.id)}
               onMouseLeave={() => setHoveredId(null)}
               onClick={() => onSelectAlbum(server.id)}
+              title={server.albumTitle ? `${server.name} • Album: ${server.albumTitle}${server.year ? ` (${server.year})` : ''}` : server.name}
             >
               {/* Discord Pill Indicator (Left Edge) */}
               <div
@@ -286,15 +344,28 @@ export const DiscordServerRail: React.FC<DiscordServerRailProps> = ({
                 )}
               </div>
 
-              {/* Discord Floating Tooltip */}
+              {/* Discord Floating Tooltip (Menampilkan Nama & Info Album) */}
               {isHovered && (
-                <div className="absolute left-[80px] bg-[#111215] border border-[#282B32] text-white text-xs font-bold px-3 py-1.5 rounded-md shadow-2xl whitespace-nowrap z-50 pointer-events-none animate-in fade-in zoom-in-95 duration-100 flex items-center gap-1.5">
-                  <span
-                    className={`w-1.5 h-1.5 rounded-full ${
-                      server.isSpotify ? 'bg-[#1DB954]' : 'bg-[#BFE7EA]'
-                    }`}
-                  />
-                  <span>{server.name}</span>
+                <div className="absolute left-[80px] bg-[#111215] border border-[#282B32] text-white text-xs px-3 py-2 rounded-lg shadow-2xl z-50 pointer-events-none animate-in fade-in zoom-in-95 duration-100 flex flex-col gap-0.5 min-w-[160px] max-w-[280px]">
+                  <div className="flex items-center gap-1.5 font-bold text-white text-xs">
+                    <span
+                      className={`w-2 h-2 rounded-full flex-shrink-0 ${
+                        server.isSpotify ? 'bg-[#1DB954]' : 'bg-[#BFE7EA]'
+                      }`}
+                    />
+                    <span className="truncate">{server.name}</span>
+                  </div>
+                  {server.albumTitle && (
+                    <div className="text-[11px] text-[#A0A5AD] font-medium leading-tight mt-0.5">
+                      <span className="text-[#BFE7EA] font-semibold">Album:</span> {server.albumTitle}
+                      {server.year ? ` (${server.year})` : ''}
+                    </div>
+                  )}
+                  {server.artistName && (
+                    <div className="text-[10px] text-[#71757E]">
+                      Artis: {server.artistName}
+                    </div>
+                  )}
                 </div>
               )}
             </div>

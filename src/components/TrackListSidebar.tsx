@@ -155,7 +155,10 @@ export const TrackListSidebar: React.FC<TrackListSidebarProps> = ({
   return (
     <aside className="w-full h-full bg-[#111215] border-r border-[#282B32] flex flex-col overflow-hidden select-none">
       {/* Top Discord Server Title Header */}
-      <div className="h-12 px-4 flex items-center justify-between border-b border-[#282B32] bg-[#141619] hover:bg-[#1C1E22] transition-colors cursor-pointer shadow-sm">
+      <div 
+        className="h-12 px-4 flex items-center justify-between border-b border-[#282B32] bg-[#141619] hover:bg-[#1C1E22] transition-colors cursor-pointer shadow-sm"
+        title={`Album / Kategori: ${getCategoryTitle(activeAlbum)}`}
+      >
         <div className="flex items-center gap-1.5 min-w-0">
           <span className="font-extrabold text-sm text-white tracking-tight truncate">
             {getCategoryTitle(activeAlbum)}
@@ -188,6 +191,7 @@ export const TrackListSidebar: React.FC<TrackListSidebarProps> = ({
               <div
                 key={track.id}
                 onClick={() => onSelectTrack(track)}
+                title={`Judul: ${track.title} • Album: ${track.album}${track.year ? ` (${track.year})` : ''} • Artis: ${track.artist}`}
                 className={`group flex items-center justify-between gap-2.5 px-2.5 py-2 rounded-md cursor-pointer transition-all ${
                   isActive
                     ? 'bg-[#1C1E22] text-white shadow-sm'
