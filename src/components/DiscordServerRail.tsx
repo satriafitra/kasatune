@@ -29,7 +29,13 @@ export type AlbumFilterType =
   | 'twice'
   | 'aespa'
   | 'h2h'
-  | 'RUNW';
+  | 'RUNW'
+  | 'riskiinrahim'
+  | 'vander'
+  | 'playboicarti'
+  | 'drake'
+  | 'brunomars'
+  | 'akumanoko';
 
 interface DiscordServerRailProps {
   activeAlbum: AlbumFilterType;
@@ -156,6 +162,38 @@ const SERVERS: ServerItem[] = [
     name: 'RUNW (Runway Hits)',
     imageUrl: '/covers/runw.jpg',
   },
+
+  // 5. Hip-Hop, Pop & Anime Spotlight (Riski Inrahim, Vander, Playboi Carti, Drake, Bruno Mars, Akuma no Ko)
+  {
+    id: 'riskiinrahim',
+    name: 'Riski Inrahim (Sdr Kematian)',
+    imageUrl: 'https://cdn-images.dzcdn.net/images/cover/837d6a9b236c8e3fd2c2582d401bf603/500x500-000000-80-0-0.jpg',
+  },
+  {
+    id: 'vander',
+    name: 'vander! (vandereism)',
+    imageUrl: 'https://cdn-images.dzcdn.net/images/cover/398631fbbcee960e798eb8e90909c46d/500x500-000000-80-0-0.jpg',
+  },
+  {
+    id: 'playboicarti',
+    name: 'Playboi Carti (Whole Lotta Red)',
+    imageUrl: 'https://cdn-images.dzcdn.net/images/cover/830206aa13768132e49aebe1bf4b7dfa/500x500-000000-80-0-0.jpg',
+  },
+  {
+    id: 'drake',
+    name: 'Drake (Scorpion & Views)',
+    imageUrl: 'https://cdn-images.dzcdn.net/images/cover/93da04d02685718df2e80be403ce89df/500x500-000000-80-0-0.jpg',
+  },
+  {
+    id: 'brunomars',
+    name: 'Bruno Mars (24K Magic)',
+    imageUrl: 'https://cdn-images.dzcdn.net/images/cover/b467610df7919864ea547eb25da5efb6/500x500-000000-80-0-0.jpg',
+  },
+  {
+    id: 'akumanoko',
+    name: 'Ai Higuchi (悪魔の子 / 最悪最愛)',
+    imageUrl: 'https://cdn-images.dzcdn.net/images/cover/5f58c42247385f0ef327e57c6b758b90/500x500-000000-80-0-0.jpg',
+  },
 ];
 
 export const DiscordServerRail: React.FC<DiscordServerRailProps> = ({
@@ -180,6 +218,10 @@ export const DiscordServerRail: React.FC<DiscordServerRailProps> = ({
             )}
             {/* Divider after Radiohead Discography (before JKT48) */}
             {index === 12 && (
+              <div className="w-8 h-[2px] bg-[#282B32] rounded-md my-1 flex-shrink-0" />
+            )}
+            {/* Divider after J-Pop/K-Pop (before Hip-Hop, Pop & Anime Spotlight) */}
+            {index === 18 && (
               <div className="w-8 h-[2px] bg-[#282B32] rounded-md my-1 flex-shrink-0" />
             )}
 

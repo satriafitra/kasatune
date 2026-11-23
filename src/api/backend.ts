@@ -8,6 +8,7 @@ export interface BackendRadioheadTrack {
   title: string;
   artist: string;
   album: string;
+  category?: string;
   year: number;
   coverUrl: string;
   previewUrl: string;
