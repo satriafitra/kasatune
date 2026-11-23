@@ -285,12 +285,21 @@ export function useFriendSpotify() {
     }
   }, []);
 
+  const currentFriendIdRef = useRef<string>(discordUserId);
+  useEffect(() => {
+    currentFriendIdRef.current = discordUserId;
+  }, [discordUserId]);
+
   // 2. Lanyard Real-Time Discord Activity Engine (WebSocket + REST Polling)
   useEffect(() => {
     if (!discordUserId) {
       isUsingLanyardRef.current = false;
       return;
     }
+
+    // Immediately reset progress clock so previous friend's playtime does not contaminate new friend
+    setLiveProgressMs(0);
+    baseProgressRef.current = 0;
 
     let ws: WebSocket | null = null;
     let heartbeatTimer: any = null;
@@ -323,7 +332,9 @@ export function useFriendSpotify() {
         const startMs = timestamps?.start || Date.now();
         const endMs = timestamps?.end || startMs + 200000;
         const durationMs = endMs - startMs;
-        const currentProgressMs = Math.max(0, Math.min(durationMs, Date.now() - startMs));
+        const rawProgressMs = Math.max(0, Math.min(durationMs, Date.now() - startMs));
+        // Always preserve full intro: if friend is within the first 8 seconds, start cleanly from 00:00!
+        const currentProgressMs = rawProgressMs < 8000 ? 0 : rawProgressMs;
 
         const localMatch = findLocalTrackMatch(songTitle, songArtist, trackId);
 
@@ -405,8 +416,8 @@ export function useFriendSpotify() {
           : undefined;
 
         setPlaybackState((prev) => {
-          if (prev?.track) {
-            // Friend paused Spotify! Preserve song metadata, album cover, and progress
+          // Only preserve paused state if it's the same friend (prevents friend A's song from sticking to friend B)
+          if (prev?.track && d?.discord_user?.id === currentFriendIdRef.current) {
             return {
               ...prev,
               isPlaying: false,

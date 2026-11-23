@@ -251,21 +251,15 @@ export const App: React.FC = () => {
 
       if (isNewTrack || hasNewAudioPreview) {
         const friendSec = Math.max(0, friendLiveProgressMs / 1000);
+        // Preserve intro in full if track is in initial intro (< 8s)
+        const safeFriendSec = friendSec < 8 ? 0 : friendSec;
         loadTrack(
           target.previewUrl,
           target.bpm || 120,
           (target.durationMs || 235000) / 1000,
           friendPlayback.isPlaying,
-          friendSec
+          safeFriendSec
         );
-
-        if (friendSec > 0) {
-          seekToSeconds(friendSec);
-        }
-
-        if (friendPlayback.isPlaying) {
-          play();
-        }
       }
       return;
     }
@@ -448,6 +442,12 @@ export const App: React.FC = () => {
 
   // Set active friend Discord User ID and immediately sync if in friend mode
   const handleSetDiscordUserId = useCallback((id: string) => {
+    // Reset track identity refs immediately so new friend's track is recognized and loaded fresh
+    currentFriendTrackKeyRef.current = '';
+    lastSyncedLyricsRef.current = '';
+    lastSyncedPreviewUrlRef.current = '';
+    lastFriendSeekTimeRef.current = 0;
+
     setDiscordUserId(id);
     try {
       localStorage.setItem('kasatune_discord_user_id', id);
