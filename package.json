@@ -21,6 +21,7 @@
     "vite": "^8.3.6"
   },
   "dependencies": {
+    "audio-decode": "^4.3.1",
     "colorthief": "^3.5.0",
     "framer-motion": "^14.14.0",
     "lucide-react": "^1.76.0",
