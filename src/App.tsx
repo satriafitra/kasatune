@@ -27,15 +27,26 @@ export const App: React.FC = () => {
   const [searchFilter, setSearchFilter] = useState('');
   const [mobileView, setMobileView] = useState<'player' | 'lyrics' | 'sidebar'>('sidebar');
 
-  // Persistence: Default to standalone Mode Mandiri on refresh, not auto-connecting to friend sync
+  // Session & Condition Persistence: Restore the exact last condition on refresh
   const [activeAlbum, setActiveAlbum] = useState<AlbumFilterType>(() => {
     try {
       const saved = localStorage.getItem('kasatune_active_album');
-      if (saved && saved !== 'friend') return saved as AlbumFilterType;
+      if (saved) return saved as AlbumFilterType;
     } catch {}
     return 'all';
   });
-  const [isFriendSyncConnected, setIsFriendSyncConnected] = useState<boolean>(false);
+
+  const [isFriendSyncConnected, setIsFriendSyncConnected] = useState<boolean>(() => {
+    try {
+      const savedConnected = localStorage.getItem('kasatune_is_friend_connected');
+      const savedAlbum = localStorage.getItem('kasatune_active_album');
+      if (savedConnected !== null) {
+        return savedConnected === 'true';
+      }
+      return savedAlbum === 'friend';
+    } catch {}
+    return false;
+  });
 
   // 1. Spotify PKCE Auth
   const {
@@ -116,6 +127,26 @@ export const App: React.FC = () => {
     if (!hasRestoredSavedTrackRef.current && tracks.length > 0) {
       hasRestoredSavedTrackRef.current = true;
       try {
+        const isFriendMode = activeAlbum === 'friend';
+        if (isFriendMode) {
+          // If the last condition was friend live sync, restore friend's current track and progress
+          if (friendPlayback?.track) {
+            const friendSec = (friendLiveProgressMs > 0 ? friendLiveProgressMs : friendPlayback.progressMs || 0) / 1000;
+            selectTrack(friendPlayback.track as any);
+            loadTrack(
+              friendPlayback.track.previewUrl || '',
+              120,
+              (friendPlayback.track.durationMs || 235000) / 1000,
+              false,
+              friendSec
+            );
+            if (friendSec > 0) {
+              seekToSeconds(friendSec);
+            }
+          }
+          return;
+        }
+
         const savedTrackId = localStorage.getItem('kasatune_saved_track_id');
         const savedTimeStr = localStorage.getItem('kasatune_saved_playtime');
         const savedTime = savedTimeStr ? parseFloat(savedTimeStr) : 0;
@@ -139,13 +170,15 @@ export const App: React.FC = () => {
         console.error('Failed to restore saved track/playtime', e);
       }
     }
-  }, [tracks, selectTrack, loadTrack]);
+  }, [tracks, selectTrack, loadTrack, activeAlbum, friendPlayback, friendLiveProgressMs, seekToSeconds]);
 
   // Master Real-Time Friend Spotify Synchronization Engine
   useEffect(() => {
     if (!isFriendSyncConnected || !friendPlayback || activeAlbum !== 'friend') return;
 
-    // A. Sync Active Track automatically when friend switches songs
+    const currentFriendSec = Math.max(0, friendLiveProgressMs / 1000);
+
+    // A. Sync Active Track automatically when friend switches songs or when audio preview URL becomes available
     if (friendPlayback.track) {
       const friendTitle = friendPlayback.track.title.toLowerCase().replace(/！/g, '!').trim();
       const currentTitle = activeTrack.title.toLowerCase().replace(/！/g, '!').trim();
@@ -153,7 +186,9 @@ export const App: React.FC = () => {
         (friendPlayback.track.id && activeTrack.id && friendPlayback.track.id !== activeTrack.id) ||
         (!currentTitle.includes(friendTitle) && !friendTitle.includes(currentTitle));
 
-      if (isDifferentTrack) {
+      const needsPreviewUrl = !activeTrack.previewUrl && Boolean(friendPlayback.track.previewUrl);
+
+      if (isDifferentTrack || needsPreviewUrl) {
         const matched = tracks.find(
           (t) =>
             t.id === friendPlayback.track?.id ||
@@ -167,10 +202,11 @@ export const App: React.FC = () => {
             matched.previewUrl,
             matched.bpm,
             matched.durationMs > 0 ? matched.durationMs / 1000 : 266,
-            friendPlayback.isPlaying
+            friendPlayback.isPlaying,
+            currentFriendSec
           );
-          if (friendPlayback.progressMs > 0) {
-            seekToSeconds(friendPlayback.progressMs / 1000);
+          if (currentFriendSec > 0) {
+            seekToSeconds(currentFriendSec);
           }
           return;
         } else {
@@ -194,10 +230,11 @@ export const App: React.FC = () => {
             dynamicTrack.previewUrl,
             dynamicTrack.bpm,
             dynamicTrack.durationMs > 0 ? dynamicTrack.durationMs / 1000 : 235,
-            friendPlayback.isPlaying
+            friendPlayback.isPlaying,
+            currentFriendSec
           );
-          if (friendPlayback.progressMs > 0) {
-            seekToSeconds(friendPlayback.progressMs / 1000);
+          if (currentFriendSec > 0) {
+            seekToSeconds(currentFriendSec);
           }
           return;
         }
@@ -230,9 +267,11 @@ export const App: React.FC = () => {
     friendPlayback?.isPlaying,
     friendPlayback?.track?.id,
     friendPlayback?.track?.title,
+    friendPlayback?.track?.previewUrl,
     friendLiveProgressMs,
     activeAlbum,
     activeTrack.title,
+    activeTrack.previewUrl,
     tracks,
     isPlaying,
     audioCurrentTimeSec,
@@ -241,6 +280,7 @@ export const App: React.FC = () => {
     seekToSeconds,
     selectTrack,
     loadTrack,
+    isFriendSyncConnected,
   ]);
 
   // Filter tracks based on active Discord Server (Friend Spotify, Radiohead albums, or new artists)
@@ -255,19 +295,47 @@ export const App: React.FC = () => {
       } catch {}
 
       if (album === 'friend') {
-        const friendSong =
-          tracks.find((t) => t.id === 'roselia-proud-of-oneself') ||
-          tracks.find((t) => t.id === 'liella-sing-shine-smile') ||
-          tracks[0];
-        selectTrack(friendSong);
-        loadTrack(
-          friendSong.previewUrl,
-          friendSong.bpm,
-          friendSong.durationMs > 0 ? friendSong.durationMs / 1000 : 266,
-          friendPlayback?.isPlaying || false
-        );
-        const targetSec = (friendLiveProgressMs > 0 ? friendLiveProgressMs : 155000) / 1000;
-        seekToSeconds(targetSec);
+        setIsFriendSyncConnected(true);
+        try {
+          localStorage.setItem('kasatune_is_friend_connected', 'true');
+        } catch {}
+
+        if (friendPlayback?.track) {
+          const target = tracks.find(
+            (t) =>
+              t.id === friendPlayback.track?.id ||
+              t.title.toLowerCase().includes(friendPlayback.track?.title.toLowerCase() || '')
+          ) || (friendPlayback.track as any);
+
+          const currentFriendSec = Math.max(0, (friendLiveProgressMs > 0 ? friendLiveProgressMs : friendPlayback.progressMs || 0) / 1000);
+          selectTrack(target);
+          loadTrack(
+            target.previewUrl || '',
+            target.bpm || 120,
+            target.durationMs > 0 ? target.durationMs / 1000 : 235,
+            true, // Immediately play on connect!
+            currentFriendSec
+          );
+          if (currentFriendSec > 0) {
+            seekToSeconds(currentFriendSec);
+          }
+          play();
+        } else {
+          const friendSong =
+            tracks.find((t) => t.id === 'roselia-proud-of-oneself') ||
+            tracks.find((t) => t.id === 'liella-sing-shine-smile') ||
+            tracks[0];
+          selectTrack(friendSong);
+          loadTrack(
+            friendSong.previewUrl,
+            friendSong.bpm,
+            friendSong.durationMs > 0 ? friendSong.durationMs / 1000 : 266,
+            true
+          );
+          const targetSec = (friendLiveProgressMs > 0 ? friendLiveProgressMs : 155000) / 1000;
+          seekToSeconds(targetSec);
+          play();
+        }
       } else {
         const matchedTrack = tracks.find((t) => matchesAlbumFilter(t, album)) || tracks[0];
         if (matchedTrack) {
@@ -284,8 +352,100 @@ export const App: React.FC = () => {
         }
       }
     },
-    [tracks, selectTrack, loadTrack, friendPlayback?.isPlaying, friendLiveProgressMs, seekToSeconds]
+    [tracks, selectTrack, loadTrack, friendPlayback, friendLiveProgressMs, seekToSeconds, play]
   );
+
+  // Toggle Live Sync connection state and start immediate playback at friend's current playtime
+  const handleToggleFriendSync = useCallback(() => {
+    setIsFriendSyncConnected((prev) => {
+      const next = !prev;
+      try {
+        localStorage.setItem('kasatune_is_friend_connected', String(next));
+      } catch {}
+
+      if (next) {
+        setActiveAlbum('friend');
+        try {
+          localStorage.setItem('kasatune_active_album', 'friend');
+        } catch {}
+
+        if (friendPlayback?.track) {
+          const target = tracks.find(
+            (t) =>
+              t.id === friendPlayback.track?.id ||
+              t.title.toLowerCase().includes(friendPlayback.track?.title.toLowerCase() || '')
+          ) || (friendPlayback.track as any);
+
+          const currentFriendSec = Math.max(0, (friendLiveProgressMs > 0 ? friendLiveProgressMs : friendPlayback.progressMs || 0) / 1000);
+          selectTrack(target);
+          loadTrack(
+            target.previewUrl || '',
+            target.bpm || 120,
+            target.durationMs > 0 ? target.durationMs / 1000 : 235,
+            true, // Immediately play on connect!
+            currentFriendSec
+          );
+          if (currentFriendSec > 0) {
+            seekToSeconds(currentFriendSec);
+          }
+          play();
+        }
+      } else {
+        setActiveAlbum('radiohead');
+        try {
+          localStorage.setItem('kasatune_active_album', 'radiohead');
+        } catch {}
+      }
+
+      return next;
+    });
+  }, [friendPlayback, friendLiveProgressMs, tracks, selectTrack, loadTrack, seekToSeconds, play]);
+
+  // Direct connect to friend's live music session
+  const handleConnectFriendSpotify = useCallback(() => {
+    setIsFriendSyncConnected(true);
+    setActiveAlbum('friend');
+    try {
+      localStorage.setItem('kasatune_is_friend_connected', 'true');
+      localStorage.setItem('kasatune_active_album', 'friend');
+    } catch {}
+
+    if (friendPlayback?.track) {
+      const target = tracks.find(
+        (t) =>
+          t.id === friendPlayback.track?.id ||
+          t.title.toLowerCase().includes(friendPlayback.track?.title.toLowerCase() || '')
+      ) || (friendPlayback.track as any);
+
+      const currentFriendSec = Math.max(0, (friendLiveProgressMs > 0 ? friendLiveProgressMs : friendPlayback.progressMs || 0) / 1000);
+      selectTrack(target);
+      loadTrack(
+        target.previewUrl || '',
+        target.bpm || 120,
+        target.durationMs > 0 ? target.durationMs / 1000 : 235,
+        true,
+        currentFriendSec
+      );
+      if (currentFriendSec > 0) {
+        seekToSeconds(currentFriendSec);
+      }
+      play();
+    }
+  }, [friendPlayback, friendLiveProgressMs, tracks, selectTrack, loadTrack, seekToSeconds, play]);
+
+  // Set active friend Discord User ID and immediately sync if in friend mode
+  const handleSetDiscordUserId = useCallback((id: string) => {
+    setDiscordUserId(id);
+    try {
+      localStorage.setItem('kasatune_discord_user_id', id);
+    } catch {}
+    setIsFriendSyncConnected(true);
+    setActiveAlbum('friend');
+    try {
+      localStorage.setItem('kasatune_is_friend_connected', 'true');
+      localStorage.setItem('kasatune_active_album', 'friend');
+    } catch {}
+  }, [setDiscordUserId]);
 
   // Switch to Autonomous / Personal Music Mode (Radiohead / JKT48 / etc.)
   const handleSwitchToMyMusic = useCallback(() => {
@@ -448,8 +608,8 @@ export const App: React.FC = () => {
           friendPlayback?.track?.title ||
           (friendPlayback?.friendName ? `${friendPlayback.friendName} (Standby)` : undefined)
         }
-        isFriendConnected={friendPlayback?.isConnected}
-        onConnectFriendSpotify={connectFriendSpotify}
+        isFriendConnected={isFriendSyncConnected}
+        onConnectFriendSpotify={handleConnectFriendSpotify}
         mobileView={mobileView}
         onSelectMobileView={setMobileView}
       />
@@ -486,14 +646,14 @@ export const App: React.FC = () => {
             friendLiveProgressMs={friendLiveProgressMs}
             isLoadingFriend={isLoadingFriend}
             isConnectingFriend={isConnectingFriend}
-            onConnectFriendSpotify={connectFriendSpotify}
+            onConnectFriendSpotify={handleConnectFriendSpotify}
             onRefreshFriendSpotify={refetchFriendSpotify}
             onListenAlong={handleListenAlong}
             isFriendSyncConnected={isFriendSyncConnected}
             discordUserId={discordUserId}
             friendsLiveMap={friendsLiveMap}
-            onSetDiscordUserId={setDiscordUserId}
-            onToggleFriendSync={() => setIsFriendSyncConnected((prev) => !prev)}
+            onSetDiscordUserId={handleSetDiscordUserId}
+            onToggleFriendSync={handleToggleFriendSync}
             onSwitchToMyMusic={handleSwitchToMyMusic}
           />
         </div>

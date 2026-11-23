@@ -224,7 +224,8 @@ export const DiscordServerRail: React.FC<DiscordServerRailProps> = ({
                   <>
                     <img
                       src={server.imageUrl}
-                      alt={server.name}
+                      alt=""
+                      loading="eager"
                       referrerPolicy="no-referrer"
                       onError={(e) => {
                         (e.currentTarget as HTMLElement).style.display = 'none';
