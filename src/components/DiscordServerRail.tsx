@@ -171,7 +171,7 @@ const SERVERS: ServerItem[] = [
   },
   {
     id: 'vander',
-    name: 'vander! (vandereism)',
+    name: 'vander! / vender! (vandereism)',
     imageUrl: 'https://cdn-images.dzcdn.net/images/cover/398631fbbcee960e798eb8e90909c46d/500x500-000000-80-0-0.jpg',
   },
   {

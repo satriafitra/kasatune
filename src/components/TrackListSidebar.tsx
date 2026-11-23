@@ -51,7 +51,19 @@ export const matchesAlbumFilter = (track: BackendRadioheadTrack, activeAlbum: Al
   if (activeAlbum === 'h2h') return track.artist.toLowerCase().includes('heart') || track.artist.toLowerCase().includes('h2h');
   if (activeAlbum === 'RUNW') return track.title.toLowerCase().includes('runway') || track.album.toLowerCase().includes('runway');
   if (activeAlbum === 'riskiinrahim') return track.category === 'riskiinrahim' || track.artist.toLowerCase().includes('inrahim') || track.album.toLowerCase().includes('kematian');
-  if (activeAlbum === 'vander') return track.category === 'vander' || track.artist.toLowerCase().includes('vander');
+  if (activeAlbum === 'vander') {
+    return (
+      track.category === 'vander' ||
+      track.category === 'vender' ||
+      track.artist.toLowerCase().includes('vander') ||
+      track.artist.toLowerCase().includes('vender') ||
+      track.title.toLowerCase().includes('vander') ||
+      track.title.toLowerCase().includes('vender') ||
+      track.album.toLowerCase().includes('vander') ||
+      track.album.toLowerCase().includes('vender') ||
+      track.album.toLowerCase().includes('vandereism')
+    );
+  }
   if (activeAlbum === 'playboicarti') return track.category === 'playboicarti' || track.artist.toLowerCase().includes('carti');
   if (activeAlbum === 'drake') return track.category === 'drake' || track.artist.toLowerCase().includes('drake');
   if (activeAlbum === 'brunomars') return track.category === 'brunomars' || track.artist.toLowerCase().includes('bruno mars');
@@ -72,7 +84,7 @@ const getCategoryTitle = (album: AlbumFilterType): string => {
     case 'h2h': return "Hearts2Hearts (H2H)";
     case 'RUNW': return "RUNWAY Hits";
     case 'riskiinrahim': return "Riski Inrahim - Sdr Kematian";
-    case 'vander': return "vander! (vandereism)";
+    case 'vander': return "vander! / vender! (vandereism)";
     case 'playboicarti': return "Playboi Carti (Whole Lotta Red)";
     case 'drake': return "Drake (Scorpion & Views)";
     case 'brunomars': return "Bruno Mars (24K Magic)";
@@ -128,12 +140,14 @@ export const TrackListSidebar: React.FC<TrackListSidebarProps> = ({
   const filteredTracks = tracks.filter((t) => {
     const matchesAlbum = matchesAlbumFilter(t, activeAlbum);
     const q = searchFilter.toLowerCase();
+    const isVanderSearch = q.includes('vander') || q.includes('vender');
     const matchesSearch =
       !q ||
       t.title.toLowerCase().includes(q) ||
       t.album.toLowerCase().includes(q) ||
       t.mood.toLowerCase().includes(q) ||
-      t.artist.toLowerCase().includes(q);
+      t.artist.toLowerCase().includes(q) ||
+      (isVanderSearch && (t.category === 'vander' || t.artist.toLowerCase().includes('vander') || t.artist.toLowerCase().includes('vender')));
 
     return matchesAlbum && matchesSearch;
   });
