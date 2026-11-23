@@ -175,6 +175,7 @@ export const App: React.FC = () => {
   // Track friend sync identity refs to prevent infinite reload loops and seek storms
   const currentFriendTrackKeyRef = useRef<string>('');
   const lastSyncedPreviewUrlRef = useRef<string>('');
+  const lastSyncedLyricsRef = useRef<string>('');
   const lastFriendSeekTimeRef = useRef<number>(0);
 
   // Master Real-Time Friend Spotify Synchronization Engine
@@ -182,6 +183,7 @@ export const App: React.FC = () => {
     if (!isFriendSyncConnected || activeAlbum !== 'friend') {
       currentFriendTrackKeyRef.current = '';
       lastSyncedPreviewUrlRef.current = '';
+      lastSyncedLyricsRef.current = '';
       return;
     }
 
@@ -193,11 +195,15 @@ export const App: React.FC = () => {
     const hasNewAudioPreview = Boolean(
       friendTrack.previewUrl && friendTrack.previewUrl !== lastSyncedPreviewUrlRef.current
     );
+    const hasNewLyrics = Boolean(
+      friendTrack.syncedLyrics && friendTrack.syncedLyrics !== lastSyncedLyricsRef.current
+    );
 
-    // 1. Only execute track switch when the song has actually changed or audio preview arrived
-    if (isNewTrack || hasNewAudioPreview) {
+    // 1. Only execute track switch when the song has actually changed or audio preview/lyrics arrived
+    if (isNewTrack || hasNewAudioPreview || hasNewLyrics) {
       currentFriendTrackKeyRef.current = friendTrackKey;
       lastSyncedPreviewUrlRef.current = friendTrack.previewUrl || '';
+      lastSyncedLyricsRef.current = friendTrack.syncedLyrics || '';
 
       const friendTitle = friendTrack.title.toLowerCase().replace(/！/g, '!').trim();
       const matched = tracks.find(
@@ -229,25 +235,27 @@ export const App: React.FC = () => {
             spotifyUrl: friendTrack.spotifyUrl || '',
           };
 
-      if (isNewTrack) {
+      if (isNewTrack || hasNewLyrics) {
         selectTrack(target);
       }
 
-      const friendSec = Math.max(0, friendLiveProgressMs / 1000);
-      loadTrack(
-        target.previewUrl,
-        target.bpm || 120,
-        (target.durationMs || 235000) / 1000,
-        friendPlayback.isPlaying,
-        friendSec
-      );
+      if (isNewTrack || hasNewAudioPreview) {
+        const friendSec = Math.max(0, friendLiveProgressMs / 1000);
+        loadTrack(
+          target.previewUrl,
+          target.bpm || 120,
+          (target.durationMs || 235000) / 1000,
+          friendPlayback.isPlaying,
+          friendSec
+        );
 
-      if (friendSec > 0) {
-        seekToSeconds(friendSec);
-      }
+        if (friendSec > 0) {
+          seekToSeconds(friendSec);
+        }
 
-      if (friendPlayback.isPlaying) {
-        play();
+        if (friendPlayback.isPlaying) {
+          play();
+        }
       }
       return;
     }

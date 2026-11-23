@@ -506,29 +506,38 @@ export function useMusicSync(): SyncedMusicState {
     return () => clearInterval(interval);
   }, [syncWithBackend]);
 
-  // Load lyrics when activeTrack changes
+  // Load lyrics when activeTrack changes with race condition protection
+  const currentLyricsTrackIdRef = useRef<string>('');
   const loadTrackLyrics = useCallback(async (track: BackendRadioheadTrack) => {
+    const trackKey = `${track.id}-${track.title}-${track.artist}`.toLowerCase();
+    currentLyricsTrackIdRef.current = trackKey;
+
     if (track.syncedLyrics && track.syncedLyrics.length > 20) {
       setLyrics(parseLrc(track.syncedLyrics));
       setPlainLyrics(null);
+      setIsLoadingSong(false);
       return;
     }
 
     setIsLoadingSong(true);
     try {
       const lyricsRes = await fetchLyrics(track.title, track.artist, track.durationMs);
-      if (lyricsRes.syncedLyrics) {
-        setLyrics(parseLrc(lyricsRes.syncedLyrics));
-        setPlainLyrics(null);
-      } else if (lyricsRes.plainLyrics) {
-        setLyrics([]);
-        setPlainLyrics(lyricsRes.plainLyrics);
-      } else {
-        setLyrics([]);
-        setPlainLyrics(null);
+      if (currentLyricsTrackIdRef.current === trackKey) {
+        if (lyricsRes.syncedLyrics) {
+          setLyrics(parseLrc(lyricsRes.syncedLyrics));
+          setPlainLyrics(null);
+        } else if (lyricsRes.plainLyrics) {
+          setLyrics([]);
+          setPlainLyrics(lyricsRes.plainLyrics);
+        } else {
+          setLyrics([]);
+          setPlainLyrics(null);
+        }
       }
     } finally {
-      setIsLoadingSong(false);
+      if (currentLyricsTrackIdRef.current === trackKey) {
+        setIsLoadingSong(false);
+      }
     }
   }, []);
 

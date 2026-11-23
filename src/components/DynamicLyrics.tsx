@@ -101,12 +101,19 @@ export const DynamicLyrics: React.FC<DynamicLyricsProps> = ({
           WebkitMaskImage: 'linear-gradient(to bottom, transparent 0%, black 8%, black 92%, transparent 100%)',
         }}
       >
-        {isLoading ? (
+        {isLoading && lyrics.length > 0 && (
+          <div className="absolute top-14 right-6 z-30 px-2.5 py-0.5 rounded-full bg-[#141619]/90 border border-[#BFE7EA]/30 text-[10px] text-[#BFE7EA] flex items-center gap-1.5 shadow-sm backdrop-blur-sm animate-pulse">
+            <span className="w-1.5 h-1.5 rounded-full bg-[#BFE7EA]" />
+            <span>Syncing lyrics...</span>
+          </div>
+        )}
+
+        {isLoading && lyrics.length === 0 && !plainLyrics ? (
           <div className="h-full flex flex-col items-center justify-center text-center space-y-3 py-24">
             <div
               className="w-8 h-8 border-2 border-t-transparent rounded-full animate-spin border-[#BFE7EA]"
             />
-            <p className="text-xs text-[#949BA4]">Synchronizing with master audio...</p>
+            <p className="text-xs text-[#949BA4]">Menyelaraskan lirik real-time...</p>
           </div>
         ) : lyrics.length > 0 ? (
           <>

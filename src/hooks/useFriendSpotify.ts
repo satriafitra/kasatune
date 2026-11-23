@@ -367,7 +367,7 @@ export function useFriendSpotify() {
         setError(null);
         setIsLoading(false);
       } else {
-        // Condition 2: Friend Idle / Standby / Not listening to Spotify (e.g. Friend C)
+        // Condition 2: Friend Paused / Idle on Spotify (preserve current track & progress if paused)
         isUsingLanyardRef.current = true;
         const friendName = d?.discord_user?.global_name || d?.discord_user?.username || 'Teman';
         const avatarHash = d?.discord_user?.avatar;
@@ -376,20 +376,33 @@ export function useFriendSpotify() {
           ? `https://cdn.discordapp.com/avatars/${userId}/${avatarHash}.${avatarHash.startsWith('a_') ? 'gif' : 'png'}`
           : undefined;
 
-        setPlaybackState({
-          isConnected: true,
-          isPlaying: false,
-          progressMs: 0,
-          timestamp: Date.now(),
-          deviceName: 'Spotify (Standby)',
-          deviceType: 'Computer',
-          friendName: friendName,
-          friendUsername: d?.discord_user?.username,
-          avatarUrl: avatarUrl,
-          playlistName: 'Discord Standby',
-          clientId: DEFAULT_CLIENT_ID,
-          simulated: false,
-          track: null,
+        setPlaybackState((prev) => {
+          if (prev?.track) {
+            // Friend paused Spotify! Preserve song metadata, album cover, and progress
+            return {
+              ...prev,
+              isPlaying: false,
+              friendName,
+              avatarUrl,
+              deviceName: 'Spotify (Paused)',
+            };
+          }
+
+          return {
+            isConnected: true,
+            isPlaying: false,
+            progressMs: 0,
+            timestamp: Date.now(),
+            deviceName: 'Spotify (Standby)',
+            deviceType: 'Computer',
+            friendName: friendName,
+            friendUsername: d?.discord_user?.username,
+            avatarUrl: avatarUrl,
+            playlistName: 'Discord Standby',
+            clientId: DEFAULT_CLIENT_ID,
+            simulated: false,
+            track: null,
+          };
         });
         isPlayingRef.current = false;
         setIsLoading(false);
