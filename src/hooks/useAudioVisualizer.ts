@@ -137,13 +137,7 @@ export function useAudioVisualizer(
     audioRef.current = audio;
 
     const handleEnded = () => {
-      // If we haven't reached the end of the full track duration yet, loop the preview seamlessly
-      if (currentTimeRef.current < durationRef.current - 1.5) {
-        audio.currentTime = 0;
-        audio.play().catch(() => {});
-        return;
-      }
-      // Reached actual end of full track duration
+      // Natural track finish: clean stop and trigger onEnded for smooth track transition
       setIsPlaying(false);
       isPlayingRef.current = false;
       if (onEndedRef.current) {
@@ -161,17 +155,30 @@ export function useAudioVisualizer(
       isPlayingRef.current = true;
     };
 
+    const handleLoadedMetadata = () => {
+      if (!audio) return;
+      if (!isNaN(audio.duration) && isFinite(audio.duration) && audio.duration > 0) {
+        setDuration(audio.duration);
+        durationRef.current = audio.duration;
+      }
+    };
+
     const handleTimeUpdate = () => {
       if (!audio || audio.paused || isNaN(audio.currentTime)) return;
-      if (audio.duration && audio.duration >= 45) {
-        currentTimeRef.current = audio.currentTime;
-        setCurrentTime(audio.currentTime);
+      currentTimeRef.current = audio.currentTime;
+      setCurrentTime(audio.currentTime);
+      if (!isNaN(audio.duration) && isFinite(audio.duration) && audio.duration > 0) {
+        if (Math.abs(durationRef.current - audio.duration) > 1.5) {
+          setDuration(audio.duration);
+          durationRef.current = audio.duration;
+        }
       }
     };
 
     audio.addEventListener('ended', handleEnded);
     audio.addEventListener('pause', handlePause);
     audio.addEventListener('play', handlePlay);
+    audio.addEventListener('loadedmetadata', handleLoadedMetadata);
     audio.addEventListener('timeupdate', handleTimeUpdate);
     audio.addEventListener('seeked', handleTimeUpdate);
 
@@ -184,6 +191,7 @@ export function useAudioVisualizer(
       audio.removeEventListener('ended', handleEnded);
       audio.removeEventListener('pause', handlePause);
       audio.removeEventListener('play', handlePlay);
+      audio.removeEventListener('loadedmetadata', handleLoadedMetadata);
       audio.removeEventListener('timeupdate', handleTimeUpdate);
       audio.removeEventListener('seeked', handleTimeUpdate);
       audio.pause();
@@ -206,14 +214,7 @@ export function useAudioVisualizer(
       lastTick = now;
 
       if (audio && !audio.paused && !isNaN(audio.currentTime) && audio.currentTime >= 0) {
-        if (audio.duration && audio.duration >= durationRef.current - 5) {
-          currentTimeRef.current = audio.currentTime;
-        } else {
-          currentTimeRef.current = Math.min(
-            durationRef.current,
-            currentTimeRef.current + deltaSec
-          );
-        }
+        currentTimeRef.current = audio.currentTime;
       } else {
         currentTimeRef.current = Math.min(
           durationRef.current,
@@ -261,6 +262,8 @@ export function useAudioVisualizer(
 
       const applyInitialSeek = () => {
         if (audio.duration && audio.duration > 0) {
+          setDuration(audio.duration);
+          durationRef.current = audio.duration;
           audio.currentTime = Math.min(Math.max(0, audio.duration - 0.2), safeInitial);
         } else {
           audio.currentTime = 0;

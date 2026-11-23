@@ -9,6 +9,7 @@
     "preview": "vite preview"
   },
   "devDependencies": {
+    "@distube/ytdl-core": "^5.2.1",
     "@types/colorthief": "^2.6.1",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
