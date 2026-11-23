@@ -209,7 +209,7 @@ const SERVERS: ServerItem[] = [
     albumTitle: 'Sdr Kematian (Saudara Kematian)',
     artistName: 'Riski Inrahim',
     year: 2025,
-    imageUrl: 'https://cdn-images.dzcdn.net/images/cover/837d6a9b236c8e3fd2c2582d401bf603/500x500-000000-80-0-0.jpg',
+    imageUrl: '/covers/riskiinrahim.jpg',
   },
   {
     id: 'vander',
@@ -217,7 +217,7 @@ const SERVERS: ServerItem[] = [
     albumTitle: 'KING MOKONDO, Bencana Alam & Vandereism',
     artistName: 'Vander (vandereism)',
     year: 2025,
-    imageUrl: 'https://cdn-images.dzcdn.net/images/cover/398631fbbcee960e798eb8e90909c46d/500x500-000000-80-0-0.jpg',
+    imageUrl: '/covers/vander.jpg',
   },
   {
     id: 'playboicarti',
@@ -225,7 +225,7 @@ const SERVERS: ServerItem[] = [
     albumTitle: 'Whole Lotta Red & Die Lit',
     artistName: 'Playboi Carti',
     year: 2020,
-    imageUrl: 'https://cdn-images.dzcdn.net/images/cover/830206aa13768132e49aebe1bf4b7dfa/500x500-000000-80-0-0.jpg',
+    imageUrl: '/covers/playboicarti.jpg',
   },
   {
     id: 'drake',
@@ -233,7 +233,7 @@ const SERVERS: ServerItem[] = [
     albumTitle: 'Scorpion, Views & Certified Lover Boy',
     artistName: 'Drake',
     year: 2018,
-    imageUrl: 'https://cdn-images.dzcdn.net/images/cover/93da04d02685718df2e80be403ce89df/500x500-000000-80-0-0.jpg',
+    imageUrl: '/covers/drake.jpg',
   },
   {
     id: 'brunomars',
@@ -241,7 +241,7 @@ const SERVERS: ServerItem[] = [
     albumTitle: '24K Magic, Unorthodox Jukebox & Doo-Wops',
     artistName: 'Bruno Mars',
     year: 2016,
-    imageUrl: 'https://cdn-images.dzcdn.net/images/cover/b467610df7919864ea547eb25da5efb6/500x500-000000-80-0-0.jpg',
+    imageUrl: '/covers/brunomars.jpg',
   },
   {
     id: 'akumanoko',
@@ -249,7 +249,7 @@ const SERVERS: ServerItem[] = [
     albumTitle: '悪魔の子 (Akuma no Ko) / 最悪最愛 (Saiaku Saiai)',
     artistName: 'Ai Higuchi (Higuchi Ai)',
     year: 2022,
-    imageUrl: 'https://cdn-images.dzcdn.net/images/cover/5f58c42247385f0ef327e57c6b758b90/500x500-000000-80-0-0.jpg',
+    imageUrl: '/covers/akumanoko.jpg',
   },
 ];
 
