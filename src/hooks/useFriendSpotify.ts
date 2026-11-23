@@ -8,7 +8,40 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import friendTracksData from '../data/friend_tracks.json';
+import musicLibraryData from '../data/music_library.json';
 import { fetchLyrics } from '../api/lrclib';
+
+const ALL_LOCAL_LIBRARY: any[] = [
+  ...(friendTracksData as any[]),
+  ...(musicLibraryData as any[]),
+];
+
+function findLocalTrackMatch(songTitle: string, songArtist: string, trackId?: string) {
+  const clean = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, '');
+  const cTitle = clean(songTitle || '');
+  const cArtist = clean(songArtist || '');
+
+  return ALL_LOCAL_LIBRARY.find((t) => {
+    if (trackId && t.id === trackId) return true;
+    const tTitle = clean(t.title || '');
+    const tArtist = clean(t.artist || '');
+
+    // Exact title match:
+    if (tTitle.length > 3 && tTitle === cTitle) {
+      if (!cArtist || !tArtist || tArtist.includes(cArtist) || cArtist.includes(tArtist)) {
+        return true;
+      }
+    }
+
+    // Both artist and title match:
+    const artistMatch = tArtist && cArtist && (tArtist.includes(cArtist) || cArtist.includes(tArtist));
+    if (artistMatch && tTitle.length > 3 && cTitle.length > 3) {
+      if (tTitle.includes(cTitle) || cTitle.includes(tTitle)) return true;
+    }
+
+    return false;
+  });
+}
 
 const API_BASE = (import.meta.env.VITE_BACKEND_URL as string) || 'http://localhost:8080';
 const DEFAULT_CLIENT_ID = '272c12f48c18494fb5ac490cd10a8b2b';
@@ -292,12 +325,7 @@ export function useFriendSpotify() {
         const durationMs = endMs - startMs;
         const currentProgressMs = Math.max(0, Math.min(durationMs, Date.now() - startMs));
 
-        const localMatch = (friendTracksData as any[]).find(
-          (t) =>
-            t.id === trackId ||
-            (songTitle && t.title.toLowerCase().includes(songTitle.toLowerCase())) ||
-            (songTitle && songTitle.toLowerCase().includes(t.title.toLowerCase()))
-        );
+        const localMatch = findLocalTrackMatch(songTitle, songArtist, trackId);
 
         let previewUrl = localMatch?.previewUrl || '';
         let syncedLyrics = localMatch?.syncedLyrics || '';

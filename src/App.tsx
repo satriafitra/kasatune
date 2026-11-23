@@ -19,7 +19,7 @@ import { useSpotifyAuth } from './hooks/useSpotifyAuth';
 import { useMusicSync } from './hooks/useMusicSync';
 import { useAlbumColor } from './hooks/useAlbumColor';
 import { useAudioVisualizer } from './hooks/useAudioVisualizer';
-import { useFriendSpotify } from './hooks/useFriendSpotify';
+import { useFriendSpotify, type FriendTrack } from './hooks/useFriendSpotify';
 import type { BackendRadioheadTrack } from './api/backend';
 
 export const App: React.FC = () => {
@@ -97,6 +97,11 @@ export const App: React.FC = () => {
     activeTrack.durationMs > 0 ? activeTrack.durationMs / 1000 : 266,
     {
       onEnded: () => {
+        // When in friend sync mode, NEVER automatically change songs on our own!
+        // Only the friend can change the song!
+        if (activeAlbum === 'friend' || isFriendSyncConnected) {
+          return;
+        }
         if (isRepeat) {
           seekToSeconds(0);
           togglePlay();
@@ -127,23 +132,10 @@ export const App: React.FC = () => {
     if (!hasRestoredSavedTrackRef.current && tracks.length > 0) {
       hasRestoredSavedTrackRef.current = true;
       try {
-        const isFriendMode = activeAlbum === 'friend';
+        const isFriendMode = activeAlbum === 'friend' || isFriendSyncConnected;
         if (isFriendMode) {
-          // If the last condition was friend live sync, restore friend's current track and progress
-          if (friendPlayback?.track) {
-            const friendSec = (friendLiveProgressMs > 0 ? friendLiveProgressMs : friendPlayback.progressMs || 0) / 1000;
-            selectTrack(friendPlayback.track as any);
-            loadTrack(
-              friendPlayback.track.previewUrl || '',
-              120,
-              (friendPlayback.track.durationMs || 235000) / 1000,
-              false,
-              friendSec
-            );
-            if (friendSec > 0) {
-              seekToSeconds(friendSec);
-            }
-          }
+          // If the last condition was friend live sync, do not overwrite with saved standalone song!
+          // Friend sync engine will restore the friend's exact song and progress.
           return;
         }
 
@@ -170,13 +162,59 @@ export const App: React.FC = () => {
         console.error('Failed to restore saved track/playtime', e);
       }
     }
-  }, [tracks, selectTrack, loadTrack, activeAlbum, friendPlayback, friendLiveProgressMs, seekToSeconds]);
+  }, [tracks, selectTrack, loadTrack, activeAlbum, isFriendSyncConnected]);
 
   // Track friend sync identity refs to prevent infinite reload loops and seek storms
   const currentFriendTrackKeyRef = useRef<string>('');
   const lastSyncedPreviewUrlRef = useRef<string>('');
   const lastSyncedLyricsRef = useRef<string>('');
   const lastFriendSeekTimeRef = useRef<number>(0);
+
+  // Safe Track Matcher: Prioritizes full studio recordings from library, preventing accidental cross-artist matches
+  const resolveTargetTrack = useCallback((friendTrack: FriendTrack, tracksList: BackendRadioheadTrack[]): BackendRadioheadTrack => {
+    const cleanA = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, '');
+    const fTitle = cleanA(friendTrack.title);
+    const fArtist = cleanA(friendTrack.artist);
+
+    const matched = tracksList.find((t) => {
+      if (friendTrack.id && t.id === friendTrack.id) return true;
+      const tTitle = cleanA(t.title);
+      const tArtist = cleanA(t.artist);
+      if (tTitle.length > 3 && tTitle === fTitle) {
+        if (!fArtist || !tArtist || tArtist.includes(fArtist) || fArtist.includes(tArtist)) return true;
+      }
+      const artistMatch = tArtist && fArtist && (tArtist.includes(fArtist) || fArtist.includes(tArtist));
+      if (artistMatch && tTitle.length > 3 && fTitle.length > 3) {
+        if (tTitle.includes(fTitle) || fTitle.includes(tTitle)) return true;
+      }
+      return false;
+    });
+
+    if (matched) {
+      return {
+        ...matched,
+        // Always prefer the full studio recording with full intro from library!
+        previewUrl: matched.previewUrl || friendTrack.previewUrl || '',
+        syncedLyrics: matched.syncedLyrics || friendTrack.syncedLyrics || '',
+        durationMs: matched.durationMs || friendTrack.durationMs || 235000,
+      };
+    }
+
+    return {
+      id: friendTrack.id,
+      title: friendTrack.title,
+      artist: friendTrack.artist,
+      album: friendTrack.album,
+      year: new Date().getFullYear(),
+      coverUrl: friendTrack.coverUrl || '',
+      previewUrl: friendTrack.previewUrl || '',
+      durationMs: friendTrack.durationMs || 235000,
+      bpm: 120,
+      mood: 'Spotify Live Presence',
+      syncedLyrics: friendTrack.syncedLyrics || '',
+      spotifyUrl: friendTrack.spotifyUrl || '',
+    };
+  }, []);
 
   // Master Real-Time Friend Spotify Synchronization Engine
   useEffect(() => {
@@ -205,35 +243,7 @@ export const App: React.FC = () => {
       lastSyncedPreviewUrlRef.current = friendTrack.previewUrl || '';
       lastSyncedLyricsRef.current = friendTrack.syncedLyrics || '';
 
-      const friendTitle = friendTrack.title.toLowerCase().replace(/！/g, '!').trim();
-      const matched = tracks.find(
-        (t) =>
-          (friendTrack.id && t.id === friendTrack.id) ||
-          t.title.toLowerCase().replace(/！/g, '!').includes(friendTitle) ||
-          friendTitle.includes(t.title.toLowerCase().replace(/！/g, '!'))
-      );
-
-      const target: BackendRadioheadTrack = matched
-        ? {
-            ...matched,
-            previewUrl: friendTrack.previewUrl || matched.previewUrl || '',
-            syncedLyrics: friendTrack.syncedLyrics || matched.syncedLyrics || '',
-            durationMs: friendTrack.durationMs || matched.durationMs || 235000,
-          }
-        : {
-            id: friendTrack.id,
-            title: friendTrack.title,
-            artist: friendTrack.artist,
-            album: friendTrack.album,
-            year: new Date().getFullYear(),
-            coverUrl: friendTrack.coverUrl || '',
-            previewUrl: friendTrack.previewUrl || '',
-            durationMs: friendTrack.durationMs || 235000,
-            bpm: 120,
-            mood: 'Spotify Live Presence',
-            syncedLyrics: friendTrack.syncedLyrics || '',
-            spotifyUrl: friendTrack.spotifyUrl || '',
-          };
+      const target = resolveTargetTrack(friendTrack, tracks);
 
       if (isNewTrack || hasNewLyrics) {
         selectTrack(target);
@@ -300,6 +310,7 @@ export const App: React.FC = () => {
     seekToSeconds,
     selectTrack,
     loadTrack,
+    resolveTargetTrack,
   ]);
 
   // Filter tracks based on active Discord Server (Friend Spotify, Radiohead albums, or new artists)
@@ -320,13 +331,11 @@ export const App: React.FC = () => {
         } catch {}
 
         if (friendPlayback?.track) {
-          const target = tracks.find(
-            (t) =>
-              t.id === friendPlayback.track?.id ||
-              t.title.toLowerCase().includes(friendPlayback.track?.title.toLowerCase() || '')
-          ) || (friendPlayback.track as any);
-
-          const currentFriendSec = Math.max(0, (friendLiveProgressMs > 0 ? friendLiveProgressMs : friendPlayback.progressMs || 0) / 1000);
+          const target = resolveTargetTrack(friendPlayback.track, tracks);
+          const currentFriendSec = Math.max(
+            0,
+            (friendLiveProgressMs > 0 ? friendLiveProgressMs : friendPlayback.progressMs || 0) / 1000
+          );
           selectTrack(target);
           loadTrack(
             target.previewUrl || '',
@@ -338,21 +347,6 @@ export const App: React.FC = () => {
           if (currentFriendSec > 0) {
             seekToSeconds(currentFriendSec);
           }
-          play();
-        } else {
-          const friendSong =
-            tracks.find((t) => t.id === 'roselia-proud-of-oneself') ||
-            tracks.find((t) => t.id === 'liella-sing-shine-smile') ||
-            tracks[0];
-          selectTrack(friendSong);
-          loadTrack(
-            friendSong.previewUrl,
-            friendSong.bpm,
-            friendSong.durationMs > 0 ? friendSong.durationMs / 1000 : 266,
-            true
-          );
-          const targetSec = (friendLiveProgressMs > 0 ? friendLiveProgressMs : 155000) / 1000;
-          seekToSeconds(targetSec);
           play();
         }
       } else {
@@ -371,7 +365,7 @@ export const App: React.FC = () => {
         }
       }
     },
-    [tracks, selectTrack, loadTrack, friendPlayback, friendLiveProgressMs, seekToSeconds, play]
+    [tracks, selectTrack, loadTrack, friendPlayback, friendLiveProgressMs, seekToSeconds, play, resolveTargetTrack]
   );
 
   // Toggle Live Sync connection state and start immediate playback at friend's current playtime
@@ -389,13 +383,11 @@ export const App: React.FC = () => {
         } catch {}
 
         if (friendPlayback?.track) {
-          const target = tracks.find(
-            (t) =>
-              t.id === friendPlayback.track?.id ||
-              t.title.toLowerCase().includes(friendPlayback.track?.title.toLowerCase() || '')
-          ) || (friendPlayback.track as any);
-
-          const currentFriendSec = Math.max(0, (friendLiveProgressMs > 0 ? friendLiveProgressMs : friendPlayback.progressMs || 0) / 1000);
+          const target = resolveTargetTrack(friendPlayback.track, tracks);
+          const currentFriendSec = Math.max(
+            0,
+            (friendLiveProgressMs > 0 ? friendLiveProgressMs : friendPlayback.progressMs || 0) / 1000
+          );
           selectTrack(target);
           loadTrack(
             target.previewUrl || '',
@@ -418,7 +410,7 @@ export const App: React.FC = () => {
 
       return next;
     });
-  }, [friendPlayback, friendLiveProgressMs, tracks, selectTrack, loadTrack, seekToSeconds, play]);
+  }, [friendPlayback, friendLiveProgressMs, tracks, selectTrack, loadTrack, seekToSeconds, play, resolveTargetTrack]);
 
   // Direct connect to friend's live music session
   const handleConnectFriendSpotify = useCallback(() => {
@@ -430,13 +422,11 @@ export const App: React.FC = () => {
     } catch {}
 
     if (friendPlayback?.track) {
-      const target = tracks.find(
-        (t) =>
-          t.id === friendPlayback.track?.id ||
-          t.title.toLowerCase().includes(friendPlayback.track?.title.toLowerCase() || '')
-      ) || (friendPlayback.track as any);
-
-      const currentFriendSec = Math.max(0, (friendLiveProgressMs > 0 ? friendLiveProgressMs : friendPlayback.progressMs || 0) / 1000);
+      const target = resolveTargetTrack(friendPlayback.track, tracks);
+      const currentFriendSec = Math.max(
+        0,
+        (friendLiveProgressMs > 0 ? friendLiveProgressMs : friendPlayback.progressMs || 0) / 1000
+      );
       selectTrack(target);
       loadTrack(
         target.previewUrl || '',
@@ -450,7 +440,7 @@ export const App: React.FC = () => {
       }
       play();
     }
-  }, [friendPlayback, friendLiveProgressMs, tracks, selectTrack, loadTrack, seekToSeconds, play]);
+  }, [friendPlayback, friendLiveProgressMs, tracks, selectTrack, loadTrack, seekToSeconds, play, resolveTargetTrack]);
 
   // Set active friend Discord User ID and immediately sync if in friend mode
   const handleSetDiscordUserId = useCallback((id: string) => {

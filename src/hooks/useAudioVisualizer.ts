@@ -262,7 +262,11 @@ export function useAudioVisualizer(
 
       const applyInitialSeek = () => {
         if (audio.duration && audio.duration > 0) {
-          audio.currentTime = safeInitial % audio.duration;
+          if (audio.duration >= 45) {
+            audio.currentTime = Math.min(Math.max(0, audio.duration - 0.2), safeInitial);
+          } else {
+            audio.currentTime = safeInitial % audio.duration;
+          }
         } else {
           audio.currentTime = 0;
         }
@@ -349,7 +353,11 @@ export function useAudioVisualizer(
 
     if (audio && audio.duration && !isNaN(audio.duration) && audio.duration > 0) {
       // Map to audio element duration cleanly
-      audio.currentTime = clampedSec % audio.duration;
+      if (audio.duration >= 45) {
+        audio.currentTime = Math.min(Math.max(0, audio.duration - 0.2), clampedSec);
+      } else {
+        audio.currentTime = clampedSec % audio.duration;
+      }
     }
   }, []);
 
