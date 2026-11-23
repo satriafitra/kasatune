@@ -527,9 +527,7 @@ export const App: React.FC = () => {
     setMobileView('player');
 
     if (track.id === activeTrack.id) {
-      if (!isPlaying) {
-        togglePlay();
-      }
+      togglePlay();
     } else {
       selectTrack(track);
       loadTrack(

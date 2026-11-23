@@ -230,7 +230,11 @@ export const AlbumShowcase: React.FC<AlbumShowcaseProps> = ({
                 onMouseEnter={() => setHoveredTrackId(t.id)}
                 onMouseLeave={() => setHoveredTrackId(null)}
                 onClick={() => {
-                  onSelectTrack(t);
+                  if (isActive) {
+                    onTogglePlay();
+                  } else {
+                    onSelectTrack(t);
+                  }
                 }}
                 className={`grid grid-cols-[20px_1fr_auto] md:grid-cols-[20px_4fr_3fr_auto] gap-4 px-3 py-2 rounded-md text-sm items-center cursor-pointer transition-all ${
                   isActive
@@ -239,7 +243,18 @@ export const AlbumShowcase: React.FC<AlbumShowcaseProps> = ({
                 }`}
               >
                 {/* Index / Play Button */}
-                <div className="text-center text-xs font-semibold flex items-center justify-center">
+                <div
+                  className="text-center text-xs font-semibold flex items-center justify-center cursor-pointer hover:scale-110 active:scale-95 transition-transform"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (isActive) {
+                      onTogglePlay();
+                    } else {
+                      onSelectTrack(t);
+                    }
+                  }}
+                  title={isActive ? (isPlaying ? 'Pause lagu' : 'Putar lagu') : 'Putar lagu'}
+                >
                   {isHovered ? (
                     isActive && isPlaying ? (
                       <Pause className="w-3.5 h-3.5 text-white fill-white" />
