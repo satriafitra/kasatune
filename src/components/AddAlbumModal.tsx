@@ -199,19 +199,6 @@ export const AddAlbumModal: React.FC<AddAlbumModalProps> = ({
     };
   }, [searchQuery]);
 
-  // Local Catalog Filter
-  const filteredLocalCatalog = useMemo(() => {
-    const q = searchQuery.trim().toLowerCase();
-    if (!q) return CATALOG_ALBUMS;
-    return CATALOG_ALBUMS.filter(
-      (item) =>
-        item.name.toLowerCase().includes(q) ||
-        item.artist.toLowerCase().includes(q) ||
-        item.albumTitle.toLowerCase().includes(q) ||
-        (item.categoryTag && item.categoryTag.toLowerCase().includes(q))
-    );
-  }, [searchQuery]);
-
   const hasOnlineResults = onlineArtists.length > 0;
   const isSearchActive = searchQuery.trim().length >= 2;
 
@@ -286,13 +273,13 @@ export const AddAlbumModal: React.FC<AddAlbumModalProps> = ({
 
         {/* Scrollable Results */}
         <div className="flex-1 overflow-y-auto p-3 sm:p-4 space-y-3 custom-scrollbar">
-          {/* Section 1: Live Online Artists from Global Internet */}
-          {hasOnlineResults && (
+          {/* Live Online Artist Results */}
+          {hasOnlineResults ? (
             <div className="space-y-2">
               <div className="flex items-center justify-between px-1">
                 <span className="text-[10px] font-extrabold uppercase tracking-wider text-[#1DB954] flex items-center gap-1.5">
                   <UserCheck className="w-3.5 h-3.5 text-[#1DB954]" />
-                  <span>Hasil Artis Global Live ({onlineArtists.length} Artis Ditemukan)</span>
+                  <span>Hasil Artis Ditemukan ({onlineArtists.length} Artis)</span>
                 </span>
                 <span className="text-[10px] text-[#8C929C] font-mono">SPOTIFY LIVE</span>
               </div>
@@ -378,108 +365,36 @@ export const AddAlbumModal: React.FC<AddAlbumModalProps> = ({
                 );
               })}
             </div>
-          )}
-
-          {/* Section 2: Recommended Artis Populer (Rich Brian, Playboi Carti, Sheila On 7, dll.) */}
-          <div className="space-y-2">
-            <div className="flex items-center justify-between px-1">
-              <span className="text-[10px] font-extrabold uppercase tracking-wider text-[#A0A5AD] flex items-center gap-1.5">
-                <Sparkles className="w-3 h-3 text-[#FFEAD3]" />
-                <span>
-                  {isSearchActive && !hasOnlineResults
-                    ? 'Hasil Pencarian Artis'
-                    : 'Pilihan Artis Populer (Spotify Verified)'}
-                </span>
-              </span>
-              <span className="text-[10px] text-[#656A74] font-mono">
-                {filteredLocalCatalog.length} Artis
-              </span>
+          ) : isSearchActive ? (
+            <div className="py-16 flex flex-col items-center justify-center text-center text-[#949BA4]">
+              {isSearchingOnline ? (
+                <>
+                  <Loader2 className="w-8 h-8 text-[#1DB954] animate-spin mb-3" />
+                  <p className="text-sm font-bold text-white">Mencari artis di Spotify &amp; Apple Music...</p>
+                  <p className="text-xs text-[#656A74] mt-1">Menghubungkan ke katalog global...</p>
+                </>
+              ) : (
+                <>
+                  <Globe className="w-10 h-10 text-[#656A74] mb-2 stroke-[1.5]" />
+                  <p className="text-sm font-bold text-white">Tidak ada artis ditemukan</p>
+                  <p className="text-xs text-[#656A74] mt-1 max-w-xs">
+                    Pastikan ejaan nama artis sudah benar (misal: Rich Brian, Playboi Carti, Taylor Swift, NIKI).
+                  </p>
+                </>
+              )}
             </div>
-
-            {filteredLocalCatalog.length === 0 && !hasOnlineResults ? (
-              <div className="py-12 flex flex-col items-center justify-center text-center text-[#949BA4]">
-                <Globe className="w-10 h-10 text-[#656A74] mb-2 stroke-[1.5]" />
-                <p className="text-xs font-semibold text-white">Tidak ada artis ditemukan</p>
-                <p className="text-[11px] text-[#656A74] mt-0.5">
-                  Coba ketik nama artis lain seperti &quot;Rich Brian&quot;, &quot;Playboi Carti&quot;, atau &quot;NIKI&quot;.
-                </p>
+          ) : (
+            /* Clean Empty State when user hasn't typed anything yet */
+            <div className="py-20 flex flex-col items-center justify-center text-center text-[#949BA4]">
+              <div className="w-14 h-14 rounded-full bg-[#141619] border border-[#282B32] flex items-center justify-center mb-3 text-[#1DB954] shadow-inner">
+                <Search className="w-6 h-6 stroke-[2]" />
               </div>
-            ) : (
-              <div className="grid grid-cols-1 gap-2">
-                {filteredLocalCatalog.map((server) => {
-                  const isPinned = pinnedIds.has(server.id);
-
-                  return (
-                    <div
-                      key={server.id}
-                      className={`p-3 rounded-xl border transition-all flex items-center justify-between gap-3 sm:gap-4 ${
-                        isPinned
-                          ? 'bg-[#151A18] border-[#1DB954]/50 shadow-sm'
-                          : 'bg-[#121418] hover:bg-[#181B21] border-[#22252C] hover:border-[#383C45]'
-                      }`}
-                    >
-                      {/* Circular Avatar & Info */}
-                      <div
-                        onClick={() => onSelectAndPin(server)}
-                        className="flex items-center gap-3 min-w-0 flex-1 cursor-pointer group"
-                      >
-                        <div className="w-13 h-13 rounded-full overflow-hidden bg-[#0A0C0E] border border-[#282B32] flex-shrink-0 relative shadow-sm group-hover:ring-2 group-hover:ring-[#1DB954] transition-all">
-                          <img
-                            src={server.imageUrl}
-                            alt={server.name}
-                            className="w-full h-full object-cover select-none"
-                            onError={(e) => {
-                              (e.currentTarget as HTMLElement).style.display = 'none';
-                            }}
-                          />
-                        </div>
-
-                        <div className="min-w-0 flex-1">
-                          <div className="flex items-center gap-2">
-                            <p className="text-sm font-bold text-white truncate group-hover:text-[#1DB954] transition-colors leading-tight">
-                              {server.name}
-                            </p>
-                            {server.categoryTag && (
-                              <span className="text-[9px] font-mono px-1.5 py-0.2 rounded bg-[#1C1E22] text-[#A0A5AD] border border-[#282B32] flex-shrink-0">
-                                {server.categoryTag}
-                              </span>
-                            )}
-                          </div>
-                          <p className="text-xs text-[#A0A5AD] truncate mt-0.5">
-                            {server.description}
-                          </p>
-                        </div>
-                      </div>
-
-                      {/* Action Button */}
-                      <div className="flex items-center gap-2 flex-shrink-0">
-                        <button
-                          onClick={() => onSelectAndPin(server)}
-                          className={`h-8 px-3.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all active:scale-95 ${
-                            isPinned
-                              ? 'bg-[#1DB954]/15 border border-[#1DB954]/40 text-[#1DB954] hover:bg-[#1DB954]/25'
-                              : 'bg-[#1DB954] hover:bg-[#1ed760] text-black shadow-md'
-                          }`}
-                        >
-                          {isPinned ? (
-                            <>
-                              <Check className="w-3.5 h-3.5" />
-                              <span>Buka Profil</span>
-                            </>
-                          ) : (
-                            <>
-                              <Plus className="w-3.5 h-3.5" />
-                              <span>Tambah Artis</span>
-                            </>
-                          )}
-                        </button>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
+              <p className="text-sm font-bold text-white mb-1">Cari &amp; Tambahkan Artis</p>
+              <p className="text-xs text-[#656A74] max-w-sm leading-relaxed">
+                Ketik nama artis favorit kamu di kolom pencarian di atas untuk menemukan profil Spotify dan lagu populernya.
+              </p>
+            </div>
+          )}
         </div>
       </div>
     </div>
