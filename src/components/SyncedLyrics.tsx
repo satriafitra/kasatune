@@ -135,6 +135,16 @@ export const SyncedLyrics: React.FC<SyncedLyricsProps> = ({
                   >
                     {line.text || '...'}
                   </p>
+                  {line.subText && (
+                    <p
+                      className={`text-xs sm:text-sm font-medium transition-all mt-0.5 ${
+                        isActive ? 'text-[#BFE7EA]' : 'text-[#5C5E66]'
+                      }`}
+                      style={{ paddingLeft: isActive ? '10px' : '13px' }}
+                    >
+                      {line.subText}
+                    </p>
+                  )}
                 </div>
               </div>
             );

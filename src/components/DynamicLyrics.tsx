@@ -135,7 +135,7 @@ export const DynamicLyrics: React.FC<DynamicLyricsProps> = ({
                   key={line.id}
                   ref={isActive ? activeLineRef : null}
                   onClick={() => onSeek(line.timeMs)}
-                  className={`transition-all duration-200 cursor-pointer flex items-center ${
+                  className={`transition-all duration-200 cursor-pointer flex flex-col items-start ${
                     isActive ? 'scale-[1.01] origin-left' : ''
                   }`}
                 >
@@ -157,6 +157,19 @@ export const DynamicLyrics: React.FC<DynamicLyricsProps> = ({
                       line.text
                     )}
                   </p>
+                  {line.subText && (
+                    <p
+                      className={`leading-normal transition-colors duration-150 mt-1 ${
+                        isActive
+                          ? 'text-[#BFE7EA] font-semibold text-base sm:text-lg opacity-90 tracking-wide'
+                          : isPast
+                          ? 'text-[#3B3D44] font-normal text-sm sm:text-base'
+                          : 'text-[#656A74] font-normal text-sm sm:text-base hover:text-[#949BA4]'
+                      }`}
+                    >
+                      {line.subText}
+                    </p>
+                  )}
                 </div>
               );
             })}

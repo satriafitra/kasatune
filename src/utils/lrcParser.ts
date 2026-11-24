@@ -6,10 +6,12 @@ export interface LyricLine {
   id: string;
   timeMs: number;
   text: string;
+  subText?: string;
 }
 
 /**
- * Parses an LRC formatted string into an array of LyricLine objects
+ * Parses an LRC formatted string into an array of LyricLine objects.
+ * Automatically pairs dual-line lyrics (e.g. Japanese Kanji/Korean Hangul original + Romaji directly underneath).
  */
 export function parseLrc(lrcContent: string | null | undefined): LyricLine[] {
   if (!lrcContent || typeof lrcContent !== 'string') {
@@ -17,15 +19,24 @@ export function parseLrc(lrcContent: string | null | undefined): LyricLine[] {
   }
 
   const lines = lrcContent.split('\n');
-  const result: LyricLine[] = [];
+  const rawList: LyricLine[] = [];
   const timeRegex = /\[(\d{2}):(\d{2})(?:\.(\d{2,3}))?\]/g;
+
+  let lastTimeMs = -1;
 
   lines.forEach((line, lineIndex) => {
     const trimmed = line.trim();
     if (!trimmed) return;
 
     const matches = [...trimmed.matchAll(timeRegex)];
-    if (matches.length === 0) return;
+    if (matches.length === 0) {
+      // Untimed line: if we just processed a timed line and it has no subText,
+      // attach this untimed line as subText to the last item
+      if (rawList.length > 0 && lastTimeMs !== -1 && !rawList[rawList.length - 1].subText && trimmed !== '♪') {
+        rawList[rawList.length - 1].subText = trimmed;
+      }
+      return;
+    }
 
     const text = trimmed.replace(timeRegex, '').trim();
 
@@ -36,6 +47,7 @@ export function parseLrc(lrcContent: string | null | undefined): LyricLine[] {
       const fraction = fractionStr.length === 2 ? parseInt(fractionStr, 10) * 10 : parseInt(fractionStr, 10);
 
       const timeMs = minutes * 60 * 1000 + seconds * 1000 + fraction;
+      lastTimeMs = timeMs;
 
       // Filter out credit header tags and metadata lines commonly found in raw LRC files
       if (
@@ -45,15 +57,38 @@ export function parseLrc(lrcContent: string | null | undefined): LyricLine[] {
         return;
       }
 
-      result.push({
+      let mainText = text || '♪';
+      let subText: string | undefined = undefined;
+      if (mainText.includes('\n')) {
+        const parts = mainText.split('\n');
+        mainText = parts[0].trim();
+        subText = parts.slice(1).join('\n').trim();
+      }
+
+      rawList.push({
         id: `lyric-${lineIndex}-${matchIndex}-${timeMs}`,
         timeMs,
-        text: text || '♪',
+        text: mainText,
+        subText,
       });
     });
   });
 
-  return result.sort((a, b) => a.timeMs - b.timeMs);
+  // Sort chronologically
+  rawList.sort((a, b) => a.timeMs - b.timeMs);
+
+  // Merge items sharing identical (or <= 40ms) timestamp into single line with subText (Romaji/translation)
+  const result: LyricLine[] = [];
+  for (const item of rawList) {
+    const prev = result[result.length - 1];
+    if (prev && Math.abs(item.timeMs - prev.timeMs) <= 40 && !prev.subText && item.text !== '♪') {
+      prev.subText = item.text;
+    } else {
+      result.push(item);
+    }
+  }
+
+  return result;
 }
 
 /**
