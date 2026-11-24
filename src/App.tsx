@@ -70,6 +70,14 @@ export const App: React.FC = () => {
     try {
       const saved = localStorage.getItem('kasatune_active_album');
       if (saved && saved !== 'all') return saved as AlbumFilterType;
+
+      const savedPinned = localStorage.getItem('kasatune_pinned_artists_v4');
+      if (savedPinned) {
+        const list = JSON.parse(savedPinned);
+        if (Array.isArray(list) && list.length > 0 && list[0].id) {
+          return list[0].id as AlbumFilterType;
+        }
+      }
     } catch {}
     return 'favorites';
   });
@@ -91,6 +99,16 @@ export const App: React.FC = () => {
     try {
       const saved = localStorage.getItem('kasatune_active_entity');
       if (saved) return JSON.parse(saved);
+
+      const savedAlbum = localStorage.getItem('kasatune_active_album');
+      const savedPinned = localStorage.getItem('kasatune_pinned_artists_v4');
+      if (savedPinned) {
+        const list: PinnedServerItem[] = JSON.parse(savedPinned);
+        if (Array.isArray(list) && list.length > 0) {
+          const matched = list.find((s) => s.id === savedAlbum);
+          return matched || list[0];
+        }
+      }
     } catch {}
     return null;
   });
@@ -189,11 +207,19 @@ export const App: React.FC = () => {
     if (!hasRestoredSavedTrackRef.current && tracks.length > 0) {
       hasRestoredSavedTrackRef.current = true;
       try {
-        const isFriendMode = activeAlbum === 'friend' || isFriendSyncConnected;
+        const isFriendMode = activeAlbum === 'friend' && isFriendSyncConnected;
         if (isFriendMode) {
           // If the last condition was friend live sync, do not overwrite with saved standalone song!
           // Friend sync engine will restore the friend's exact song and progress.
           return;
+        }
+
+        const savedTrackStr = localStorage.getItem('kasatune_saved_track');
+        let savedTrack: BackendRadioheadTrack | null = null;
+        if (savedTrackStr) {
+          try {
+            savedTrack = JSON.parse(savedTrackStr);
+          } catch {}
         }
 
         const savedTrackId = localStorage.getItem('kasatune_saved_track_id');
@@ -201,8 +227,8 @@ export const App: React.FC = () => {
         const savedTime = savedTimeStr ? parseFloat(savedTimeStr) : 0;
 
         const targetTrack =
+          savedTrack ||
           (savedTrackId && tracks.find((t) => t.id === savedTrackId)) ||
-          tracks.find((t) => t.id === 'rh-creep') ||
           tracks[0];
 
         if (targetTrack) {
@@ -379,6 +405,61 @@ export const App: React.FC = () => {
 
     return tracks.filter((t) => matchesAlbumFilter(t, activeAlbum, likedTrackIds));
   }, [tracks, activeAlbum, likedTracks, likedTrackIds, onlineAlbumTracks]);
+
+  // Auto-fetch artist / album popular tracks on refresh or category load
+  useEffect(() => {
+    if (!activeAlbum || activeAlbum === 'friend' || activeAlbum === 'favorites') return;
+    if (onlineAlbumTracks[activeAlbum] && onlineAlbumTracks[activeAlbum].length > 0) return;
+
+    let isSubscribed = true;
+    const loadCategoryTracks = async () => {
+      let entity = currentAlbumEntity;
+      if (!entity) {
+        entity = CATALOG_ALBUMS.find((c) => c.id === activeAlbum) || null;
+      }
+      if (!entity) {
+        try {
+          const savedPinned = localStorage.getItem('kasatune_pinned_artists_v4');
+          if (savedPinned) {
+            const list: PinnedServerItem[] = JSON.parse(savedPinned);
+            entity = list.find((s) => s.id === activeAlbum) || null;
+          }
+        } catch {}
+      }
+
+      const targetArtist =
+        entity?.artist ||
+        (activeAlbum.startsWith('online-artist-')
+          ? decodeURIComponent(activeAlbum.replace('online-artist-', ''))
+          : activeAlbum);
+
+      if (entity?.collectionId || targetArtist) {
+        setIsLoadingOnlineAlbum(true);
+        try {
+          let songs: BackendRadioheadTrack[] = [];
+          if (entity?.collectionId) {
+            songs = await fetchAlbumTracks(entity.collectionId);
+          } else if (targetArtist) {
+            songs = await fetchArtistTracks(targetArtist);
+          }
+          if (isSubscribed && songs.length > 0) {
+            setOnlineAlbumTracks((prev) => ({ ...prev, [activeAlbum]: songs }));
+          }
+        } catch (e) {
+          console.error('Failed to auto-load category songs:', e);
+        } finally {
+          if (isSubscribed) {
+            setIsLoadingOnlineAlbum(false);
+          }
+        }
+      }
+    };
+
+    loadCategoryTracks();
+    return () => {
+      isSubscribed = false;
+    };
+  }, [activeAlbum, currentAlbumEntity, onlineAlbumTracks]);
 
   // Keep document tab title cleanly set to Kasatune
   useEffect(() => {
@@ -581,9 +662,24 @@ export const App: React.FC = () => {
           play();
         }
       } else {
-        setActiveAlbum('radiohead');
+        let targetAlbum = 'favorites';
         try {
-          localStorage.setItem('kasatune_active_album', 'radiohead');
+          const savedAlbum = localStorage.getItem('kasatune_active_album');
+          if (savedAlbum && savedAlbum !== 'friend') {
+            targetAlbum = savedAlbum;
+          } else {
+            const savedPinned = localStorage.getItem('kasatune_pinned_artists_v4');
+            if (savedPinned) {
+              const list = JSON.parse(savedPinned);
+              if (Array.isArray(list) && list.length > 0) {
+                targetAlbum = list[0].id;
+              }
+            }
+          }
+        } catch {}
+        setActiveAlbum(targetAlbum as AlbumFilterType);
+        try {
+          localStorage.setItem('kasatune_active_album', targetAlbum);
         } catch {}
       }
 
@@ -641,27 +737,65 @@ export const App: React.FC = () => {
     } catch {}
   }, [setDiscordUserId]);
 
-  // Switch to Autonomous / Personal Music Mode (Radiohead / JKT48 / etc.)
+  // Switch to Autonomous / Personal Music Mode (Saved Artist / Liked Songs / etc.)
   const handleSwitchToMyMusic = useCallback(() => {
     setIsFriendSyncConnected(false);
-    setActiveAlbum('radiohead');
     try {
-      localStorage.setItem('kasatune_active_album', 'radiohead');
+      localStorage.setItem('kasatune_is_friend_connected', 'false');
     } catch {}
-    const rhTrack = tracks.find((t) => t.artist.toLowerCase() === 'radiohead') || tracks[0];
-    if (rhTrack) {
-      selectTrack(rhTrack);
+
+    let targetAlbum = 'favorites';
+    let targetEntity: PinnedServerItem | null = null;
+    try {
+      const savedAlbum = localStorage.getItem('kasatune_active_album');
+      const savedEntityStr = localStorage.getItem('kasatune_active_entity');
+      if (savedEntityStr) {
+        targetEntity = JSON.parse(savedEntityStr);
+      }
+      if (savedAlbum && savedAlbum !== 'friend') {
+        targetAlbum = savedAlbum;
+      } else {
+        const savedPinned = localStorage.getItem('kasatune_pinned_artists_v4');
+        if (savedPinned) {
+          const list = JSON.parse(savedPinned);
+          if (Array.isArray(list) && list.length > 0) {
+            targetAlbum = list[0].id;
+            targetEntity = list[0];
+          }
+        }
+      }
+    } catch {}
+
+    setActiveAlbum(targetAlbum as AlbumFilterType);
+    if (targetEntity) {
+      setCurrentAlbumEntity(targetEntity);
+    }
+    try {
+      localStorage.setItem('kasatune_active_album', targetAlbum);
+    } catch {}
+
+    // Restore saved track or first available track
+    const savedTrackStr = localStorage.getItem('kasatune_saved_track');
+    let targetTrack: BackendRadioheadTrack | null = null;
+    if (savedTrackStr) {
       try {
-        localStorage.setItem('kasatune_saved_track_id', rhTrack.id);
+        targetTrack = JSON.parse(savedTrackStr);
       } catch {}
+    }
+    if (!targetTrack) {
+      targetTrack = tracks.find((t) => matchesAlbumFilter(t, targetAlbum as AlbumFilterType, likedTrackIds)) || tracks[0];
+    }
+
+    if (targetTrack) {
+      selectTrack(targetTrack);
       loadTrack(
-        rhTrack.previewUrl,
-        rhTrack.bpm,
-        rhTrack.durationMs > 0 ? rhTrack.durationMs / 1000 : 238,
+        targetTrack.previewUrl,
+        targetTrack.bpm,
+        targetTrack.durationMs > 0 ? targetTrack.durationMs / 1000 : 238,
         true
       );
     }
-  }, [tracks, selectTrack, loadTrack]);
+  }, [tracks, selectTrack, loadTrack, likedTrackIds]);
 
   // Listen Along with Friend: Matches song & syncs playtime position in real time!
   const handleListenAlong = useCallback(
@@ -701,6 +835,7 @@ export const App: React.FC = () => {
 
     try {
       localStorage.setItem('kasatune_saved_track_id', track.id);
+      localStorage.setItem('kasatune_saved_track', JSON.stringify(track));
       localStorage.setItem('kasatune_active_album', activeAlbum);
     } catch {}
 

@@ -478,12 +478,39 @@ export interface SyncedMusicState {
 export function useMusicSync(): SyncedMusicState {
   const [tracks, setTracks] = useState<BackendRadioheadTrack[]>(DEFAULT_RADIOHEAD_TRACKS);
   const [currentTrackIndex, setCurrentTrackIndex] = useState<number>(0);
-  const [activeTrack, setActiveTrack] = useState<BackendRadioheadTrack>(DEFAULT_RADIOHEAD_TRACKS[0]);
+  const [activeTrack, setActiveTrack] = useState<BackendRadioheadTrack>(() => {
+    try {
+      const savedStr = localStorage.getItem('kasatune_saved_track');
+      if (savedStr) {
+        const parsed = JSON.parse(savedStr);
+        if (parsed && parsed.title && parsed.previewUrl) {
+          return parsed;
+        }
+      }
+      const savedId = localStorage.getItem('kasatune_saved_track_id');
+      if (savedId) {
+        const found = DEFAULT_RADIOHEAD_TRACKS.find((t) => t.id === savedId);
+        if (found) return found;
+      }
+    } catch {}
+    return DEFAULT_RADIOHEAD_TRACKS[0];
+  });
   const [isBackendOnline, setIsBackendOnline] = useState<boolean>(false);
   const [isShuffle, setIsShuffle] = useState<boolean>(false);
   const [isRepeat, setIsRepeat] = useState<boolean>(false);
 
-  const [lyrics, setLyrics] = useState<LyricLine[]>(parseLrc(DEFAULT_RADIOHEAD_TRACKS[0].syncedLyrics));
+  const [lyrics, setLyrics] = useState<LyricLine[]>(() => {
+    try {
+      const savedStr = localStorage.getItem('kasatune_saved_track');
+      if (savedStr) {
+        const parsed = JSON.parse(savedStr);
+        if (parsed && parsed.syncedLyrics && parsed.syncedLyrics.length > 20) {
+          return parseLrc(parsed.syncedLyrics);
+        }
+      }
+    } catch {}
+    return parseLrc(DEFAULT_RADIOHEAD_TRACKS[0].syncedLyrics);
+  });
   const [plainLyrics, setPlainLyrics] = useState<string | null>(null);
   const [isLoadingSong, setIsLoadingSong] = useState<boolean>(false);
 
@@ -549,6 +576,13 @@ export function useMusicSync(): SyncedMusicState {
     }
   }, []);
 
+  // Ensure lyrics for restored activeTrack are fetched if missing on mount
+  useEffect(() => {
+    if (activeTrack && (!activeTrack.syncedLyrics || activeTrack.syncedLyrics.length < 20)) {
+      loadTrackLyrics(activeTrack);
+    }
+  }, [loadTrackLyrics]);
+
   const selectTrack = useCallback((track: BackendRadioheadTrack) => {
     const idx = tracks.findIndex((t) => t.id === track.id);
     if (idx !== -1) {
@@ -556,6 +590,10 @@ export function useMusicSync(): SyncedMusicState {
     }
     setActiveTrack(track);
     loadTrackLyrics(track);
+    try {
+      localStorage.setItem('kasatune_saved_track_id', track.id);
+      localStorage.setItem('kasatune_saved_track', JSON.stringify(track));
+    } catch {}
   }, [tracks, loadTrackLyrics]);
 
   const selectTrackByIndex = useCallback((index: number) => {
@@ -565,6 +603,10 @@ export function useMusicSync(): SyncedMusicState {
     const track = tracks[safeIndex];
     setActiveTrack(track);
     loadTrackLyrics(track);
+    try {
+      localStorage.setItem('kasatune_saved_track_id', track.id);
+      localStorage.setItem('kasatune_saved_track', JSON.stringify(track));
+    } catch {}
   }, [tracks, loadTrackLyrics]);
 
   const nextTrack = useCallback(() => {

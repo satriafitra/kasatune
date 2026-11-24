@@ -53,14 +53,26 @@ export function useAudioVisualizer(
   const analyserRef = useRef<AnalyserNode | null>(null);
   const sourceNodeRef = useRef<MediaElementAudioSourceNode | null>(null);
 
+  const getSavedPlaytime = (): number => {
+    try {
+      const saved = localStorage.getItem('kasatune_saved_playtime');
+      if (saved) {
+        const parsed = parseFloat(saved);
+        if (!isNaN(parsed) && parsed > 0) return parsed;
+      }
+    } catch {}
+    return 0;
+  };
+
+  const initialPlaytime = getSavedPlaytime();
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
-  const [currentTime, setCurrentTime] = useState<number>(0);
+  const [currentTime, setCurrentTime] = useState<number>(initialPlaytime);
   const [duration, setDuration] = useState<number>(initialDurationSec);
   const [volume, setVolumeState] = useState<number>(0.85);
   const [currentBpm, setCurrentBpm] = useState<number>(initialBpm);
 
   const durationRef = useRef<number>(initialDurationSec);
-  const currentTimeRef = useRef<number>(0);
+  const currentTimeRef = useRef<number>(initialPlaytime);
   const isPlayingRef = useRef<boolean>(false);
 
   const onEndedRef = useRef(options?.onEnded);
@@ -148,6 +160,11 @@ export function useAudioVisualizer(
     const handlePause = () => {
       setIsPlaying(false);
       isPlayingRef.current = false;
+      if (audio && !isNaN(audio.currentTime) && audio.currentTime > 0) {
+        try {
+          localStorage.setItem('kasatune_saved_playtime', String(audio.currentTime));
+        } catch {}
+      }
     };
 
     const handlePlay = () => {
@@ -173,6 +190,11 @@ export function useAudioVisualizer(
           durationRef.current = audio.duration;
         }
       }
+      if (audio.currentTime > 0) {
+        try {
+          localStorage.setItem('kasatune_saved_playtime', String(audio.currentTime));
+        } catch {}
+      }
     };
 
     audio.addEventListener('ended', handleEnded);
@@ -182,9 +204,38 @@ export function useAudioVisualizer(
     audio.addEventListener('timeupdate', handleTimeUpdate);
     audio.addEventListener('seeked', handleTimeUpdate);
 
+    // Save exact position immediately before tab reload or unload
+    const handleBeforeUnload = () => {
+      if (currentTimeRef.current > 0) {
+        try {
+          localStorage.setItem('kasatune_saved_playtime', String(currentTimeRef.current));
+        } catch {}
+      }
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+
     if (initialUrl) {
       audio.src = initialUrl;
       audio.load();
+
+      if (initialPlaytime > 0) {
+        const applyMountSeek = () => {
+          if (!isNaN(audio.duration) && isFinite(audio.duration) && audio.duration > 0) {
+            audio.currentTime = Math.min(Math.max(0, audio.duration - 0.2), initialPlaytime);
+          } else {
+            try {
+              audio.currentTime = initialPlaytime;
+            } catch {}
+          }
+        };
+
+        if (audio.readyState >= 1) {
+          applyMountSeek();
+        } else {
+          audio.addEventListener('loadedmetadata', applyMountSeek, { once: true });
+          audio.addEventListener('canplay', applyMountSeek, { once: true });
+        }
+      }
     }
 
     return () => {
@@ -194,6 +245,7 @@ export function useAudioVisualizer(
       audio.removeEventListener('loadedmetadata', handleLoadedMetadata);
       audio.removeEventListener('timeupdate', handleTimeUpdate);
       audio.removeEventListener('seeked', handleTimeUpdate);
+      window.removeEventListener('beforeunload', handleBeforeUnload);
       audio.pause();
       audio.src = '';
       if (audioContextRef.current && audioContextRef.current.state !== 'closed') {
@@ -261,12 +313,16 @@ export function useAudioVisualizer(
       audio.load();
 
       const applyInitialSeek = () => {
-        if (audio.duration && audio.duration > 0) {
+        if (!isNaN(audio.duration) && isFinite(audio.duration) && audio.duration > 0) {
           setDuration(audio.duration);
           durationRef.current = audio.duration;
-          audio.currentTime = Math.min(Math.max(0, audio.duration - 0.2), safeInitial);
-        } else {
-          audio.currentTime = 0;
+          if (safeInitial > 0) {
+            audio.currentTime = Math.min(Math.max(0, audio.duration - 0.2), safeInitial);
+          }
+        } else if (safeInitial > 0) {
+          try {
+            audio.currentTime = safeInitial;
+          } catch {}
         }
       };
 
@@ -274,6 +330,7 @@ export function useAudioVisualizer(
         applyInitialSeek();
       } else {
         audio.addEventListener('loadedmetadata', applyInitialSeek, { once: true });
+        audio.addEventListener('canplay', applyInitialSeek, { once: true });
       }
 
       setupWebAudio();
