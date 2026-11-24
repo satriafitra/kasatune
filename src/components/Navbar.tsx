@@ -253,7 +253,7 @@ export const Navbar: React.FC<NavbarProps> = ({
       </div>
 
       {/* Center: Search Bar with Dropdown Popover (Desktop) */}
-      <div className="hidden md:flex flex-1 max-w-md relative" ref={searchContainerRef}>
+      <div className="hidden md:flex flex-1 max-w-lg relative z-50" ref={searchContainerRef}>
         <div className="w-full relative flex items-center">
           <Search className="w-4 h-4 absolute left-3 text-[#949BA4] pointer-events-none" />
           <input
@@ -293,307 +293,321 @@ export const Navbar: React.FC<NavbarProps> = ({
 
         {/* Dropdown Menu Popover */}
         {isDropdownOpen && searchQuery.trim().length >= 1 && (
-          <div className="absolute top-full left-0 right-0 mt-2 bg-[#141619]/98 backdrop-blur-xl border border-[#282B32] rounded-xl shadow-[0_20px_50px_rgba(0,0,0,0.85)] z-50 overflow-hidden max-h-[460px] flex flex-col animate-in fade-in zoom-in-95 duration-150">
-            {/* Dropdown Header Info */}
-            <div className="px-3.5 py-2.5 border-b border-[#282B32] bg-[#0E1013] flex items-center justify-between text-xs text-[#A0A5AD]">
-              <div className="flex items-center gap-1.5 truncate">
-                <Search className="w-3.5 h-3.5 text-[#BFE7EA]" />
-                <span className="font-semibold text-white truncate">
-                  "{searchQuery}"
-                </span>
-                <span className="text-[11px] text-[#656A74]">
-                  &bull; {totalMatches} lagu ditemukan
-                </span>
+          <>
+            {/* Deep Dark Backdrop Dimmer to avoid collision/clash with background hero & artwork */}
+            <div
+              className="fixed inset-0 bg-black/80 backdrop-blur-md z-40 transition-opacity"
+              onClick={() => setIsDropdownOpen(false)}
+            />
+
+            <div className="absolute top-full left-0 right-0 mt-2 bg-[#090A0D] border-2 border-[#383C45] rounded-xl shadow-[0_30px_90px_rgba(0,0,0,0.98)] ring-1 ring-black/80 z-50 overflow-hidden max-h-[480px] flex flex-col animate-in fade-in zoom-in-95 duration-150">
+              {/* Dropdown Header Info */}
+              <div className="px-4 py-2.5 border-b border-[#282B32] bg-[#07080A] flex items-center justify-between text-xs text-[#A0A5AD]">
+                <div className="flex items-center gap-1.5 truncate">
+                  <Search className="w-3.5 h-3.5 text-[#BFE7EA]" />
+                  <span className="font-semibold text-white truncate">
+                    "{searchQuery}"
+                  </span>
+                  <span className="text-[11px] text-[#656A74]">
+                    &bull; {totalMatches} lagu ditemukan
+                  </span>
+                </div>
+                {isLoadingLive && (
+                  <div className="flex items-center gap-1.5 text-[10px] text-[#1DB954] flex-shrink-0 font-medium">
+                    <Loader2 className="w-3 h-3 animate-spin" />
+                    <span>Mencari online...</span>
+                  </div>
+                )}
               </div>
-              {isLoadingLive && (
-                <div className="flex items-center gap-1.5 text-[10px] text-[#1DB954] flex-shrink-0 font-medium">
-                  <Loader2 className="w-3 h-3 animate-spin" />
-                  <span>Mencari online...</span>
-                </div>
-              )}
-            </div>
 
-            {/* Dropdown Scrollable Results */}
-            <div className="flex-1 overflow-y-auto p-1.5 space-y-1 custom-scrollbar">
-              {/* 1. Local Library Results */}
-              {localMatches.length > 0 && (
-                <div className="space-y-0.5">
-                  <div className="px-2 pt-1 pb-1 text-[9px] font-extrabold uppercase tracking-wider text-[#949BA4] flex items-center justify-between">
-                    <span>Koleksi Lagu ({localMatches.length})</span>
-                    <span className="text-[#BFE7EA] font-mono text-[9px]">LOKAL</span>
-                  </div>
-                  {localMatches.map((t) => {
-                    const isActive = t.id === activeTrackId;
-                    const isLiked = isLikedTrack ? isLikedTrack(t.id) : false;
+              {/* Dropdown Scrollable Results */}
+              <div className="flex-1 overflow-y-auto p-2 space-y-1.5 custom-scrollbar bg-[#090A0D]">
+                {/* 1. Local Library Results */}
+                {localMatches.length > 0 && (
+                  <div className="space-y-1">
+                    <div className="px-2.5 pt-1.5 pb-1 text-[9px] font-extrabold uppercase tracking-wider text-[#949BA4] flex items-center justify-between">
+                      <span>Koleksi Lagu ({localMatches.length})</span>
+                      <span className="text-[#BFE7EA] font-mono text-[9px]">LOKAL</span>
+                    </div>
+                    {localMatches.map((t) => {
+                      const isActive = t.id === activeTrackId;
+                      const isLiked = isLikedTrack ? isLikedTrack(t.id) : false;
 
-                    return (
-                      <div
-                        key={t.id}
-                        onClick={() => handleSelectSong(t)}
-                        className={`group flex items-center justify-between gap-2.5 px-2.5 py-2 rounded-lg cursor-pointer transition-all ${
-                          isActive
-                            ? 'bg-[#1C1E22] text-white shadow-sm'
-                            : 'hover:bg-[#1E2025] text-[#A0A5AD] hover:text-[#F2F3F5]'
-                        }`}
-                      >
-                        <div className="flex items-center gap-2.5 min-w-0">
-                          {/* Thumbnail */}
-                          <div className="w-9 h-9 min-w-[36px] min-h-[36px] rounded-md overflow-hidden flex-shrink-0 bg-[#0B0C0E] border border-[#282B32] relative group-hover:border-[#BFE7EA]/40">
-                            <img
-                              src={t.coverUrl}
-                              alt={t.title}
-                              className="w-full h-full object-cover"
-                              onError={(e) => {
-                                (e.currentTarget as HTMLElement).style.display = 'none';
-                              }}
-                            />
-                            {/* Hover Play/Pause overlay */}
-                            <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
-                              {isActive && isPlaying ? (
-                                <Pause className="w-3.5 h-3.5 text-white fill-current" />
-                              ) : (
-                                <Play className="w-3.5 h-3.5 text-white fill-current translate-x-0.5" />
-                              )}
+                      return (
+                        <div
+                          key={t.id}
+                          onClick={() => handleSelectSong(t)}
+                          className={`group flex items-center justify-between gap-3 px-3 py-2 rounded-lg cursor-pointer transition-all border ${
+                            isActive
+                              ? 'bg-[#1C1E22] border-[#BFE7EA]/40 text-white shadow-md'
+                              : 'bg-[#111317] hover:bg-[#181A20] border-[#1F2228] hover:border-[#383C45] text-[#A0A5AD] hover:text-[#F2F3F5]'
+                          }`}
+                        >
+                          <div className="flex items-center gap-2.5 min-w-0">
+                            {/* Thumbnail */}
+                            <div className="w-10 h-10 min-w-[40px] min-h-[40px] rounded-md overflow-hidden flex-shrink-0 bg-[#0B0C0E] border border-[#282B32] relative group-hover:border-[#BFE7EA]/50 shadow-sm">
+                              <img
+                                src={t.coverUrl}
+                                alt={t.title}
+                                className="w-full h-full object-cover block"
+                                onError={(e) => {
+                                  (e.currentTarget as HTMLElement).style.display = 'none';
+                                }}
+                              />
+                              {/* Hover Play/Pause overlay */}
+                              <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
+                                {isActive && isPlaying ? (
+                                  <Pause className="w-4 h-4 text-white fill-current" />
+                                ) : (
+                                  <Play className="w-4 h-4 text-white fill-current translate-x-0.5" />
+                                )}
+                              </div>
                             </div>
-                          </div>
 
-                          <div className="min-w-0 flex flex-col justify-center">
-                            <p
-                              className={`text-xs font-bold truncate leading-tight ${
-                                isActive ? 'text-[#BFE7EA]' : 'text-white'
-                              }`}
-                            >
-                              {t.title}
-                            </p>
-                            <p className="text-[10px] text-[#A0A5AD] truncate mt-0.5">
-                              {t.artist} &bull; {t.album}
-                            </p>
-                          </div>
-                        </div>
-
-                        {/* Right: Heart + Duration */}
-                        <div className="flex items-center gap-2 flex-shrink-0">
-                          {onToggleLikeTrack && (
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                onToggleLikeTrack(t);
-                              }}
-                              className={`p-1 rounded hover:bg-white/10 transition-colors ${
-                                isLiked
-                                  ? 'text-[#FF4B72]'
-                                  : 'text-[#656A74] opacity-0 group-hover:opacity-100 hover:text-white'
-                              }`}
-                              title={isLiked ? 'Hapus dari favorit' : 'Simpan ke favorit'}
-                            >
-                              <Heart className={`w-3.5 h-3.5 ${isLiked ? 'fill-[#FF4B72]' : ''}`} />
-                            </button>
-                          )}
-                          <span className="text-[11px] font-mono text-[#656A74]">
-                            {formatDuration(t.durationMs)}
-                          </span>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-
-              {/* 2. Online Real-Time Discovery Results */}
-              {deduplicatedLiveMatches.length > 0 && (
-                <div className="pt-2 space-y-0.5">
-                  <div className="px-2 pb-1 text-[9px] font-extrabold uppercase tracking-wider text-[#1DB954] flex items-center justify-between">
-                    <span className="flex items-center gap-1.5">
-                      <Globe className="w-3 h-3 text-[#1DB954]" />
-                      <span>Online Global (Real-time)</span>
-                    </span>
-                    <span className="text-[9px] font-mono text-[#949BA4]">
-                      {deduplicatedLiveMatches.length} lagu
-                    </span>
-                  </div>
-
-                  {deduplicatedLiveMatches.map((t) => {
-                    const isActive = t.id === activeTrackId;
-                    const isLiked = isLikedTrack ? isLikedTrack(t.id) : false;
-
-                    return (
-                      <div
-                        key={t.id}
-                        onClick={() => handleSelectSong(t)}
-                        className={`group flex items-center justify-between gap-2.5 px-2.5 py-2 rounded-lg cursor-pointer transition-all ${
-                          isActive
-                            ? 'bg-[#1C1E22] text-white shadow-sm'
-                            : 'hover:bg-[#1E2025] text-[#A0A5AD] hover:text-[#F2F3F5]'
-                        }`}
-                      >
-                        <div className="flex items-center gap-2.5 min-w-0">
-                          <div className="w-9 h-9 min-w-[36px] min-h-[36px] rounded-md overflow-hidden flex-shrink-0 bg-[#0B0C0E] border border-[#282B32] relative group-hover:border-[#1DB954]/50">
-                            <img
-                              src={t.coverUrl}
-                              alt={t.title}
-                              className="w-full h-full object-cover"
-                              onError={(e) => {
-                                (e.currentTarget as HTMLElement).style.display = 'none';
-                              }}
-                            />
-                            <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
-                              <Play className="w-3.5 h-3.5 text-white fill-current translate-x-0.5" />
-                            </div>
-                          </div>
-
-                          <div className="min-w-0 flex flex-col justify-center">
-                            <div className="flex items-center gap-1.5">
-                              <p className="text-xs font-bold text-white truncate leading-tight">
+                            <div className="min-w-0 flex flex-col justify-center">
+                              <p
+                                className={`text-xs font-bold truncate leading-tight ${
+                                  isActive ? 'text-[#BFE7EA]' : 'text-white'
+                                }`}
+                              >
                                 {t.title}
                               </p>
-                              <span className="text-[8px] font-mono px-1 py-0.2 rounded bg-[#1DB954]/20 text-[#1DB954] border border-[#1DB954]/30 flex-shrink-0">
-                                LIVE
-                              </span>
+                              <p className="text-[11px] text-[#A0A5AD] truncate mt-0.5">
+                                {t.artist} &bull; {t.album}
+                              </p>
                             </div>
-                            <p className="text-[10px] text-[#A0A5AD] truncate mt-0.5">
-                              {t.artist} &bull; {t.album}
-                            </p>
+                          </div>
+
+                          {/* Right: Heart + Duration */}
+                          <div className="flex items-center gap-2.5 flex-shrink-0">
+                            {onToggleLikeTrack && (
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  onToggleLikeTrack(t);
+                                }}
+                                className={`p-1.5 rounded hover:bg-white/10 transition-colors ${
+                                  isLiked
+                                    ? 'text-[#FF4B72]'
+                                    : 'text-[#656A74] opacity-0 group-hover:opacity-100 hover:text-white'
+                                }`}
+                                title={isLiked ? 'Hapus dari favorit' : 'Simpan ke favorit'}
+                              >
+                                <Heart className={`w-3.5 h-3.5 ${isLiked ? 'fill-[#FF4B72]' : ''}`} />
+                              </button>
+                            )}
+                            <span className="text-[11px] font-mono text-[#8C929C]">
+                              {formatDuration(t.durationMs)}
+                            </span>
                           </div>
                         </div>
+                      );
+                    })}
+                  </div>
+                )}
 
-                        <div className="flex items-center gap-2 flex-shrink-0">
-                          {onToggleLikeTrack && (
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                onToggleLikeTrack(t);
-                              }}
-                              className={`p-1 rounded hover:bg-white/10 transition-colors ${
-                                isLiked
-                                  ? 'text-[#FF4B72]'
-                                  : 'text-[#656A74] opacity-0 group-hover:opacity-100 hover:text-white'
-                              }`}
-                              title={isLiked ? 'Hapus dari favorit' : 'Simpan ke favorit'}
-                            >
-                              <Heart className={`w-3.5 h-3.5 ${isLiked ? 'fill-[#FF4B72]' : ''}`} />
-                            </button>
-                          )}
-                          <span className="text-[11px] font-mono text-[#656A74]">
-                            {formatDuration(t.durationMs)}
-                          </span>
+                {/* 2. Online Real-Time Discovery Results */}
+                {deduplicatedLiveMatches.length > 0 && (
+                  <div className="pt-2 space-y-1">
+                    <div className="px-2.5 pb-1 text-[9px] font-extrabold uppercase tracking-wider text-[#1DB954] flex items-center justify-between">
+                      <span className="flex items-center gap-1.5">
+                        <Globe className="w-3 h-3 text-[#1DB954]" />
+                        <span>Online Global (Real-time)</span>
+                      </span>
+                      <span className="text-[9px] font-mono text-[#949BA4]">
+                        {deduplicatedLiveMatches.length} lagu
+                      </span>
+                    </div>
+
+                    {deduplicatedLiveMatches.map((t) => {
+                      const isActive = t.id === activeTrackId;
+                      const isLiked = isLikedTrack ? isLikedTrack(t.id) : false;
+
+                      return (
+                        <div
+                          key={t.id}
+                          onClick={() => handleSelectSong(t)}
+                          className={`group flex items-center justify-between gap-3 px-3 py-2 rounded-lg cursor-pointer transition-all border ${
+                            isActive
+                              ? 'bg-[#1C1E22] border-[#1DB954]/50 text-white shadow-md'
+                              : 'bg-[#111317] hover:bg-[#181A20] border-[#1F2228] hover:border-[#1DB954]/40 text-[#A0A5AD] hover:text-[#F2F3F5]'
+                          }`}
+                        >
+                          <div className="flex items-center gap-2.5 min-w-0">
+                            <div className="w-10 h-10 min-w-[40px] min-h-[40px] rounded-md overflow-hidden flex-shrink-0 bg-[#0B0C0E] border border-[#282B32] relative group-hover:border-[#1DB954]/50 shadow-sm">
+                              <img
+                                src={t.coverUrl}
+                                alt={t.title}
+                                className="w-full h-full object-cover block"
+                                onError={(e) => {
+                                  (e.currentTarget as HTMLElement).style.display = 'none';
+                                }}
+                              />
+                              <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
+                                <Play className="w-4 h-4 text-white fill-current translate-x-0.5" />
+                              </div>
+                            </div>
+
+                            <div className="min-w-0 flex flex-col justify-center">
+                              <div className="flex items-center gap-1.5">
+                                <p className="text-xs font-bold text-white truncate leading-tight">
+                                  {t.title}
+                                </p>
+                                <span className="text-[8px] font-mono px-1 py-0.2 rounded bg-[#1DB954]/20 text-[#1DB954] border border-[#1DB954]/30 flex-shrink-0">
+                                  LIVE
+                                </span>
+                              </div>
+                              <p className="text-[11px] text-[#A0A5AD] truncate mt-0.5">
+                                {t.artist} &bull; {t.album}
+                              </p>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-2.5 flex-shrink-0">
+                            {onToggleLikeTrack && (
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  onToggleLikeTrack(t);
+                                }}
+                                className={`p-1.5 rounded hover:bg-white/10 transition-colors ${
+                                  isLiked
+                                    ? 'text-[#FF4B72]'
+                                    : 'text-[#656A74] opacity-0 group-hover:opacity-100 hover:text-white'
+                                }`}
+                                title={isLiked ? 'Hapus dari favorit' : 'Simpan ke favorit'}
+                              >
+                                <Heart className={`w-3.5 h-3.5 ${isLiked ? 'fill-[#FF4B72]' : ''}`} />
+                              </button>
+                            )}
+                            <span className="text-[11px] font-mono text-[#8C929C]">
+                              {formatDuration(t.durationMs)}
+                            </span>
+                          </div>
                         </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
+                      );
+                    })}
+                  </div>
+                )}
 
-              {/* Empty State */}
-              {totalMatches === 0 && !isLoadingLive && (
-                <div className="py-8 px-4 text-center">
-                  <p className="text-xs font-semibold text-white mb-1">
-                    Tidak ada lagu ditemukan
-                  </p>
-                  <p className="text-[11px] text-[#656A74]">
-                    Coba kata kunci judul lagu atau nama penyanyi lain.
-                  </p>
-                </div>
-              )}
-            </div>
+                {/* Empty State */}
+                {totalMatches === 0 && !isLoadingLive && (
+                  <div className="py-10 px-4 text-center">
+                    <p className="text-sm font-semibold text-white mb-1">
+                      Tidak ada lagu ditemukan
+                    </p>
+                    <p className="text-xs text-[#71757E]">
+                      Coba kata kunci judul lagu atau nama penyanyi lain.
+                    </p>
+                  </div>
+                )}
+              </div>
 
-            {/* Dropdown Footer Tip */}
-            <div className="px-3 py-1.5 bg-[#0B0C0E] border-t border-[#282B32] flex items-center justify-between text-[10px] text-[#656A74]">
-              <span>Klik lagu untuk langsung memutar</span>
-              <span>ESC untuk menutup</span>
+              {/* Dropdown Footer Tip */}
+              <div className="px-4 py-2 bg-[#07080A] border-t border-[#282B32] flex items-center justify-between text-[10px] text-[#71757E]">
+                <span>Klik lagu untuk langsung memutar</span>
+                <span>ESC untuk menutup</span>
+              </div>
             </div>
-          </div>
+          </>
         )}
       </div>
 
       {/* Mobile Search Overlay Drawer (Visible when isMobileSearchOpen on < md) */}
       {isMobileSearchOpen && (
-        <div
-          ref={mobileSearchRef}
-          className="md:hidden fixed top-14 left-0 right-0 bg-[#0B0C0E] border-b border-[#282B32] p-3 z-50 shadow-2xl animate-in slide-in-from-top-2 duration-150"
-        >
-          <div className="relative flex items-center">
-            <Search className="w-4 h-4 absolute left-3 text-[#949BA4]" />
-            <input
-              ref={mobileInputRef}
-              type="text"
-              value={searchQuery}
-              onChange={(e) => onSearchChange(e.target.value)}
-              placeholder="Cari lagu, artis, atau album..."
-              className="w-full h-9 pl-9 pr-8 rounded-lg bg-[#141619] border border-[#282B32] text-xs text-white placeholder-[#656A74] focus:outline-none focus:border-[#BFE7EA]"
-            />
-            {searchQuery && (
-              <button
-                onClick={() => onSearchChange('')}
-                className="absolute right-2.5 text-[#949BA4] hover:text-white p-1"
-              >
-                <X className="w-3.5 h-3.5" />
-              </button>
-            )}
-          </div>
-
-          {searchQuery.trim().length >= 1 && (
-            <div className="mt-2 bg-[#141619] border border-[#282B32] rounded-xl overflow-hidden max-h-[320px] overflow-y-auto custom-scrollbar p-1.5 space-y-1 shadow-2xl">
-              {/* Local Matches */}
-              {localMatches.map((t) => (
-                <div
-                  key={t.id}
-                  onClick={() => handleSelectSong(t)}
-                  className="flex items-center justify-between gap-2.5 p-2 rounded-lg bg-[#1C1E22]/50 hover:bg-[#1C1E22] text-white cursor-pointer"
+        <>
+          <div
+            className="md:hidden fixed inset-0 bg-black/85 backdrop-blur-md z-40 transition-opacity"
+            onClick={() => setIsMobileSearchOpen(false)}
+          />
+          <div
+            ref={mobileSearchRef}
+            className="md:hidden fixed top-14 left-0 right-0 bg-[#090A0D] border-b border-[#383C45] p-3 z-50 shadow-2xl animate-in slide-in-from-top-2 duration-150"
+          >
+            <div className="relative flex items-center">
+              <Search className="w-4 h-4 absolute left-3 text-[#949BA4]" />
+              <input
+                ref={mobileInputRef}
+                type="text"
+                value={searchQuery}
+                onChange={(e) => onSearchChange(e.target.value)}
+                placeholder="Cari lagu, artis, atau album..."
+                className="w-full h-9 pl-9 pr-8 rounded-lg bg-[#141619] border border-[#383C45] text-xs text-white placeholder-[#656A74] focus:outline-none focus:border-[#BFE7EA]"
+              />
+              {searchQuery && (
+                <button
+                  onClick={() => onSearchChange('')}
+                  className="absolute right-2.5 text-[#949BA4] hover:text-white p-1"
                 >
-                  <div className="flex items-center gap-2 min-w-0">
-                    <img
-                      src={t.coverUrl}
-                      alt=""
-                      className="w-8 h-8 rounded object-cover flex-shrink-0"
-                    />
-                    <div className="min-w-0">
-                      <p className="text-xs font-bold truncate leading-tight">{t.title}</p>
-                      <p className="text-[10px] text-[#A0A5AD] truncate">{t.artist}</p>
-                    </div>
-                  </div>
-                  <span className="text-[10px] font-mono text-[#656A74] flex-shrink-0">
-                    {formatDuration(t.durationMs)}
-                  </span>
-                </div>
-              ))}
-
-              {/* Online Matches */}
-              {deduplicatedLiveMatches.map((t) => (
-                <div
-                  key={t.id}
-                  onClick={() => handleSelectSong(t)}
-                  className="flex items-center justify-between gap-2.5 p-2 rounded-lg bg-[#1C1E22]/50 hover:bg-[#1C1E22] text-white cursor-pointer"
-                >
-                  <div className="flex items-center gap-2 min-w-0">
-                    <img
-                      src={t.coverUrl}
-                      alt=""
-                      className="w-8 h-8 rounded object-cover flex-shrink-0"
-                    />
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-1">
-                        <p className="text-xs font-bold truncate leading-tight">{t.title}</p>
-                        <span className="text-[8px] font-mono px-1 py-0.2 rounded bg-[#1DB954]/20 text-[#1DB954] flex-shrink-0">
-                          LIVE
-                        </span>
-                      </div>
-                      <p className="text-[10px] text-[#A0A5AD] truncate">{t.artist}</p>
-                    </div>
-                  </div>
-                  <span className="text-[10px] font-mono text-[#656A74] flex-shrink-0">
-                    {formatDuration(t.durationMs)}
-                  </span>
-                </div>
-              ))}
-
-              {totalMatches === 0 && (
-                <div className="py-4 text-center text-xs text-[#656A74]">
-                  {isLoadingLive ? 'Mencari online...' : 'Tidak ada lagu ditemukan.'}
-                </div>
+                  <X className="w-3.5 h-3.5" />
+                </button>
               )}
             </div>
-          )}
-        </div>
+
+            {searchQuery.trim().length >= 1 && (
+              <div className="mt-2 bg-[#0E1013] border border-[#383C45] rounded-xl overflow-hidden max-h-[320px] overflow-y-auto custom-scrollbar p-1.5 space-y-1 shadow-2xl">
+                {/* Local Matches */}
+                {localMatches.map((t) => (
+                  <div
+                    key={t.id}
+                    onClick={() => handleSelectSong(t)}
+                    className="flex items-center justify-between gap-2.5 p-2 rounded-lg bg-[#141619] hover:bg-[#1C1E22] text-white cursor-pointer border border-[#23262E]"
+                  >
+                    <div className="flex items-center gap-2 min-w-0">
+                      <img
+                        src={t.coverUrl}
+                        alt=""
+                        className="w-8 h-8 rounded object-cover flex-shrink-0"
+                      />
+                      <div className="min-w-0">
+                        <p className="text-xs font-bold truncate leading-tight">{t.title}</p>
+                        <p className="text-[10px] text-[#A0A5AD] truncate">{t.artist}</p>
+                      </div>
+                    </div>
+                    <span className="text-[10px] font-mono text-[#8C929C] flex-shrink-0">
+                      {formatDuration(t.durationMs)}
+                    </span>
+                  </div>
+                ))}
+
+                {/* Online Matches */}
+                {deduplicatedLiveMatches.map((t) => (
+                  <div
+                    key={t.id}
+                    onClick={() => handleSelectSong(t)}
+                    className="flex items-center justify-between gap-2.5 p-2 rounded-lg bg-[#141619] hover:bg-[#1C1E22] text-white cursor-pointer border border-[#23262E]"
+                  >
+                    <div className="flex items-center gap-2 min-w-0">
+                      <img
+                        src={t.coverUrl}
+                        alt=""
+                        className="w-8 h-8 rounded object-cover flex-shrink-0"
+                      />
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-1">
+                          <p className="text-xs font-bold truncate leading-tight">{t.title}</p>
+                          <span className="text-[8px] font-mono px-1 py-0.2 rounded bg-[#1DB954]/20 text-[#1DB954] flex-shrink-0">
+                            LIVE
+                          </span>
+                        </div>
+                        <p className="text-[10px] text-[#A0A5AD] truncate">{t.artist}</p>
+                      </div>
+                    </div>
+                    <span className="text-[10px] font-mono text-[#8C929C] flex-shrink-0">
+                      {formatDuration(t.durationMs)}
+                    </span>
+                  </div>
+                ))}
+
+                {totalMatches === 0 && (
+                  <div className="py-6 text-center text-xs text-[#71757E]">
+                    {isLoadingLive ? 'Mencari online...' : 'Tidak ada lagu ditemukan.'}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </>
       )}
 
       {/* Right Controls: Desktop full status & settings, Mobile single sleek icon button */}
