@@ -11,7 +11,7 @@
 import React, { useState } from 'react';
 import { Plus, X, Heart, Disc, Radio } from 'lucide-react';
 import type { CustomPlaylistData } from '../hooks/useCustomPlaylist';
-import { AddAlbumModal, CATALOG_ALBUMS } from './AddAlbumModal';
+import { AddAlbumModal, CATALOG_ALBUMS, type PinnedServerItem } from './AddAlbumModal';
 
 export type AlbumFilterType =
   | 'friend'
@@ -39,13 +39,14 @@ export type AlbumFilterType =
   | 'playboicarti'
   | 'drake'
   | 'brunomars'
-  | 'akumanoko';
+  | 'akumanoko'
+  | string;
 
 interface DiscordServerRailProps {
   activeAlbum: AlbumFilterType;
-  onSelectAlbum: (album: AlbumFilterType) => void;
-  onRefreshBackend: () => void;
-  isBackendOnline: boolean;
+  onSelectAlbum: (album: AlbumFilterType, serverItem?: PinnedServerItem) => void;
+  onRefreshBackend?: () => void;
+  isBackendOnline?: boolean;
   customPlaylist?: CustomPlaylistData;
   likedCount?: number;
   isFriendConnected?: boolean;
@@ -62,40 +63,56 @@ export const DiscordServerRail: React.FC<DiscordServerRailProps> = ({
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
 
   // User-customized pinned albums list (Empty by default per user request)
-  const [pinnedAlbumIds, setPinnedAlbumIds] = useState<string[]>(() => {
+  const [pinnedServers, setPinnedServers] = useState<PinnedServerItem[]>(() => {
     try {
-      const saved = localStorage.getItem('kasatune_pinned_albums');
+      const saved = localStorage.getItem('kasatune_pinned_servers');
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed)) return parsed;
+        if (Array.isArray(parsed)) {
+          return parsed.map((item) => {
+            if (typeof item === 'string') {
+              const found = CATALOG_ALBUMS.find((c) => c.id === item);
+              return (
+                found || {
+                  id: item,
+                  name: item,
+                  artist: item,
+                  albumTitle: item,
+                  imageUrl: '/covers/radiohead.jpg',
+                }
+              );
+            }
+            return item;
+          });
+        }
       }
     } catch {}
     return []; // Empty by default
   });
 
-  const handleTogglePin = (albumId: string) => {
-    setPinnedAlbumIds((prev) => {
-      const exists = prev.includes(albumId);
-      const next = exists ? prev.filter((id) => id !== albumId) : [...prev, albumId];
+  const handleTogglePin = (server: PinnedServerItem) => {
+    setPinnedServers((prev) => {
+      const exists = prev.some((s) => s.id === server.id);
+      const next = exists ? prev.filter((s) => s.id !== server.id) : [...prev, server];
       try {
-        localStorage.setItem('kasatune_pinned_albums', JSON.stringify(next));
+        localStorage.setItem('kasatune_pinned_servers', JSON.stringify(next));
       } catch {}
       return next;
     });
   };
 
-  const handleSelectAndPin = (albumId: AlbumFilterType) => {
-    setPinnedAlbumIds((prev) => {
-      if (!prev.includes(albumId)) {
-        const next = [...prev, albumId];
+  const handleSelectAndPin = (server: PinnedServerItem) => {
+    setPinnedServers((prev) => {
+      if (!prev.some((s) => s.id === server.id)) {
+        const next = [...prev, server];
         try {
-          localStorage.setItem('kasatune_pinned_albums', JSON.stringify(next));
+          localStorage.setItem('kasatune_pinned_servers', JSON.stringify(next));
         } catch {}
         return next;
       }
       return prev;
     });
-    onSelectAlbum(albumId);
+    onSelectAlbum(server.id as AlbumFilterType, server);
     setIsAddModalOpen(false);
   };
 
@@ -103,11 +120,6 @@ export const DiscordServerRail: React.FC<DiscordServerRailProps> = ({
   const playlistCover =
     customPlaylist?.coverUrl ||
     'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=600&auto=format&fit=crop&q=80';
-
-  // Resolved list of pinned catalog items
-  const pinnedServers = pinnedAlbumIds
-    .map((id) => CATALOG_ALBUMS.find((c) => c.id === id))
-    .filter(Boolean) as (typeof CATALOG_ALBUMS)[0][];
 
   return (
     <>
@@ -171,8 +183,8 @@ export const DiscordServerRail: React.FC<DiscordServerRailProps> = ({
           onMouseEnter={() => setHoveredId('home')}
           onMouseLeave={() => setHoveredId(null)}
           onClick={() => {
-            if (pinnedAlbumIds.length > 0) {
-              onSelectAlbum(pinnedAlbumIds[0] as AlbumFilterType);
+            if (pinnedServers.length > 0) {
+              onSelectAlbum(pinnedServers[0].id as AlbumFilterType, pinnedServers[0]);
             } else {
               onSelectAlbum('favorites');
             }
@@ -273,7 +285,7 @@ export const DiscordServerRail: React.FC<DiscordServerRailProps> = ({
               className="relative flex items-center justify-center w-full group cursor-pointer flex-shrink-0"
               onMouseEnter={() => setHoveredId(server.id)}
               onMouseLeave={() => setHoveredId(null)}
-              onClick={() => onSelectAlbum(server.id)}
+              onClick={() => onSelectAlbum(server.id, server)}
             >
               {/* Discord Pill Indicator */}
               <div
@@ -313,7 +325,7 @@ export const DiscordServerRail: React.FC<DiscordServerRailProps> = ({
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
-                      handleTogglePin(server.id);
+                      handleTogglePin(server);
                     }}
                     className="absolute top-0.5 right-0.5 z-30 w-4 h-4 rounded-full bg-black/80 hover:bg-rose-600 text-white flex items-center justify-center transition-colors shadow-md"
                     title="Lepas dari sidebar"
@@ -358,7 +370,7 @@ export const DiscordServerRail: React.FC<DiscordServerRailProps> = ({
                 <span>Tambah Album / Artis</span>
               </span>
               <span className="text-[10px] text-[#A0A5AD]">
-                Buka katalog Sheila On 7, Radiohead, dll.
+                Cari album &amp; artis online secara global
               </span>
             </div>
           )}
@@ -369,7 +381,7 @@ export const DiscordServerRail: React.FC<DiscordServerRailProps> = ({
       <AddAlbumModal
         isOpen={isAddModalOpen}
         onClose={() => setIsAddModalOpen(false)}
-        pinnedAlbumIds={pinnedAlbumIds}
+        pinnedServers={pinnedServers}
         onTogglePin={handleTogglePin}
         onSelectAndPin={handleSelectAndPin}
       />

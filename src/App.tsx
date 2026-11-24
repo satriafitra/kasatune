@@ -23,7 +23,8 @@ import { useFriendSpotify, type FriendTrack } from './hooks/useFriendSpotify';
 import { useCustomPlaylist } from './hooks/useCustomPlaylist';
 import { EditPlaylistModal } from './components/EditPlaylistModal';
 import type { BackendRadioheadTrack } from './api/backend';
-import { searchLiveMusic } from './api/liveSearch';
+import { searchLiveMusic, fetchAlbumTracks, fetchArtistTracks } from './api/liveSearch';
+import type { PinnedServerItem } from './components/AddAlbumModal';
 
 export const App: React.FC = () => {
   const [showLyrics, setShowLyrics] = useState(true);
@@ -32,6 +33,8 @@ export const App: React.FC = () => {
   const [isLoadingLive, setIsLoadingLive] = useState<boolean>(false);
   const [mobileView, setMobileView] = useState<'player' | 'lyrics' | 'sidebar'>('sidebar');
   const [isEditPlaylistModalOpen, setIsEditPlaylistModalOpen] = useState(false);
+  const [onlineAlbumTracks, setOnlineAlbumTracks] = useState<Record<string, BackendRadioheadTrack[]>>({});
+  const [isLoadingOnlineAlbum, setIsLoadingOnlineAlbum] = useState<boolean>(false);
 
   // Real-time Global Online Music Scraper / Search Engine
   useEffect(() => {
@@ -361,14 +364,17 @@ export const App: React.FC = () => {
     if (activeAlbum === 'favorites') {
       return likedTracks;
     }
+    if (activeAlbum.startsWith('online-') && onlineAlbumTracks[activeAlbum]) {
+      return onlineAlbumTracks[activeAlbum];
+    }
 
     return tracks.filter((t) => matchesAlbumFilter(t, activeAlbum, likedTrackIds));
-  }, [tracks, activeAlbum, likedTracks, likedTrackIds]);
+  }, [tracks, activeAlbum, likedTracks, likedTrackIds, onlineAlbumTracks]);
 
   // Switch Discord Server category & automatically load the primary track
   const handleSelectAlbum = useCallback(
-    (album: AlbumFilterType) => {
-      setActiveAlbum(album);
+    async (album: AlbumFilterType | string, serverItem?: PinnedServerItem) => {
+      setActiveAlbum(album as AlbumFilterType);
       try {
         localStorage.setItem('kasatune_active_album', album);
       } catch {}
@@ -412,6 +418,41 @@ export const App: React.FC = () => {
           }
           play();
         }
+      } else if (album.startsWith('online-') || serverItem?.collectionId || serverItem?.type === 'artist') {
+        // Dynamic Global Live Online Album / Artist
+        let fetchedSongs: BackendRadioheadTrack[] = onlineAlbumTracks[album] || [];
+        if (fetchedSongs.length === 0) {
+          setIsLoadingOnlineAlbum(true);
+          try {
+            if (serverItem?.collectionId) {
+              fetchedSongs = await fetchAlbumTracks(serverItem.collectionId);
+            } else if (serverItem?.artist) {
+              fetchedSongs = await fetchArtistTracks(serverItem.artist);
+            }
+          } catch (e) {
+            console.error('Error fetching online album tracks:', e);
+          } finally {
+            setIsLoadingOnlineAlbum(false);
+          }
+
+          if (fetchedSongs.length > 0) {
+            setOnlineAlbumTracks((prev) => ({ ...prev, [album]: fetchedSongs }));
+          }
+        }
+
+        if (fetchedSongs.length > 0) {
+          const first = fetchedSongs[0];
+          selectTrack(first);
+          try {
+            localStorage.setItem('kasatune_saved_track_id', first.id);
+          } catch {}
+          loadTrack(
+            first.previewUrl,
+            first.bpm,
+            first.durationMs > 0 ? first.durationMs / 1000 : 238,
+            true
+          );
+        }
       } else {
         const matchedTrack = tracks.find((t) => matchesAlbumFilter(t, album, likedTrackIds)) || tracks[0];
         if (matchedTrack) {
@@ -428,7 +469,7 @@ export const App: React.FC = () => {
         }
       }
     },
-    [tracks, selectTrack, loadTrack, friendPlayback, friendLiveProgressMs, seekToSeconds, play, resolveTargetTrack, likedTracks, likedTrackIds]
+    [tracks, selectTrack, loadTrack, friendPlayback, friendLiveProgressMs, seekToSeconds, play, resolveTargetTrack, likedTracks, likedTrackIds, onlineAlbumTracks]
   );
 
   // Toggle Live Sync connection state and start immediate playback at friend's current playtime
@@ -714,8 +755,8 @@ export const App: React.FC = () => {
         <div className={`h-full flex-shrink-0 ${mobileView === 'sidebar' ? 'block' : 'hidden md:block'}`}>
           <DiscordServerRail
             activeAlbum={activeAlbum}
-            onSelectAlbum={(alb) => {
-              handleSelectAlbum(alb);
+            onSelectAlbum={(alb, srv) => {
+              handleSelectAlbum(alb, srv);
             }}
             onRefreshBackend={refetchTracks}
             isBackendOnline={isBackendOnline}

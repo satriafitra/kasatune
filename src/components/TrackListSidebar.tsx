@@ -54,6 +54,7 @@ export const matchesAlbumFilter = (
 
   if (activeAlbum === 'friend') return isFriendTrack;
   if (activeAlbum === 'all') return true;
+  if (activeAlbum.startsWith('online-')) return true;
   if (activeAlbum === 'sheilaon7') return track.category === 'sheilaon7' || track.artist.toLowerCase().includes('sheila');
   if (activeAlbum === 'radiohead') return track.artist.toLowerCase() === 'radiohead';
   if (activeAlbum === 'jkt48') return track.artist.toLowerCase().includes('jkt48');
@@ -103,7 +104,12 @@ const getCategoryTitle = (album: AlbumFilterType, customTitle?: string): string 
     case 'drake': return "Drake (Scorpion & Views)";
     case 'brunomars': return "Bruno Mars (24K Magic)";
     case 'akumanoko': return "Ai Higuchi - 悪魔の子 (Akuma no Ko)";
-    default: return album;
+    default: {
+      if (typeof album === 'string' && album.startsWith('online-')) {
+        return "Album Online (Global Live)";
+      }
+      return album;
+    }
   }
 };
 
