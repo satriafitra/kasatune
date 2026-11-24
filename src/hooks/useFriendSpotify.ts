@@ -130,38 +130,10 @@ async function getPreviewAudio(artist: string, title: string): Promise<string> {
   const primaryArtist = artist.split(';')[0].split(',')[0].trim();
   const key = `${primaryArtist}-${cleanTitle}`.toLowerCase();
   if (audioPreviewCache.has(key)) return audioPreviewCache.get(key)!;
-  if (audioPreviewInFlight.has(key)) return audioPreviewInFlight.get(key)!;
 
-  const fetchPromise = (async () => {
-    try {
-      const q = encodeURIComponent(`${primaryArtist} ${cleanTitle}`);
-      const res = await fetch(`https://itunes.apple.com/search?term=${q}&entity=song&limit=1`);
-      if (res.ok) {
-        const data = await res.json();
-        if (data.results && data.results.length > 0 && data.results[0].previewUrl) {
-          audioPreviewCache.set(key, data.results[0].previewUrl);
-          return data.results[0].previewUrl;
-        }
-      }
-      // Fallback: search title only
-      const resTitle = await fetch(`https://itunes.apple.com/search?term=${encodeURIComponent(cleanTitle)}&entity=song&limit=1`);
-      if (resTitle.ok) {
-        const dataTitle = await resTitle.json();
-        if (dataTitle.results && dataTitle.results.length > 0 && dataTitle.results[0].previewUrl) {
-          audioPreviewCache.set(key, dataTitle.results[0].previewUrl);
-          return dataTitle.results[0].previewUrl;
-        }
-      }
-    } catch {
-      // Ignore fetch failure
-    }
-    return '';
-  })();
-
-  audioPreviewInFlight.set(key, fetchPromise);
-  const result = await fetchPromise;
-  audioPreviewInFlight.delete(key);
-  return result;
+  const fullStreamUrl = `/api/stream?q=${encodeURIComponent(`${primaryArtist} ${cleanTitle}`)}`;
+  audioPreviewCache.set(key, fullStreamUrl);
+  return fullStreamUrl;
 }
 
 // Dynamic synced lyrics finder using LRCLIB smart query engine

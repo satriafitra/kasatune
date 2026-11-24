@@ -381,9 +381,7 @@ export async function fetchArtistTracks(
                 t.album?.cover_xl ||
                 t.album?.cover_big ||
                 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=600&auto=format&fit=crop&q=80',
-              previewUrl:
-                t.preview ||
-                `/api/stream?q=${encodeURIComponent((t.artist?.name || artistName) + ' ' + t.title)}`,
+              previewUrl: `/api/stream?q=${encodeURIComponent((t.artist?.name || artistName) + ' ' + t.title)}`,
               durationMs: (t.duration || 210) * 1000,
               bpm: 120,
               mood: 'Popular',
@@ -433,7 +431,7 @@ export async function fetchArtistTracks(
         category: `online-artist-${encodeURIComponent(cleanQuery)}`,
         year,
         coverUrl,
-        previewUrl: item.previewUrl || fullStreamUrl,
+        previewUrl: fullStreamUrl,
         durationMs: item.trackTimeMillis || 210000,
         bpm: 120,
         mood: item.primaryGenreName || 'Pop / Rock',
@@ -491,7 +489,7 @@ export async function searchLiveMusic(
           category: 'online',
           year,
           coverUrl,
-          previewUrl: item.previewUrl || fullStreamUrl,
+          previewUrl: fullStreamUrl,
           durationMs: item.trackTimeMillis || 240000,
           bpm: 110,
           mood: item.primaryGenreName || 'Pop / Rock',
