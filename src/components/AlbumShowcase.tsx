@@ -26,6 +26,7 @@ import type { AlbumColors } from '../hooks/useAlbumColor';
 import type { AlbumFilterType } from './DiscordServerRail';
 import type { CustomPlaylistData } from '../hooks/useCustomPlaylist';
 import type { PinnedServerItem } from './AddAlbumModal';
+import { computeRealtimeStreams, getMonthlyListeners } from '../api/liveSearch';
 
 interface AlbumShowcaseProps {
   track: BackendRadioheadTrack | null;
@@ -49,40 +50,6 @@ interface AlbumShowcaseProps {
   onToggleShuffle?: () => void;
   isShuffle?: boolean;
 }
-
-// Generate realistic Spotify stream counts based on track string and ranking index
-const getRealisticStreams = (id: string, title: string, index: number): string => {
-  let hash = 0;
-  const str = id + title;
-  for (let i = 0; i < str.length; i++) {
-    hash = (hash << 5) - hash + str.charCodeAt(i);
-    hash |= 0;
-  }
-  const base = Math.abs(hash) % 750000000;
-  const multiplier = Math.max(1, 12 - index);
-  const streams = multiplier * 140000000 + base + 42000000;
-  return streams.toLocaleString('en-US');
-};
-
-// Known monthly listener statistics
-const getMonthlyListeners = (name: string, tracksCount: number): string => {
-  const lower = name.toLowerCase();
-  if (lower.includes('playboi') || lower.includes('carti')) return '40.5M monthly listeners';
-  if (lower.includes('sheila')) return '4.8M monthly listeners';
-  if (lower.includes('radiohead')) return '28.3M monthly listeners';
-  if (lower.includes('drake')) return '78.4M monthly listeners';
-  if (lower.includes('bruno mars')) return '115.2M monthly listeners';
-  if (lower.includes('jkt48')) return '2.1M monthly listeners';
-  if (lower.includes('serafim')) return '14.2M monthly listeners';
-  if (lower.includes('twice')) return '12.8M monthly listeners';
-  if (lower.includes('aespa')) return '15.6M monthly listeners';
-  if (lower.includes('higuchi') || lower.includes('akuma')) return '3.7M monthly listeners';
-  if (lower.includes('vander')) return '1.2M monthly listeners';
-
-  const count = Math.max(1, tracksCount);
-  const est = (count * 1.8 + 5.2).toFixed(1);
-  return `${est}M monthly listeners`;
-};
 
 export const AlbumShowcase: React.FC<AlbumShowcaseProps> = ({
   track,
@@ -108,11 +75,12 @@ export const AlbumShowcase: React.FC<AlbumShowcaseProps> = ({
   const isFavorites = activeAlbum === 'favorites';
   const isFriend = activeAlbum === 'friend';
 
-  // Determine if this is an ARTIST showcase (Playboi Carti, Sheila On 7, Radiohead, Drake, etc.)
+  // Determine if this is an ARTIST showcase (Rich Brian, Playboi Carti, Sheila On 7, Radiohead, Drake, etc.)
   const isArtistView =
     !isFavorites &&
     !isFriend &&
     (albumEntity?.type === 'artist' ||
+      activeAlbum === 'richbrian' ||
       activeAlbum === 'sheilaon7' ||
       activeAlbum === 'radiohead' ||
       activeAlbum === 'playboicarti' ||
@@ -124,6 +92,7 @@ export const AlbumShowcase: React.FC<AlbumShowcaseProps> = ({
       activeAlbum === 'aespa' ||
       activeAlbum === 'vander' ||
       activeAlbum === 'akumanoko' ||
+      activeAlbum.startsWith('online-artist-') ||
       (tracks.length > 2 && tracks.every((t) => t.artist.toLowerCase() === tracks[0].artist.toLowerCase())));
 
   // Title, artist & banner metadata resolution
@@ -469,7 +438,7 @@ export const AlbumShowcase: React.FC<AlbumShowcaseProps> = ({
                 const isActive = t.id === activeTrackId;
                 const isHovered = hoveredTrackId === t.id;
                 const isLiked = isLikedTrack ? isLikedTrack(t.id) : false;
-                const streamsFormatted = getRealisticStreams(t.id, t.title, index);
+                const streamsFormatted = computeRealtimeStreams(t.title, t.artist, index, (t as any).rank);
 
                 return (
                   <div

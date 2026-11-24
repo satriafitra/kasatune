@@ -373,7 +373,7 @@ export const App: React.FC = () => {
     if (activeAlbum === 'favorites') {
       return likedTracks;
     }
-    if (activeAlbum.startsWith('online-') && onlineAlbumTracks[activeAlbum]) {
+    if (onlineAlbumTracks[activeAlbum] && onlineAlbumTracks[activeAlbum].length > 0) {
       return onlineAlbumTracks[activeAlbum];
     }
 
@@ -403,7 +403,17 @@ export const App: React.FC = () => {
         resolvedEntity = CATALOG_ALBUMS.find((c) => c.id === album) || null;
       }
       if (!resolvedEntity) {
-        if (album === 'sheilaon7') {
+        if (album === 'richbrian') {
+          resolvedEntity = {
+            id: 'richbrian',
+            name: 'Rich Brian',
+            artist: 'Rich Brian',
+            albumTitle: 'Popular Hits',
+            year: 2024,
+            imageUrl: 'https://cdn-images.dzcdn.net/images/artist/432a97f2d8da2aa987b7cc721936ea7e/1000x1000-000000-80-0-0.jpg',
+            type: 'artist',
+          };
+        } else if (album === 'sheilaon7') {
           resolvedEntity = {
             id: 'sheilaon7',
             name: 'Sheila On 7',

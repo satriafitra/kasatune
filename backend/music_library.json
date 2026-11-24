@@ -5482,5 +5482,131 @@
     "previewUrl": "https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview211/v4/d3/2e/df/d32edff0-183d-8845-b27a-f4056226c5bb/mzaf_13799216914113028229.plus.aac.p.m4a",
     "lyrics": "",
     "plainLyrics": ""
+  },
+  {
+    "id": "rb-edamame",
+    "title": "edamame",
+    "artist": "bbno$, Rich Brian",
+    "album": "edamame - Single",
+    "category": "richbrian",
+    "year": 2021,
+    "coverUrl": "https://is1-ssl.mzstatic.com/image/thumb/Music126/v4/bc/3f/65/bc3f656a-5cfc-ecaf-5d78-4189a372c4b4/653738076221_Cover.jpg/600x600bb.jpg",
+    "previewUrl": "/api/stream?q=bbno%24%20rich%20brian%20edamame",
+    "durationMs": 133000,
+    "bpm": 106,
+    "mood": "Hip-Hop / Rap",
+    "dominantColors": [
+      "#FFC045",
+      "#141619",
+      "#E89B5B"
+    ]
+  },
+  {
+    "id": "rb-cestlavie",
+    "title": "C’est La Vie (with bbno$ & Rich Brian)",
+    "artist": "Yung Gravy, bbno$, Rich Brian",
+    "album": "Marvelous",
+    "category": "richbrian",
+    "year": 2022,
+    "coverUrl": "https://is1-ssl.mzstatic.com/image/thumb/Music122/v4/0c/28/53/0c28539b-cb60-a300-0bd0-49161e76f08c/22UM1IM09144.rgb.jpg/600x600bb.jpg",
+    "previewUrl": "/api/stream?q=yung%20gravy%20cest%20la%20vie",
+    "durationMs": 160000,
+    "bpm": 110,
+    "mood": "Hip-Hop / Rap",
+    "dominantColors": [
+      "#D46743",
+      "#141619",
+      "#FFEAD3"
+    ]
+  },
+  {
+    "id": "rb-midsummer",
+    "title": "Midsummer Madness",
+    "artist": "88rising, Joji, Rich Brian, Higher Brothers",
+    "album": "Head in the Clouds",
+    "category": "richbrian",
+    "year": 2018,
+    "coverUrl": "https://is1-ssl.mzstatic.com/image/thumb/Music114/v4/bf/82/10/bf82103f-c309-8d4e-12ef-ae98ebbc9d75/888915664971_cover.jpg/600x600bb.jpg",
+    "previewUrl": "/api/stream?q=88rising%20midsummer%20madness",
+    "durationMs": 280000,
+    "bpm": 90,
+    "mood": "R&B / Hip-Hop",
+    "dominantColors": [
+      "#5865F2",
+      "#141619",
+      "#BFE7EA"
+    ]
+  },
+  {
+    "id": "rb-gospel",
+    "title": "Gospel",
+    "artist": "Rich Brian, Keith Ape, XXXTENTACION",
+    "album": "Gospel - Single",
+    "category": "richbrian",
+    "year": 2017,
+    "coverUrl": "https://cdn-images.dzcdn.net/images/cover/f4824c26b02812fc0c095f6731743821/1000x1000-000000-80-0-0.jpg",
+    "previewUrl": "/api/stream?q=rich%20brian%20gospel",
+    "durationMs": 173000,
+    "bpm": 130,
+    "mood": "Trap / Rap",
+    "dominantColors": [
+      "#E89B5B",
+      "#141619",
+      "#1DB954"
+    ]
+  },
+  {
+    "id": "rb-datstick",
+    "title": "Dat ",
+    "artist": "Rich Brian",
+    "album": "Amen",
+    "category": "richbrian",
+    "year": 2016,
+    "coverUrl": "https://is1-ssl.mzstatic.com/image/thumb/Music115/v4/29/27/e8/2927e862-c4cd-98d2-df33-49e44b2598ab/21UMGIM79976.rgb.jpg/600x600bb.jpg",
+    "previewUrl": "/api/stream?q=rich%20brian%20dat%20stick",
+    "durationMs": 126000,
+    "bpm": 108,
+    "mood": "Hip-Hop / Rap",
+    "dominantColors": [
+      "#BFE7EA",
+      "#141619",
+      "#5865F2"
+    ]
+  },
+  {
+    "id": "rb-runit",
+    "title": "Run It",
+    "artist": "DJ Snake, Rick Ross, Rich Brian",
+    "album": "Shang-Chi and The Legend of The Ten Rings",
+    "category": "richbrian",
+    "year": 2021,
+    "coverUrl": "https://is1-ssl.mzstatic.com/image/thumb/Music125/v4/95/9c/98/959c987e-76b0-182d-37eb-7a428c2aceb2/21UMGIM76299.rgb.jpg/600x600bb.jpg",
+    "previewUrl": "/api/stream?q=dj%20snake%20rick%20ross%20rich%20brian%20run%20it",
+    "durationMs": 163000,
+    "bpm": 128,
+    "mood": "Soundtrack / Rap",
+    "dominantColors": [
+      "#E89B5B",
+      "#141619",
+      "#D46743"
+    ]
+  },
+  {
+    "id": "rb-100degrees",
+    "title": "100 Degrees",
+    "artist": "Rich Brian",
+    "album": "The Sailor",
+    "category": "richbrian",
+    "year": 2019,
+    "coverUrl": "https://is1-ssl.mzstatic.com/image/thumb/Music124/v4/46/e0/7d/46e07d82-60d8-7d45-c876-163af8bfc94e/888915539729_cover.jpg/600x600bb.jpg",
+    "previewUrl": "/api/stream?q=rich%20brian%20100%20degrees",
+    "durationMs": 166000,
+    "bpm": 115,
+    "mood": "Hip-Hop",
+    "dominantColors": [
+      "#FFEAD3",
+      "#141619",
+      "#1DB954"
+    ]
   }
 ]

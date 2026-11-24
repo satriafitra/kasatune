@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { X, Search, Plus, Check, Disc, Music, Sparkles, Globe, Loader2 } from 'lucide-react';
-import { searchLiveAlbums, type LiveAlbumItem } from '../api/liveSearch';
+import { X, Search, Plus, Check, Disc, Music, Sparkles, Globe, Loader2, UserCheck } from 'lucide-react';
+import { searchLiveArtists, type LiveAlbumItem } from '../api/liveSearch';
 
 export interface PinnedServerItem {
-  id: string; // e.g. 'sheilaon7', 'radiohead', 'online-album-1481804269'
+  id: string; // e.g. 'richbrian', 'playboicarti', 'sheilaon7', 'radiohead', 'online-artist-13874291'
   name: string;
   artist: string;
   albumTitle: string;
@@ -18,90 +18,79 @@ export interface PinnedServerItem {
 
 export const CATALOG_ALBUMS: PinnedServerItem[] = [
   {
+    id: 'richbrian',
+    name: 'Rich Brian',
+    artist: 'Rich Brian',
+    albumTitle: 'Popular Hits',
+    year: 2024,
+    imageUrl: 'https://cdn-images.dzcdn.net/images/artist/432a97f2d8da2aa987b7cc721936ea7e/1000x1000-000000-80-0-0.jpg',
+    description: '2.8M monthly listeners • Verified by Spotify (edamame, C’est La Vie, Midsummer Madness, Gospel)',
+    categoryTag: 'Hip-Hop / Rap',
+    type: 'artist',
+  },
+  {
+    id: 'playboicarti',
+    name: 'Playboi Carti',
+    artist: 'Playboi Carti',
+    albumTitle: 'Popular Hits',
+    year: 2020,
+    imageUrl: '/covers/playboicarti.jpg',
+    description: '40.5M monthly listeners • Verified by Spotify (Timeless, FE!N, Popular, Vamp Anthem, Magnolia)',
+    categoryTag: 'Rage / Trap',
+    type: 'artist',
+  },
+  {
     id: 'sheilaon7',
     name: 'Sheila On 7',
     artist: 'Sheila On 7',
-    albumTitle: 'Kisah Klasik, 07 Des, Berlayar & Hits',
+    albumTitle: 'Diskografi Lengkap & Hits Populer',
     year: 1999,
     imageUrl: 'https://images.genius.com/f9c8fbc789dd1a8a2d3c907d79b94235.1000x1000x1.jpg',
-    description: 'Band pop rock legendaris Indonesia (Dan..., Kita, Sephia, Melompat Lebih Tinggi, Seberapa Pantas)',
+    description: '4.8M monthly listeners • Band pop rock legendaris (Dan..., Sephia, Kita, Melompat Lebih Tinggi)',
     categoryTag: 'Indo Pop Rock',
     type: 'artist',
   },
   {
     id: 'radiohead',
-    name: 'Radiohead (Diskografi Lengkap)',
+    name: 'Radiohead',
     artist: 'Radiohead',
     albumTitle: '9 Studio Albums Collection',
     year: 1993,
     imageUrl: '/covers/radiohead.jpg',
-    description: 'Semua lagu Radiohead dari 9 album studio legendaris (112 lagu lengkap).',
+    description: '28.3M monthly listeners • Verified by Spotify (Creep, No Surprises, Karma Police, High and Dry)',
     categoryTag: 'Alternative Rock',
     type: 'artist',
   },
   {
-    id: 'OK Computer',
-    name: 'OK Computer',
-    artist: 'Radiohead',
-    albumTitle: 'OK Computer (1997)',
-    year: 1997,
-    imageUrl: '/covers/ok_computer.jpg',
-    description: 'Paranoid Android, Karma Police, No Surprises, Exit Music & Subterranean Homesick Alien.',
-    categoryTag: 'Art Rock',
-    type: 'album',
+    id: 'drake',
+    name: 'Drake',
+    artist: 'Drake',
+    albumTitle: 'Scorpion, Views & Hits',
+    year: 2018,
+    imageUrl: '/covers/drake.jpg',
+    description: '78.4M monthly listeners • Verified by Spotify (God\'s Plan, One Dance, Hotline Bling, Passionfruit)',
+    categoryTag: 'Hip-Hop / Rap',
+    type: 'artist',
   },
   {
-    id: 'Kid A',
-    name: 'Kid A',
-    artist: 'Radiohead',
-    albumTitle: 'Kid A (2000)',
-    year: 2000,
-    imageUrl: '/covers/kid_a.jpg',
-    description: 'Everything in Its Right Place, Idioteque, The National Anthem & How to Disappear Completely.',
-    categoryTag: 'Electronic',
-    type: 'album',
-  },
-  {
-    id: 'In Rainbows',
-    name: 'In Rainbows',
-    artist: 'Radiohead',
-    albumTitle: 'In Rainbows (2007)',
-    year: 2007,
-    imageUrl: '/covers/in_rainbows.jpg',
-    description: 'Weird Fishes/Arpeggi, Reckoner, Nude, Jigsaw Falling Into Place & 15 Step.',
-    categoryTag: 'Alternative',
-    type: 'album',
-  },
-  {
-    id: 'The Bends',
-    name: 'The Bends',
-    artist: 'Radiohead',
-    albumTitle: 'The Bends (1995)',
-    year: 1995,
-    imageUrl: '/covers/the_bends.jpg',
-    description: 'High and Dry, Fake Plastic Trees, Street Spirit (Fade Out) & Just.',
-    categoryTag: 'Britpop / Rock',
-    type: 'album',
-  },
-  {
-    id: 'Pablo Honey',
-    name: 'Pablo Honey',
-    artist: 'Radiohead',
-    albumTitle: 'Pablo Honey (1993)',
-    year: 1993,
-    imageUrl: '/covers/pablo_honey.jpg',
-    description: 'Creep, Anyone Can Play Guitar, Blow Out & Stop Whispering.',
-    categoryTag: 'Grunge / Rock',
-    type: 'album',
+    id: 'brunomars',
+    name: 'Bruno Mars',
+    artist: 'Bruno Mars',
+    albumTitle: '24K Magic & Hits',
+    year: 2016,
+    imageUrl: '/covers/brunomars.jpg',
+    description: '115.2M monthly listeners • Verified by Spotify (Die With A Smile, That\'s What I Like, 24K Magic)',
+    categoryTag: 'Pop / R&B',
+    type: 'artist',
   },
   {
     id: 'jkt48',
     name: 'JKT48 Official',
     artist: 'JKT48',
-    albumTitle: 'Mahagita, Heavy Rotation & Special Singles',
+    albumTitle: 'Mahagita & Special Singles',
     year: 2024,
     imageUrl: '/covers/jkt48.jpg',
-    description: 'Rapsodi, Heavy Rotation, Fortune Cookie, Seventeen & Pesawat Kertas 365 Hari.',
+    description: '2.1M monthly listeners • Rapsodi, Heavy Rotation, Fortune Cookie, Seventeen & Pesawat Kertas 365 Hari',
     categoryTag: 'Idol Pop',
     type: 'artist',
   },
@@ -112,7 +101,7 @@ export const CATALOG_ALBUMS: PinnedServerItem[] = [
     albumTitle: 'UNFORGIVEN, ANTIFRAGILE & FEARLESS',
     year: 2023,
     imageUrl: '/covers/leserafim.jpg',
-    description: 'Easy, Smart, Antifragile, Unforgiven, Fearless & Perfect Night.',
+    description: '14.2M monthly listeners • Easy, Smart, Antifragile, Unforgiven, Fearless & Perfect Night',
     categoryTag: 'K-Pop',
     type: 'artist',
   },
@@ -120,10 +109,10 @@ export const CATALOG_ALBUMS: PinnedServerItem[] = [
     id: 'twice',
     name: 'TWICE',
     artist: 'TWICE',
-    albumTitle: 'Formula of Love & Hits Collection',
+    albumTitle: 'Formula of Love & Hits',
     year: 2021,
     imageUrl: '/covers/twice.jpg',
-    description: 'What is Love?, Feel Special, FANCY, The Feels, I CAN\'T STOP ME & Alcohol-Free.',
+    description: '12.8M monthly listeners • What is Love?, Feel Special, FANCY, The Feels & Alcohol-Free',
     categoryTag: 'K-Pop',
     type: 'artist',
   },
@@ -131,11 +120,22 @@ export const CATALOG_ALBUMS: PinnedServerItem[] = [
     id: 'aespa',
     name: 'aespa',
     artist: 'aespa',
-    albumTitle: 'Supernova, Armageddon, Savage & Drama',
+    albumTitle: 'Supernova, Armageddon & Whiplash',
     year: 2024,
     imageUrl: '/covers/aespa.jpg',
-    description: 'Supernova, Armageddon, Next Level, Savage, Drama & Whiplash.',
+    description: '15.6M monthly listeners • Supernova, Armageddon, Next Level, Savage, Drama & Whiplash',
     categoryTag: 'K-Pop / Hyperpop',
+    type: 'artist',
+  },
+  {
+    id: 'akumanoko',
+    name: 'Ai Higuchi (ヒグチアイ)',
+    artist: 'Ai Higuchi',
+    albumTitle: '悪魔の子 (Akuma no Ko) & Hits',
+    year: 2022,
+    imageUrl: '/covers/akumanoko.jpg',
+    description: '3.7M monthly listeners • Lagu original Attack on Titan Final Season Part 2 Ending Theme',
+    categoryTag: 'J-Pop / Anime',
     type: 'artist',
   },
   {
@@ -145,53 +145,9 @@ export const CATALOG_ALBUMS: PinnedServerItem[] = [
     albumTitle: 'KING MOKONDO & Bencana Alam',
     year: 2025,
     imageUrl: '/covers/vander.jpg',
-    description: 'Bencana Alam, King Mokondo & Vandereism album hits.',
+    description: '1.2M monthly listeners • Bencana Alam, King Mokondo & Vandereism album hits',
     categoryTag: 'Hip-Hop / Rap',
     type: 'artist',
-  },
-  {
-    id: 'playboicarti',
-    name: 'Playboi Carti',
-    artist: 'Playboi Carti',
-    albumTitle: 'Whole Lotta Red & Die Lit',
-    year: 2020,
-    imageUrl: '/covers/playboicarti.jpg',
-    description: 'Magnolia, Sky, wokeuplikethis*, Location, Shoota & ILoveUIHateU.',
-    categoryTag: 'Rage / Trap',
-    type: 'artist',
-  },
-  {
-    id: 'drake',
-    name: 'Drake',
-    artist: 'Drake',
-    albumTitle: 'Scorpion, Views & Certified Lover Boy',
-    year: 2018,
-    imageUrl: '/covers/drake.jpg',
-    description: 'God\'s Plan, One Dance, Hotline Bling, Passionfruit & In My Feelings.',
-    categoryTag: 'Hip-Hop / R&B',
-    type: 'artist',
-  },
-  {
-    id: 'brunomars',
-    name: 'Bruno Mars',
-    artist: 'Bruno Mars',
-    albumTitle: '24K Magic & Doo-Wops',
-    year: 2016,
-    imageUrl: '/covers/brunomars.jpg',
-    description: 'Die With A Smile, That\'s What I Like, 24K Magic, Versace on the Floor & Grenade.',
-    categoryTag: 'Pop / Funk',
-    type: 'artist',
-  },
-  {
-    id: 'akumanoko',
-    name: 'Ai Higuchi (悪魔の子)',
-    artist: 'Ai Higuchi (ヒグチアイ)',
-    albumTitle: '悪魔の子 (Akuma no Ko) - Single',
-    year: 2022,
-    imageUrl: '/covers/akumanoko.jpg',
-    description: 'Lagu original Attack on Titan Final Season Part 2 Ending Theme.',
-    categoryTag: 'J-Pop / Anime',
-    type: 'album',
   },
 ];
 
@@ -211,14 +167,14 @@ export const AddAlbumModal: React.FC<AddAlbumModalProps> = ({
   onSelectAndPin,
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
-  const [onlineAlbums, setOnlineAlbums] = useState<LiveAlbumItem[]>([]);
+  const [onlineArtists, setOnlineArtists] = useState<LiveAlbumItem[]>([]);
   const [isSearchingOnline, setIsSearchingOnline] = useState(false);
 
-  // Global Real-Time Live Online Search (Debounced 350ms)
+  // Global Real-Time Live Online Search for Artists (Debounced 350ms)
   useEffect(() => {
     const q = searchQuery.trim();
     if (!q || q.length < 2) {
-      setOnlineAlbums([]);
+      setOnlineArtists([]);
       setIsSearchingOnline(false);
       return;
     }
@@ -228,10 +184,10 @@ export const AddAlbumModal: React.FC<AddAlbumModalProps> = ({
 
     const timeoutId = setTimeout(async () => {
       try {
-        const results = await searchLiveAlbums(q, 30, controller.signal);
-        setOnlineAlbums(results);
+        const results = await searchLiveArtists(q, controller.signal);
+        setOnlineArtists(results);
       } catch {
-        setOnlineAlbums([]);
+        setOnlineArtists([]);
       } finally {
         setIsSearchingOnline(false);
       }
@@ -256,8 +212,7 @@ export const AddAlbumModal: React.FC<AddAlbumModalProps> = ({
     );
   }, [searchQuery]);
 
-  // Merged items: prioritize live online results if search is active
-  const hasOnlineResults = onlineAlbums.length > 0;
+  const hasOnlineResults = onlineArtists.length > 0;
   const isSearchActive = searchQuery.trim().length >= 2;
 
   const pinnedIds = useMemo(() => {
@@ -276,10 +231,10 @@ export const AddAlbumModal: React.FC<AddAlbumModalProps> = ({
           <div>
             <h2 className="text-base font-bold text-white flex items-center gap-2">
               <Globe className="w-5 h-5 text-[#1DB954]" />
-              <span>Katalog Album &amp; Artis Online Global</span>
+              <span>Tambah Artis Favorit</span>
             </h2>
             <p className="text-xs text-[#949BA4] mt-0.5">
-              Cari dan sematkan album atau artis apa saja dari seluruh dunia ke sidebar kiri.
+              Cari dan sematkan artis favorit ke sidebar kiri untuk melihat profil banner dan lagu populernya.
             </p>
           </div>
           <button
@@ -299,7 +254,7 @@ export const AddAlbumModal: React.FC<AddAlbumModalProps> = ({
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Cari album/artis apa saja di dunia (misal: Hindia, Dewa 19, Coldplay, Taylor Swift, Billie Eilish)..."
+              placeholder="Cari nama artis (cth: Rich Brian, Playboi Carti, Sheila On 7, Radiohead, Taylor Swift, NIKI)..."
               className="w-full h-10 pl-10 pr-9 rounded-xl bg-[#141619] border border-[#282B32] text-xs text-white placeholder-[#656A74] focus:outline-none focus:border-[#1DB954] transition-colors"
               autoFocus
             />
@@ -319,11 +274,11 @@ export const AddAlbumModal: React.FC<AddAlbumModalProps> = ({
           <div className="flex items-center justify-between mt-2 text-[11px] text-[#8C929C]">
             <div className="flex items-center gap-1.5">
               <span className="w-2 h-2 rounded-full bg-[#1DB954] animate-pulse" />
-              <span>Pencarian Real-Time Terhubung ke Database Global (iTunes &amp; Apple Music)</span>
+              <span>Pencarian Real-Time Terhubung ke Database Artis Global (Spotify &amp; Apple Music)</span>
             </div>
             {isSearchingOnline && (
               <span className="text-[#1DB954] font-medium animate-pulse">
-                Mencari online...
+                Mencari artis...
               </span>
             )}
           </div>
@@ -331,31 +286,29 @@ export const AddAlbumModal: React.FC<AddAlbumModalProps> = ({
 
         {/* Scrollable Results */}
         <div className="flex-1 overflow-y-auto p-3 sm:p-4 space-y-3 custom-scrollbar">
-          {/* Section 1: Live Online Albums from Global Internet */}
+          {/* Section 1: Live Online Artists from Global Internet */}
           {hasOnlineResults && (
             <div className="space-y-2">
               <div className="flex items-center justify-between px-1">
                 <span className="text-[10px] font-extrabold uppercase tracking-wider text-[#1DB954] flex items-center gap-1.5">
-                  <Globe className="w-3 h-3 text-[#1DB954]" />
-                  <span>Hasil Online Global Live ({onlineAlbums.length} Album)</span>
+                  <UserCheck className="w-3.5 h-3.5 text-[#1DB954]" />
+                  <span>Hasil Artis Global Live ({onlineArtists.length} Artis Ditemukan)</span>
                 </span>
-                <span className="text-[10px] text-[#8C929C] font-mono">REAL-TIME</span>
+                <span className="text-[10px] text-[#8C929C] font-mono">SPOTIFY LIVE</span>
               </div>
 
-              {onlineAlbums.map((item) => {
+              {onlineArtists.map((item) => {
                 const isPinned = pinnedIds.has(item.id);
                 const serverItem: PinnedServerItem = {
                   id: item.id,
                   name: item.name,
                   artist: item.artist,
-                  albumTitle: item.albumTitle,
-                  year: item.year,
+                  albumTitle: 'Popular Hits',
+                  year: item.year || 2024,
                   imageUrl: item.imageUrl,
-                  trackCount: item.trackCount,
-                  collectionId: item.collectionId,
-                  type: 'album',
-                  description: item.description,
-                  categoryTag: item.genre || 'Album Online',
+                  type: 'artist',
+                  description: item.description || 'Verified by Spotify',
+                  categoryTag: item.genre || 'Artis Terverifikasi',
                 };
 
                 return (
@@ -367,12 +320,12 @@ export const AddAlbumModal: React.FC<AddAlbumModalProps> = ({
                         : 'bg-[#121418] hover:bg-[#181B21] border-[#22252C] hover:border-[#383C45]'
                     }`}
                   >
-                    {/* Thumbnail & Album Info */}
+                    {/* Circular Avatar & Artist Info */}
                     <div
                       onClick={() => onSelectAndPin(serverItem)}
                       className="flex items-center gap-3 min-w-0 flex-1 cursor-pointer group"
                     >
-                      <div className="w-14 h-14 rounded-xl overflow-hidden bg-[#0A0C0E] border border-[#282B32] flex-shrink-0 relative shadow-sm group-hover:border-[#1DB954]/50 transition-colors">
+                      <div className="w-14 h-14 rounded-full overflow-hidden bg-[#0A0C0E] border border-[#282B32] flex-shrink-0 relative shadow-sm group-hover:ring-2 group-hover:ring-[#1DB954] transition-all">
                         <img
                           src={item.imageUrl}
                           alt={item.name}
@@ -389,48 +342,36 @@ export const AddAlbumModal: React.FC<AddAlbumModalProps> = ({
                             {item.name}
                           </p>
                           <span className="text-[9px] font-mono px-1.5 py-0.2 rounded bg-[#1DB954]/15 text-[#1DB954] border border-[#1DB954]/30 flex-shrink-0">
-                            ONLINE LIVE
+                            ARTIST
                           </span>
                         </div>
                         <p className="text-xs text-[#A0A5AD] truncate mt-0.5">
-                          <span className="font-semibold text-[#F2F3F5]">{item.artist}</span> &bull; {item.genre || 'Album'}
-                        </p>
-                        <p className="text-[11px] text-[#71757E] truncate mt-0.5">
-                          {item.trackCount ? `${item.trackCount} Lagu` : ''} {item.year ? `• Rilis ${item.year}` : ''}
+                          {item.description || 'Verified by Spotify'}
                         </p>
                       </div>
                     </div>
 
-                    {/* Action Buttons */}
+                    {/* Action Button */}
                     <div className="flex items-center gap-2 flex-shrink-0">
                       <button
-                        onClick={() => onTogglePin(serverItem)}
-                        className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 shadow-sm active:scale-95 ${
+                        onClick={() => onSelectAndPin(serverItem)}
+                        className={`h-8 px-3.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all active:scale-95 ${
                           isPinned
-                            ? 'bg-[#1DB954]/20 hover:bg-rose-500/20 text-[#1DB954] hover:text-rose-400 border border-[#1DB954]/40 hover:border-rose-500/40'
-                            : 'bg-[#1DB954] hover:bg-[#1ed760] text-black font-extrabold'
+                            ? 'bg-[#1DB954]/15 border border-[#1DB954]/40 text-[#1DB954] hover:bg-[#1DB954]/25'
+                            : 'bg-[#1DB954] hover:bg-[#1ed760] text-black shadow-md'
                         }`}
-                        title={isPinned ? 'Lepas dari sidebar' : 'Sematkan ke sidebar'}
                       >
                         {isPinned ? (
                           <>
                             <Check className="w-3.5 h-3.5" />
-                            <span>Terpasang</span>
+                            <span>Buka Artis</span>
                           </>
                         ) : (
                           <>
-                            <Plus className="w-3.5 h-3.5 stroke-[3]" />
-                            <span>Pasang</span>
+                            <Plus className="w-3.5 h-3.5" />
+                            <span>Tambah Artis</span>
                           </>
                         )}
-                      </button>
-
-                      <button
-                        onClick={() => onSelectAndPin(serverItem)}
-                        className="px-2.5 py-1.5 rounded-lg bg-[#1C1E22] hover:bg-[#282B32] text-white text-xs font-medium border border-[#282B32] transition-colors"
-                        title="Buka langsung album"
-                      >
-                        Buka
                       </button>
                     </div>
                   </div>
@@ -439,113 +380,106 @@ export const AddAlbumModal: React.FC<AddAlbumModalProps> = ({
             </div>
           )}
 
-          {/* Section 2: Local / Curated Catalog */}
+          {/* Section 2: Recommended Artis Populer (Rich Brian, Playboi Carti, Sheila On 7, dll.) */}
           <div className="space-y-2">
-            <div className="flex items-center justify-between px-1 pt-1">
-              <span className="text-[10px] font-extrabold uppercase tracking-wider text-[#949BA4] flex items-center gap-1.5">
-                <Disc className="w-3 h-3 text-[#BFE7EA]" />
+            <div className="flex items-center justify-between px-1">
+              <span className="text-[10px] font-extrabold uppercase tracking-wider text-[#A0A5AD] flex items-center gap-1.5">
+                <Sparkles className="w-3 h-3 text-[#FFEAD3]" />
                 <span>
-                  {isSearchActive
-                    ? `Koleksi Siap Putar (${filteredLocalCatalog.length})`
-                    : `Rekomendasi Album & Artis Populer (${filteredLocalCatalog.length})`}
+                  {isSearchActive && !hasOnlineResults
+                    ? 'Hasil Pencarian Artis'
+                    : 'Pilihan Artis Populer (Spotify Verified)'}
                 </span>
+              </span>
+              <span className="text-[10px] text-[#656A74] font-mono">
+                {filteredLocalCatalog.length} Artis
               </span>
             </div>
 
-            {filteredLocalCatalog.map((item) => {
-              const isPinned = pinnedIds.has(item.id);
+            {filteredLocalCatalog.length === 0 && !hasOnlineResults ? (
+              <div className="py-12 flex flex-col items-center justify-center text-center text-[#949BA4]">
+                <Globe className="w-10 h-10 text-[#656A74] mb-2 stroke-[1.5]" />
+                <p className="text-xs font-semibold text-white">Tidak ada artis ditemukan</p>
+                <p className="text-[11px] text-[#656A74] mt-0.5">
+                  Coba ketik nama artis lain seperti &quot;Rich Brian&quot;, &quot;Playboi Carti&quot;, atau &quot;NIKI&quot;.
+                </p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 gap-2">
+                {filteredLocalCatalog.map((server) => {
+                  const isPinned = pinnedIds.has(server.id);
 
-              return (
-                <div
-                  key={item.id}
-                  className={`p-3 rounded-xl border transition-all flex items-center justify-between gap-3 sm:gap-4 ${
-                    isPinned
-                      ? 'bg-[#151A18] border-[#1DB954]/50'
-                      : 'bg-[#121418] hover:bg-[#181B21] border-[#22252C] hover:border-[#383C45]'
-                  }`}
-                >
-                  <div
-                    onClick={() => onSelectAndPin(item)}
-                    className="flex items-center gap-3 min-w-0 flex-1 cursor-pointer group"
-                  >
-                    <div className="w-14 h-14 rounded-xl overflow-hidden bg-[#0A0C0E] border border-[#282B32] flex-shrink-0 relative shadow-sm group-hover:border-[#1DB954]/50 transition-colors">
-                      <img
-                        src={item.imageUrl}
-                        alt={item.name}
-                        className="w-full h-full object-cover select-none"
-                        onError={(e) => {
-                          (e.currentTarget as HTMLElement).style.display = 'none';
-                        }}
-                      />
-                    </div>
-
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2">
-                        <p className="text-sm font-bold text-white truncate group-hover:text-[#1DB954] transition-colors leading-tight">
-                          {item.name}
-                        </p>
-                        {item.categoryTag && (
-                          <span className="text-[9px] font-mono px-1.5 py-0.2 rounded bg-[#1C1E22] text-[#BFE7EA] border border-[#282B32] flex-shrink-0">
-                            {item.categoryTag}
-                          </span>
-                        )}
-                      </div>
-                      <p className="text-xs text-[#A0A5AD] truncate mt-0.5">
-                        <span className="font-semibold text-[#F2F3F5]">{item.artist}</span> &bull; {item.albumTitle}
-                      </p>
-                      <p className="text-[11px] text-[#71757E] truncate mt-0.5 line-clamp-1">
-                        {item.description}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-2 flex-shrink-0">
-                    <button
-                      onClick={() => onTogglePin(item)}
-                      className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 shadow-sm active:scale-95 ${
+                  return (
+                    <div
+                      key={server.id}
+                      className={`p-3 rounded-xl border transition-all flex items-center justify-between gap-3 sm:gap-4 ${
                         isPinned
-                          ? 'bg-[#1DB954]/20 hover:bg-rose-500/20 text-[#1DB954] hover:text-rose-400 border border-[#1DB954]/40 hover:border-rose-500/40'
-                          : 'bg-[#1DB954] hover:bg-[#1ed760] text-black font-extrabold'
+                          ? 'bg-[#151A18] border-[#1DB954]/50 shadow-sm'
+                          : 'bg-[#121418] hover:bg-[#181B21] border-[#22252C] hover:border-[#383C45]'
                       }`}
-                      title={isPinned ? 'Lepas dari sidebar' : 'Sematkan ke sidebar'}
                     >
-                      {isPinned ? (
-                        <>
-                          <Check className="w-3.5 h-3.5" />
-                          <span>Terpasang</span>
-                        </>
-                      ) : (
-                        <>
-                          <Plus className="w-3.5 h-3.5 stroke-[3]" />
-                          <span>Pasang</span>
-                        </>
-                      )}
-                    </button>
+                      {/* Circular Avatar & Info */}
+                      <div
+                        onClick={() => onSelectAndPin(server)}
+                        className="flex items-center gap-3 min-w-0 flex-1 cursor-pointer group"
+                      >
+                        <div className="w-13 h-13 rounded-full overflow-hidden bg-[#0A0C0E] border border-[#282B32] flex-shrink-0 relative shadow-sm group-hover:ring-2 group-hover:ring-[#1DB954] transition-all">
+                          <img
+                            src={server.imageUrl}
+                            alt={server.name}
+                            className="w-full h-full object-cover select-none"
+                            onError={(e) => {
+                              (e.currentTarget as HTMLElement).style.display = 'none';
+                            }}
+                          />
+                        </div>
 
-                    <button
-                      onClick={() => onSelectAndPin(item)}
-                      className="px-2.5 py-1.5 rounded-lg bg-[#1C1E22] hover:bg-[#282B32] text-white text-xs font-medium border border-[#282B32] transition-colors"
-                      title="Buka langsung lagu & album"
-                    >
-                      Buka
-                    </button>
-                  </div>
-                </div>
-              );
-            })}
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2">
+                            <p className="text-sm font-bold text-white truncate group-hover:text-[#1DB954] transition-colors leading-tight">
+                              {server.name}
+                            </p>
+                            {server.categoryTag && (
+                              <span className="text-[9px] font-mono px-1.5 py-0.2 rounded bg-[#1C1E22] text-[#A0A5AD] border border-[#282B32] flex-shrink-0">
+                                {server.categoryTag}
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-xs text-[#A0A5AD] truncate mt-0.5">
+                            {server.description}
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Action Button */}
+                      <div className="flex items-center gap-2 flex-shrink-0">
+                        <button
+                          onClick={() => onSelectAndPin(server)}
+                          className={`h-8 px-3.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all active:scale-95 ${
+                            isPinned
+                              ? 'bg-[#1DB954]/15 border border-[#1DB954]/40 text-[#1DB954] hover:bg-[#1DB954]/25'
+                              : 'bg-[#1DB954] hover:bg-[#1ed760] text-black shadow-md'
+                          }`}
+                        >
+                          {isPinned ? (
+                            <>
+                              <Check className="w-3.5 h-3.5" />
+                              <span>Buka Profil</span>
+                            </>
+                          ) : (
+                            <>
+                              <Plus className="w-3.5 h-3.5" />
+                              <span>Tambah Artis</span>
+                            </>
+                          )}
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
-
-          {!isSearchingOnline && !hasOnlineResults && filteredLocalCatalog.length === 0 && (
-            <div className="py-12 text-center text-xs text-[#71757E]">
-              Tidak ada album atau artis yang cocok dengan "{searchQuery}".
-            </div>
-          )}
-        </div>
-
-        {/* Footer Info */}
-        <div className="px-5 py-3 bg-[#0A0C0E] border-t border-[#282B32] flex items-center justify-between text-[11px] text-[#71757E]">
-          <span>{pinnedServers.length} album disematkan di navigasi</span>
-          <span>Klik "Buka" untuk langsung memutar album &amp; seluruh lagunya</span>
         </div>
       </div>
     </div>

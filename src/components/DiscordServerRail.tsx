@@ -62,11 +62,13 @@ export const DiscordServerRail: React.FC<DiscordServerRailProps> = ({
   const [hoveredId, setHoveredId] = useState<string | null>(null);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
 
-  // User-customized pinned albums list (Empty by default per user request)
+  // User-customized pinned artists list (Empty by default per user request)
   const [pinnedServers, setPinnedServers] = useState<PinnedServerItem[]>(() => {
     try {
       localStorage.removeItem('kasatune_pinned_servers');
-      const saved = localStorage.getItem('kasatune_pinned_servers_v3');
+      localStorage.removeItem('kasatune_pinned_servers_v2');
+      localStorage.removeItem('kasatune_pinned_servers_v3');
+      const saved = localStorage.getItem('kasatune_pinned_artists_v4');
       if (saved) {
         const parsed = JSON.parse(saved);
         if (Array.isArray(parsed)) {
@@ -78,8 +80,9 @@ export const DiscordServerRail: React.FC<DiscordServerRailProps> = ({
                   id: item,
                   name: item,
                   artist: item,
-                  albumTitle: item,
+                  albumTitle: 'Popular Hits',
                   imageUrl: '/covers/radiohead.jpg',
+                  type: 'artist',
                 }
               );
             }
@@ -96,7 +99,7 @@ export const DiscordServerRail: React.FC<DiscordServerRailProps> = ({
       const exists = prev.some((s) => s.id === server.id);
       const next = exists ? prev.filter((s) => s.id !== server.id) : [...prev, server];
       try {
-        localStorage.setItem('kasatune_pinned_servers_v3', JSON.stringify(next));
+        localStorage.setItem('kasatune_pinned_artists_v4', JSON.stringify(next));
       } catch {}
       return next;
     });
@@ -107,7 +110,7 @@ export const DiscordServerRail: React.FC<DiscordServerRailProps> = ({
       if (!prev.some((s) => s.id === server.id)) {
         const next = [...prev, server];
         try {
-          localStorage.setItem('kasatune_pinned_servers_v3', JSON.stringify(next));
+          localStorage.setItem('kasatune_pinned_artists_v4', JSON.stringify(next));
         } catch {}
         return next;
       }
@@ -275,7 +278,7 @@ export const DiscordServerRail: React.FC<DiscordServerRailProps> = ({
 
         <div className="w-8 h-[2px] bg-[#282B32] rounded-md my-0.5 flex-shrink-0" />
 
-        {/* 4. User-Pinned Albums List (Empty by default) */}
+        {/* 4. User-Pinned Artists List (Circular Avatars & Spotify Tooltip) */}
         {pinnedServers.map((server) => {
           const isActive = activeAlbum === server.id;
           const isHovered = hoveredId === server.id;
@@ -290,7 +293,7 @@ export const DiscordServerRail: React.FC<DiscordServerRailProps> = ({
             >
               {/* Discord Pill Indicator */}
               <div
-                className={`absolute left-0 w-1 bg-[#BFE7EA] rounded-r-md transition-all duration-200 ${
+                className={`absolute left-0 w-1 bg-[#1DB954] rounded-r-md transition-all duration-200 ${
                   isActive
                     ? 'h-10 opacity-100'
                     : isHovered
@@ -299,20 +302,20 @@ export const DiscordServerRail: React.FC<DiscordServerRailProps> = ({
                 }`}
               />
 
-              {/* Album Squircle Icon */}
+              {/* Artist Circular Avatar Icon (Matching Spotify Sidebar) */}
               <div
                 className={`relative w-12 h-12 flex items-center justify-center transition-all duration-200 overflow-hidden border ${
                   isActive
-                    ? 'rounded-[16px] ring-2 ring-[#BFE7EA] border-transparent'
+                    ? 'rounded-full ring-2 ring-[#1DB954] border-transparent shadow-md'
                     : isHovered
                     ? 'rounded-[16px] bg-[#1C1E22] border-[#282B32]'
-                    : 'rounded-[24px] bg-[#141619] border-[#282B32]/70'
+                    : 'rounded-full bg-[#141619] border-[#282B32]/70'
                 }`}
               >
                 <img
                   src={server.imageUrl}
                   alt={server.name}
-                  className="w-full h-full object-cover relative z-10"
+                  className="w-full h-full object-cover relative z-10 select-none"
                   onError={(e) => {
                     (e.currentTarget as HTMLElement).style.display = 'none';
                   }}
@@ -336,24 +339,22 @@ export const DiscordServerRail: React.FC<DiscordServerRailProps> = ({
                 )}
               </div>
 
-              {/* Floating Tooltip */}
+              {/* Floating Tooltip (Exact match to Rich Brian Spotify screenshot) */}
               {isHovered && (
-                <div className="absolute left-[80px] bg-[#111215] border border-[#282B32] text-white text-xs px-3 py-2 rounded-lg shadow-2xl z-50 pointer-events-none animate-in fade-in zoom-in-95 duration-100 flex flex-col gap-0.5 min-w-[170px] max-w-[280px]">
-                  <div className="flex items-center gap-1.5 font-bold text-white text-xs">
-                    <span className="w-2 h-2 rounded-full bg-[#BFE7EA] flex-shrink-0" />
-                    <span className="truncate">{server.name}</span>
-                  </div>
-                  <div className="text-[11px] text-[#A0A5AD] font-medium leading-tight mt-0.5">
-                    <span className="text-[#BFE7EA] font-semibold">Album:</span> {server.albumTitle}
-                    {server.year ? ` (${server.year})` : ''}
-                  </div>
+                <div className="absolute left-[80px] bg-[#111215] border border-[#282B32] text-white text-xs px-3 py-1.5 rounded-lg shadow-2xl z-50 pointer-events-none animate-in fade-in zoom-in-95 duration-100 flex flex-col gap-0.5 min-w-[100px] max-w-[220px] whitespace-nowrap">
+                  <span className="font-bold text-white text-xs truncate">
+                    {server.name}
+                  </span>
+                  <span className="text-[10px] text-[#A0A5AD] font-medium leading-none">
+                    Artist
+                  </span>
                 </div>
               )}
             </div>
           );
         })}
 
-        {/* 5. Add Album / Artist Button [+] */}
+        {/* 5. Add Artist Button [+] */}
         <div
           className="relative flex items-center justify-center w-full group cursor-pointer flex-shrink-0 mt-1"
           onMouseEnter={() => setHoveredId('add_server')}
@@ -368,10 +369,10 @@ export const DiscordServerRail: React.FC<DiscordServerRailProps> = ({
             <div className="absolute left-[80px] bg-[#111215] border border-[#282B32] text-white text-xs px-3 py-2 rounded-lg shadow-2xl z-50 pointer-events-none animate-in fade-in zoom-in-95 duration-100 flex flex-col gap-0.5 min-w-[160px] whitespace-nowrap">
               <span className="font-bold text-white text-xs flex items-center gap-1.5">
                 <Plus className="w-3.5 h-3.5 text-[#1DB954]" />
-                <span>Tambah Album / Artis</span>
+                <span>Tambah Artis</span>
               </span>
               <span className="text-[10px] text-[#A0A5AD]">
-                Cari album &amp; artis online secara global
+                Cari &amp; sematkan artis favorit ke sidebar
               </span>
             </div>
           )}

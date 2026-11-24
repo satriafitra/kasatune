@@ -77,6 +77,7 @@ export const matchesAlbumFilter = (
       track.album.toLowerCase().includes('vandereism')
     );
   }
+  if (activeAlbum === 'richbrian') return track.category === 'richbrian' || track.artist.toLowerCase().includes('brian');
   if (activeAlbum === 'playboicarti') return track.category === 'playboicarti' || track.artist.toLowerCase().includes('carti');
   if (activeAlbum === 'drake') return track.category === 'drake' || track.artist.toLowerCase().includes('drake');
   if (activeAlbum === 'brunomars') return track.category === 'brunomars' || track.artist.toLowerCase().includes('bruno mars');
@@ -100,6 +101,7 @@ const getCategoryTitle = (album: AlbumFilterType, customTitle?: string): string 
     case 'RUNW': return "RUNWAY Hits";
     case 'riskiinrahim': return "Riski Inrahim - Sdr Kematian";
     case 'vander': return "vander! / vender! (vandereism)";
+    case 'richbrian': return "Rich Brian (Popular Hits)";
     case 'playboicarti': return "Playboi Carti (Whole Lotta Red)";
     case 'drake': return "Drake (Scorpion & Views)";
     case 'brunomars': return "Bruno Mars (24K Magic)";
