@@ -22,6 +22,7 @@ import {
   Globe,
   Loader2,
 } from 'lucide-react';
+import { KasatuneLogoIcon } from './KasatuneLogo';
 import type { BackendRadioheadTrack } from '../api/backend';
 
 interface NavbarProps {
@@ -191,17 +192,24 @@ export const Navbar: React.FC<NavbarProps> = ({
           </button>
         </div>
 
-        {/* Authentic Music Brand Logo (No AI Slop) */}
-        <div className="flex items-center gap-2 md:gap-2.5">
-          <div className="w-7 h-7 md:w-8 md:h-8 rounded-lg bg-[#1DB954] flex items-center justify-center text-black shadow-sm flex-shrink-0">
-            <Music2 className="w-4 h-4 stroke-[2.5]" />
+        {/* Authentic Modern Kasatune Brand Logo */}
+        <div className="flex items-center gap-2.5 group cursor-pointer select-none">
+          <div className="relative flex items-center justify-center">
+            {/* Ambient Backlight Glow on hover */}
+            <div className="absolute -inset-1 bg-gradient-to-r from-[#00F5A0]/30 to-[#00D9F5]/30 rounded-xl blur-sm opacity-50 group-hover:opacity-100 transition duration-300" />
+            <KasatuneLogoIcon size={32} className="relative transform group-hover:scale-105" />
           </div>
           <div className="flex flex-col">
-            <span className="font-extrabold text-sm text-white tracking-tight leading-none">
-              Kasatune
-            </span>
-            <span className="hidden md:inline text-[10px] text-[#949BA4] font-medium leading-tight pt-0.5">
-              Music Studio
+            <div className="flex items-center gap-1.5">
+              <span className="font-black text-sm text-white tracking-tight leading-none group-hover:text-[#00F5A0] transition-colors">
+                Kasatune
+              </span>
+              <span className="text-[9px] font-black uppercase tracking-wider px-1.5 py-0.2 rounded bg-[#00F5A0]/10 text-[#00F5A0] border border-[#00F5A0]/30 leading-normal">
+                STUDIO
+              </span>
+            </div>
+            <span className="hidden md:inline text-[10px] text-[#8C929C] font-medium leading-tight pt-0.5">
+              High-Fidelity Audio
             </span>
           </div>
         </div>

@@ -10,6 +10,7 @@
 
 import React, { useState } from 'react';
 import { Music2, Disc, Sparkles, Heart } from 'lucide-react';
+import { KasatuneLogoIcon } from './KasatuneLogo';
 import type { CustomPlaylistData } from '../hooks/useCustomPlaylist';
 
 export type AlbumFilterType =
@@ -351,8 +352,8 @@ export const DiscordServerRail: React.FC<DiscordServerRailProps> = ({
                 }`}
               >
                 {server.isHome ? (
-                  <div className="w-full h-full bg-[#1DB954] flex items-center justify-center text-black">
-                    <Music2 className="w-5 h-5 stroke-[2.5]" />
+                  <div className="w-full h-full bg-[#12141A] flex items-center justify-center p-1.5 group">
+                    <KasatuneLogoIcon size={32} className="transform group-hover:scale-110" />
                   </div>
                 ) : server.isFavorites ? (
                   <div className="relative w-full h-full flex items-center justify-center overflow-hidden bg-gradient-to-br from-[#FF4B72]/20 via-[#141619] to-[#1DB954]/20 group">
