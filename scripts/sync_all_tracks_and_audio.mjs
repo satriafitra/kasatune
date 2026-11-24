@@ -30,7 +30,7 @@ const twiceConfigs = [
 ];
 
 const higuchiConfigs = [
-  { id: 'higuchi-1597185922', title: '悪魔の子 (Akuma no Ko)', file: 'akuma_no_ko.m4a', ytId: 'sm8u7nigQ-8', search: '悪魔の子', artist: 'ヒグチアイ' },
+  { id: 'higuchi-1597185922', title: '悪魔の子 (Akuma no Ko)', file: 'akuma_no_ko.m4a', ytId: 'tdzsOODJiX8', search: '悪魔の子', artist: 'ヒグチアイ' },
   { id: 'higuchi-1597185932', title: 'まっさらな大地 (Massara na Daichi)', file: 'massara_na_daichi.m4a', ytId: 'fMgPOhjdUOQ', search: 'まっさらな大地', artist: 'ヒグチアイ' },
   { id: 'higuchi-1656225452', title: '悲しい歌がある理由 (Kanashii Uta ga Aru Riyuu)', file: 'kanashii_uta.m4a', ytId: 'sPge9xBPej8', search: '悲しい歌がある理由', artist: 'ヒグチアイ' },
   { id: 'higuchi-1656225352', title: 'やめるなら今 (Yamerunara Ima)', file: 'yamerunara_ima.m4a', ytId: 'rYnCmwIvaCo', search: 'やめるなら今', artist: 'ヒグチアイ' },
