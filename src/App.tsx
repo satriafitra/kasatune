@@ -66,9 +66,9 @@ export const App: React.FC = () => {
   const [activeAlbum, setActiveAlbum] = useState<AlbumFilterType>(() => {
     try {
       const saved = localStorage.getItem('kasatune_active_album');
-      if (saved) return saved as AlbumFilterType;
+      if (saved && saved !== 'all') return saved as AlbumFilterType;
     } catch {}
-    return 'all';
+    return 'favorites';
   });
 
   const [isFriendSyncConnected, setIsFriendSyncConnected] = useState<boolean>(() => {
@@ -721,6 +721,7 @@ export const App: React.FC = () => {
             isBackendOnline={isBackendOnline}
             customPlaylist={customPlaylist}
             likedCount={likedTrackIds.length}
+            isFriendConnected={isFriendSyncConnected}
           />
         </div>
 
@@ -775,7 +776,13 @@ export const App: React.FC = () => {
               friendStandbyInfo={{
                 friendName: friendPlayback?.friendName || 'Teman',
                 avatarUrl: friendPlayback?.avatarUrl,
-                isStandby: Boolean(friendPlayback && !friendPlayback.isPlaying && !friendPlayback.track),
+                isStandby: Boolean(
+                  isFriendSyncConnected &&
+                  activeAlbum === 'friend' &&
+                  friendPlayback &&
+                  !friendPlayback.isPlaying &&
+                  !friendPlayback.track
+                ),
               }}
               activeAlbum={activeAlbum}
               customPlaylist={customPlaylist}

@@ -54,6 +54,7 @@ export const matchesAlbumFilter = (
 
   if (activeAlbum === 'friend') return isFriendTrack;
   if (activeAlbum === 'all') return true;
+  if (activeAlbum === 'sheilaon7') return track.category === 'sheilaon7' || track.artist.toLowerCase().includes('sheila');
   if (activeAlbum === 'radiohead') return track.artist.toLowerCase() === 'radiohead';
   if (activeAlbum === 'jkt48') return track.artist.toLowerCase().includes('jkt48');
   if (activeAlbum === 'leserafim') return track.artist.toLowerCase().includes('serafim');
@@ -86,6 +87,7 @@ export const matchesAlbumFilter = (
 const getCategoryTitle = (album: AlbumFilterType, customTitle?: string): string => {
   switch (album) {
     case 'favorites': return customTitle || "Playlist Favorit Saya";
+    case 'sheilaon7': return "Sheila On 7 (Hits & Discography)";
     case 'friend': return "Teman (Spotify Live)";
     case 'all': return "Semua Koleksi (All Music)";
     case 'radiohead': return "Radiohead (Discography)";

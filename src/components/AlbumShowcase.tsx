@@ -89,7 +89,7 @@ export const AlbumShowcase: React.FC<AlbumShowcaseProps> = ({
           background: `linear-gradient(180deg, rgba(${r}, ${g}, ${b}, 0.35) 0%, rgba(${r}, ${g}, ${b}, 0.12) 50%, rgba(20, 22, 25, 0.98) 90%, #141619 100%)`,
         }}
       >
-        {friendStandbyInfo?.isStandby && (
+        {activeAlbum === 'friend' && friendStandbyInfo?.isStandby && (
           <div className="mb-4 p-2.5 rounded-lg bg-[#0E1013]/90 border border-[#E89B5B]/50 flex items-center justify-between gap-3 shadow-md z-20 backdrop-blur-sm">
             <div className="flex items-center gap-2.5 min-w-0">
               {friendStandbyInfo.avatarUrl ? (
