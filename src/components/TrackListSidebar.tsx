@@ -166,7 +166,7 @@ export const TrackListSidebar: React.FC<TrackListSidebarProps> = ({
   isLikedTrack,
   onToggleLikeTrack,
 }) => {
-  const filteredTracks = tracks.filter((t) => matchesAlbumFilter(t, activeAlbum, likedTrackIds));
+  const filteredTracks = tracks;
 
   return (
     <aside className="w-full h-full bg-[#111215] border-r border-[#282B32] flex flex-col overflow-hidden select-none">

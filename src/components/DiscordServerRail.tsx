@@ -65,7 +65,8 @@ export const DiscordServerRail: React.FC<DiscordServerRailProps> = ({
   // User-customized pinned albums list (Empty by default per user request)
   const [pinnedServers, setPinnedServers] = useState<PinnedServerItem[]>(() => {
     try {
-      const saved = localStorage.getItem('kasatune_pinned_servers');
+      localStorage.removeItem('kasatune_pinned_servers');
+      const saved = localStorage.getItem('kasatune_pinned_servers_v3');
       if (saved) {
         const parsed = JSON.parse(saved);
         if (Array.isArray(parsed)) {
@@ -95,7 +96,7 @@ export const DiscordServerRail: React.FC<DiscordServerRailProps> = ({
       const exists = prev.some((s) => s.id === server.id);
       const next = exists ? prev.filter((s) => s.id !== server.id) : [...prev, server];
       try {
-        localStorage.setItem('kasatune_pinned_servers', JSON.stringify(next));
+        localStorage.setItem('kasatune_pinned_servers_v3', JSON.stringify(next));
       } catch {}
       return next;
     });
@@ -106,7 +107,7 @@ export const DiscordServerRail: React.FC<DiscordServerRailProps> = ({
       if (!prev.some((s) => s.id === server.id)) {
         const next = [...prev, server];
         try {
-          localStorage.setItem('kasatune_pinned_servers', JSON.stringify(next));
+          localStorage.setItem('kasatune_pinned_servers_v3', JSON.stringify(next));
         } catch {}
         return next;
       }

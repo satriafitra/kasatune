@@ -24,7 +24,7 @@ import { useCustomPlaylist } from './hooks/useCustomPlaylist';
 import { EditPlaylistModal } from './components/EditPlaylistModal';
 import type { BackendRadioheadTrack } from './api/backend';
 import { searchLiveMusic, fetchAlbumTracks, fetchArtistTracks } from './api/liveSearch';
-import type { PinnedServerItem } from './components/AddAlbumModal';
+import { CATALOG_ALBUMS, type PinnedServerItem } from './components/AddAlbumModal';
 
 export const App: React.FC = () => {
   const [showLyrics, setShowLyrics] = useState(true);
@@ -84,6 +84,15 @@ export const App: React.FC = () => {
       return savedAlbum === 'friend';
     } catch {}
     return false;
+  });
+
+  // Current active Album / Artist Entity showcased on the main stage
+  const [currentAlbumEntity, setCurrentAlbumEntity] = useState<PinnedServerItem | null>(() => {
+    try {
+      const saved = localStorage.getItem('kasatune_active_entity');
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return null;
   });
 
   // 1. Spotify PKCE Auth
@@ -371,12 +380,68 @@ export const App: React.FC = () => {
     return tracks.filter((t) => matchesAlbumFilter(t, activeAlbum, likedTrackIds));
   }, [tracks, activeAlbum, likedTracks, likedTrackIds, onlineAlbumTracks]);
 
+  // Keep document tab title cleanly set to Kasatune
+  useEffect(() => {
+    if (activeTrack && activeTrack.title) {
+      document.title = `${activeTrack.title} • ${activeTrack.artist} | Kasatune`;
+    } else {
+      document.title = 'Kasatune';
+    }
+  }, [activeTrack]);
+
   // Switch Discord Server category & automatically load the primary track
   const handleSelectAlbum = useCallback(
     async (album: AlbumFilterType | string, serverItem?: PinnedServerItem) => {
       setActiveAlbum(album as AlbumFilterType);
       try {
         localStorage.setItem('kasatune_active_album', album);
+      } catch {}
+
+      // Resolve and showcase the Artist / Album Entity
+      let resolvedEntity: PinnedServerItem | null = serverItem || null;
+      if (!resolvedEntity) {
+        resolvedEntity = CATALOG_ALBUMS.find((c) => c.id === album) || null;
+      }
+      if (!resolvedEntity) {
+        if (album === 'sheilaon7') {
+          resolvedEntity = {
+            id: 'sheilaon7',
+            name: 'Sheila On 7',
+            artist: 'Sheila On 7',
+            albumTitle: 'Diskografi Lengkap',
+            year: 1999,
+            imageUrl: 'https://images.genius.com/f9c8fbc789dd1a8a2d3c907d79b94235.1000x1000x1.jpg',
+            type: 'artist',
+          };
+        } else if (album === 'radiohead') {
+          resolvedEntity = {
+            id: 'radiohead',
+            name: 'Radiohead',
+            artist: 'Radiohead',
+            albumTitle: '9 Studio Albums Collection',
+            year: 1993,
+            imageUrl: '/covers/radiohead.jpg',
+            type: 'artist',
+          };
+        } else if (album === 'playboicarti') {
+          resolvedEntity = {
+            id: 'playboicarti',
+            name: 'Playboi Carti',
+            artist: 'Playboi Carti',
+            albumTitle: 'Whole Lotta Red & Die Lit',
+            year: 2020,
+            imageUrl: '/covers/playboicarti.jpg',
+            type: 'artist',
+          };
+        }
+      }
+      setCurrentAlbumEntity(resolvedEntity);
+      try {
+        if (resolvedEntity) {
+          localStorage.setItem('kasatune_active_entity', JSON.stringify(resolvedEntity));
+        } else {
+          localStorage.removeItem('kasatune_active_entity');
+        }
       } catch {}
 
       if (album === 'favorites') {
@@ -826,10 +891,13 @@ export const App: React.FC = () => {
                 ),
               }}
               activeAlbum={activeAlbum}
+              albumEntity={currentAlbumEntity}
               customPlaylist={customPlaylist}
               onOpenEditModal={() => setIsEditPlaylistModalOpen(true)}
               isLikedTrack={isLiked}
               onToggleLikeTrack={toggleLike}
+              onToggleShuffle={toggleShuffle}
+              isShuffle={isShuffle}
             />
           </div>
 
