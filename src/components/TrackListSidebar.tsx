@@ -54,7 +54,7 @@ export const matchesAlbumFilter = (
 
   if (activeAlbum === 'friend') return isFriendTrack;
   if (activeAlbum === 'all') return true;
-  if (activeAlbum.startsWith('online-')) return true;
+  if (activeAlbum.startsWith('online-')) return false; // Managed exclusively via onlineAlbumTracks
   if (activeAlbum === 'sheilaon7') return track.category === 'sheilaon7' || track.artist.toLowerCase().includes('sheila');
   if (activeAlbum === 'radiohead') return track.artist.toLowerCase() === 'radiohead';
   if (activeAlbum === 'jkt48') return track.artist.toLowerCase().includes('jkt48');

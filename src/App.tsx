@@ -33,8 +33,24 @@ export const App: React.FC = () => {
   const [isLoadingLive, setIsLoadingLive] = useState<boolean>(false);
   const [mobileView, setMobileView] = useState<'player' | 'lyrics' | 'sidebar'>('sidebar');
   const [isEditPlaylistModalOpen, setIsEditPlaylistModalOpen] = useState(false);
-  const [onlineAlbumTracks, setOnlineAlbumTracks] = useState<Record<string, BackendRadioheadTrack[]>>({});
+  const [onlineAlbumTracks, setOnlineAlbumTracks] = useState<Record<string, BackendRadioheadTrack[]>>(() => {
+    try {
+      const saved = localStorage.getItem('kasatune_online_tracks_cache');
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return {};
+  });
   const [isLoadingOnlineAlbum, setIsLoadingOnlineAlbum] = useState<boolean>(false);
+
+  const updateOnlineAlbumTracks = useCallback((key: string, songs: BackendRadioheadTrack[]) => {
+    setOnlineAlbumTracks((prev) => {
+      const next = { ...prev, [key]: songs };
+      try {
+        localStorage.setItem('kasatune_online_tracks_cache', JSON.stringify(next));
+      } catch {}
+      return next;
+    });
+  }, []);
 
   // Real-time Global Online Music Scraper / Search Engine
   useEffect(() => {
@@ -226,9 +242,11 @@ export const App: React.FC = () => {
         const savedTimeStr = localStorage.getItem('kasatune_saved_playtime');
         const savedTime = savedTimeStr ? parseFloat(savedTimeStr) : 0;
 
+        const onlineTracksForActive = activeAlbum ? onlineAlbumTracks[activeAlbum] : undefined;
         const targetTrack =
           savedTrack ||
-          (savedTrackId && tracks.find((t) => t.id === savedTrackId)) ||
+          (savedTrackId && (tracks.find((t) => t.id === savedTrackId) || onlineTracksForActive?.find((t) => t.id === savedTrackId))) ||
+          (onlineTracksForActive && onlineTracksForActive.length > 0 && onlineTracksForActive[0]) ||
           (activeAlbum && activeAlbum !== 'friend' && tracks.find((t) => matchesAlbumFilter(t, activeAlbum, likedTrackIds))) ||
           tracks.find((t) => t.category === 'vander') ||
           tracks[0];
@@ -445,7 +463,7 @@ export const App: React.FC = () => {
             songs = await fetchArtistTracks(targetArtist);
           }
           if (isSubscribed && songs.length > 0) {
-            setOnlineAlbumTracks((prev) => ({ ...prev, [activeAlbum]: songs }));
+            updateOnlineAlbumTracks(activeAlbum, songs);
           }
         } catch (e) {
           console.error('Failed to auto-load category songs:', e);
@@ -606,7 +624,7 @@ export const App: React.FC = () => {
           }
 
           if (fetchedSongs.length > 0) {
-            setOnlineAlbumTracks((prev) => ({ ...prev, [album]: fetchedSongs }));
+            updateOnlineAlbumTracks(album, fetchedSongs);
           }
         }
 

@@ -172,8 +172,9 @@ export async function searchLiveArtists(
   const trimmed = query.trim();
   if (!trimmed || trimmed.length < 2) return [];
 
-  // Special match for Vander / Vender (Local Indonesian underground catalog)
   const lowerQ = trimmed.toLowerCase();
+
+  // Special match for Vander / Vender (Local Indonesian underground catalog)
   if (lowerQ.includes('vander') || lowerQ.includes('vender')) {
     return [
       {
@@ -189,75 +190,105 @@ export async function searchLiveArtists(
     ];
   }
 
+  // Alias resolution for Japanese/indie artists (e.g. tsukoyomi -> Tsukuyomi)
+  let queryTerm = trimmed;
+  if (lowerQ === 'tsukoyomi' || lowerQ === 'tsukuyomi' || lowerQ === '月詠み') {
+    queryTerm = 'Tsukuyomi';
+  }
+
+  const artists: LiveAlbumItem[] = [];
+  const seenNames = new Set<string>();
+
   // 1. Try Deezer artist search proxy (gives 1000x1000 artist portrait & fan stats)
   try {
-    const proxyUrl = `/api/deezer/search/artist?q=${encodeURIComponent(trimmed)}&limit=10`;
+    const proxyUrl = `/api/deezer/search/artist?q=${encodeURIComponent(queryTerm)}&limit=8`;
     const res = await fetch(proxyUrl, { signal });
     if (res.ok) {
       const data = await res.json();
       if (data.data && Array.isArray(data.data) && data.data.length > 0) {
-        return data.data.map((a: any) => ({
-          id: `online-artist-${a.id}`,
-          name: a.name,
-          artist: a.name,
-          albumTitle: 'Lagu Populer',
-          imageUrl:
-            a.picture_xl ||
-            a.picture_medium ||
-            'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=600&auto=format&fit=crop&q=80',
-          type: 'artist' as const,
-          genre: 'Artis Terverifikasi',
-          description: `${(a.nb_fan ? (a.nb_fan * 45).toLocaleString() : '2,800,000')} pendengar • Populer di Spotify`,
-          nb_fan: a.nb_fan,
-        }));
+        for (const a of data.data) {
+          if (!a.name) continue;
+          const k = a.name.toLowerCase().trim();
+          if (!seenNames.has(k)) {
+            seenNames.add(k);
+            artists.push({
+              id: `online-artist-${a.id}`,
+              name: a.name,
+              artist: a.name,
+              albumTitle: 'Lagu Populer',
+              imageUrl:
+                a.picture_xl ||
+                a.picture_medium ||
+                'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=600&auto=format&fit=crop&q=80',
+              type: 'artist' as const,
+              genre: 'Artis Terverifikasi',
+              description: `${(a.nb_fan ? (a.nb_fan * 45).toLocaleString() : '2,800,000')} pendengar • Populer di Spotify`,
+              nb_fan: a.nb_fan,
+            });
+          }
+        }
       }
     }
   } catch (err) {
-    // Continue to fallback
+    // Continue to Apple Music
   }
 
-  // 2. Direct iTunes fallback (no proxy, 100% CORS-friendly)
+  // 2. Apple Music / iTunes artist search with entity=musicArtist (Real artist entities, not random songs)
   try {
     const itunesUrl = `https://itunes.apple.com/search?term=${encodeURIComponent(
-      trimmed
-    )}&entity=song&limit=25`;
+      queryTerm
+    )}&entity=musicArtist&limit=10`;
     const res = await fetch(itunesUrl, { signal });
     if (res.ok) {
       const data = await res.json();
       if (data.results && Array.isArray(data.results)) {
-        // Group by artist name
-        const seen = new Set<string>();
-        const artists: LiveAlbumItem[] = [];
+        const itunesArtists = data.results.filter((a: any) => a.artistName && a.artistId);
 
-        for (const item of data.results) {
-          if (!item.artistName) continue;
-          const key = item.artistName.toLowerCase().trim();
-          if (!seen.has(key)) {
-            seen.add(key);
-            const coverUrl = item.artworkUrl100
-              ? item.artworkUrl100.replace('100x100bb.jpg', '600x600bb.jpg')
-              : 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=600&auto=format&fit=crop&q=80';
+        // Fetch top album artwork in parallel for high-res 600x600 covers
+        const artworkPromises = itunesArtists.slice(0, 8).map(async (art: any) => {
+          let coverUrl =
+            'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=600&auto=format&fit=crop&q=80';
+          try {
+            const albRes = await fetch(
+              `https://itunes.apple.com/lookup?id=${art.artistId}&entity=album&limit=1`,
+              { signal }
+            );
+            if (albRes.ok) {
+              const albJson = await albRes.json();
+              const alb = albJson.results?.find((r: any) => r.wrapperType === 'collection');
+              if (alb && alb.artworkUrl100) {
+                coverUrl = alb.artworkUrl100.replace('100x100bb.jpg', '600x600bb.jpg');
+              }
+            }
+          } catch {}
 
-            artists.push({
-              id: `online-artist-${encodeURIComponent(item.artistName)}`,
-              name: item.artistName,
-              artist: item.artistName,
-              albumTitle: 'Lagu Populer',
-              imageUrl: coverUrl,
-              type: 'artist' as const,
-              genre: item.primaryGenreName || 'Artis Terverifikasi',
-              description: `Artis Terverifikasi Spotify • Hits & Diskografi`,
-            });
+          return {
+            id: `online-artist-${art.artistId}`,
+            name: art.artistName,
+            artist: art.artistName,
+            albumTitle: 'Lagu Populer',
+            imageUrl: coverUrl,
+            type: 'artist' as const,
+            genre: art.primaryGenreName || 'Artis Terverifikasi',
+            description: `${art.primaryGenreName || 'Artis Terverifikasi'} • Hits & Diskografi Lengkap`,
+          };
+        });
+
+        const resolvedItunes = await Promise.all(artworkPromises);
+        for (const item of resolvedItunes) {
+          const k = item.name.toLowerCase().trim();
+          if (!seenNames.has(k)) {
+            seenNames.add(k);
+            artists.push(item);
           }
         }
-        if (artists.length > 0) return artists;
       }
     }
   } catch (err) {
     console.error('Artist search failed:', err);
   }
 
-  return [];
+  return artists;
 }
 
 /**
@@ -386,13 +417,13 @@ export async function fetchAlbumTracks(
 }
 
 /**
- * Fetches top popular tracks for a specific artist name.
+ * Fetches top popular tracks for a specific artist name or artist ID.
  */
 export async function fetchArtistTracks(
   artistName: string
 ): Promise<BackendRadioheadTrack[]> {
   try {
-    const cleanQuery = artistName.replace(/^online-artist-/, '').trim();
+    const cleanQuery = decodeURIComponent(artistName.replace(/^online-artist-/, '')).trim();
     const lower = cleanQuery.toLowerCase();
 
     // Check if it's Vander / Vender (Local Indonesian underground catalog)
@@ -409,73 +440,43 @@ export async function fetchArtistTracks(
       if (vanderTracks.length > 0) return vanderTracks;
     }
 
-    // 1. Try Deezer top tracks for this artist if artistId is available
-    const numericIdMatch = artistName.match(/\d+/);
-    if (numericIdMatch) {
-      try {
-        const dUrl = `/api/deezer/artist/${numericIdMatch[0]}/top?limit=25`;
-        const res = await fetch(dUrl);
-        if (res.ok) {
-          const dData = await res.json();
-          if (dData.data && Array.isArray(dData.data) && dData.data.length > 0) {
-            return dData.data.map((t: any, idx: number) => ({
-              id: `online-trk-dz-${t.id || idx}`,
-              title: t.title,
-              artist: t.artist?.name || artistName,
-              album: t.album?.title || 'Popular Hits',
-              category: `online-artist-${encodeURIComponent(artistName)}`,
-              year: 2024,
-              coverUrl:
-                t.album?.cover_xl ||
-                t.album?.cover_big ||
-                'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=600&auto=format&fit=crop&q=80',
-              previewUrl: `/api/stream?q=${encodeURIComponent((t.artist?.name || artistName) + ' ' + t.title)}`,
-              durationMs: (t.duration || 210) * 1000,
-              bpm: 120,
-              mood: 'Popular',
-              dominantColors: ['#1DB954', '#5865F2', '#141619'],
-            }));
-          }
-        }
-      } catch (e) {}
+    // Artist alias and known Apple Music artist ID mappings
+    let queryTerm = cleanQuery;
+    let knownArtistId: number | string | null = null;
+
+    if (lower === 'tsukoyomi' || lower === 'tsukuyomi' || lower === '月詠み') {
+      queryTerm = 'Tsukuyomi';
+      knownArtistId = 1535362772;
+    } else if (lower.includes('hindia')) {
+      queryTerm = 'Hindia';
+      knownArtistId = 1440146558;
+    } else if (lower.includes('sheila on 7') || lower === 'sheilaon7') {
+      queryTerm = 'Sheila On 7';
+      knownArtistId = 299830776;
+    } else if (lower.includes('rich brian') || lower === 'richbrian') {
+      queryTerm = 'Rich Brian';
+      knownArtistId = 1023207266;
     }
 
-    // 2. iTunes Top Songs for Artist
-    const url = `https://itunes.apple.com/search?term=${encodeURIComponent(
-      cleanQuery
-    )}&entity=song&limit=35`;
-    const res = await fetch(url);
-    if (!res.ok) return [];
+    const numericIdMatch = artistName.match(/\d+/);
+    const resolvedArtistId = knownArtistId || (numericIdMatch ? numericIdMatch[0] : null);
 
-    const data = await res.json();
-    if (!data.results || !Array.isArray(data.results)) return [];
-
-    // Deduplicate by clean title
-    const seen = new Set<string>();
-    const songs: BackendRadioheadTrack[] = [];
-
-    for (let idx = 0; idx < data.results.length; idx++) {
-      const item = data.results[idx];
-      if (!item.trackName) continue;
-      const cleanT = item.trackName.toLowerCase().replace(/feat\..*/i, '').replace(/\(.*\)/, '').trim();
-      if (seen.has(cleanT)) continue;
-      seen.add(cleanT);
-
+    const mapItunesTrack = (item: any, idx: number): BackendRadioheadTrack => {
       const coverUrl = item.artworkUrl100
         ? item.artworkUrl100.replace('100x100bb.jpg', '600x600bb.jpg')
         : 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=600&auto=format&fit=crop&q=80';
 
       const year = item.releaseDate ? parseInt(item.releaseDate.slice(0, 4), 10) : 2024;
       const fullStreamUrl = `/api/stream?q=${encodeURIComponent(
-        item.artistName + ' ' + item.trackName
+        (item.artistName || queryTerm) + ' ' + item.trackName
       )}`;
 
-      songs.push({
+      return {
         id: `online-trk-${item.trackId || idx}`,
         title: item.trackName,
-        artist: item.artistName || cleanQuery,
+        artist: item.artistName || queryTerm,
         album: item.collectionName || 'Top Hits',
-        category: `online-artist-${encodeURIComponent(cleanQuery)}`,
+        category: `online-artist-${encodeURIComponent(queryTerm)}`,
         year,
         coverUrl,
         previewUrl: fullStreamUrl,
@@ -484,7 +485,148 @@ export async function fetchArtistTracks(
         mood: item.primaryGenreName || 'Pop / Rock',
         dominantColors: ['#1DB954', '#5865F2', '#141619'],
         spotifyUrl: item.trackViewUrl,
-      });
+      };
+    };
+
+    // 1. Direct Apple Music Lookup if Artist ID is available
+    if (resolvedArtistId) {
+      try {
+        const lookupUrl = `https://itunes.apple.com/lookup?id=${resolvedArtistId}&entity=song&limit=50`;
+        const res = await fetch(lookupUrl);
+        if (res.ok) {
+          const data = await res.json();
+          if (data.results && Array.isArray(data.results)) {
+            const rawTracks = data.results.filter(
+              (i: any) => i.wrapperType === 'track' && i.trackName
+            );
+            if (rawTracks.length > 0) {
+              const seen = new Set<string>();
+              const songs: BackendRadioheadTrack[] = [];
+              for (let i = 0; i < rawTracks.length; i++) {
+                const item = rawTracks[i];
+                const cleanT = item.trackName
+                  .toLowerCase()
+                  .replace(/feat\..*/i, '')
+                  .replace(/\(.*\)/, '')
+                  .trim();
+                if (!seen.has(cleanT)) {
+                  seen.add(cleanT);
+                  songs.push(mapItunesTrack(item, i));
+                }
+              }
+
+              // Guarantee Hindia's 'everything u are' is included in Hindia's catalog
+              if (lower.includes('hindia') && !seen.has('everything u are')) {
+                try {
+                  const evRes = await fetch(
+                    `https://itunes.apple.com/search?term=${encodeURIComponent(
+                      'Hindia everything u are'
+                    )}&entity=song&limit=1`
+                  );
+                  if (evRes.ok) {
+                    const evData = await evRes.json();
+                    if (evData.results && evData.results[0]) {
+                      songs.unshift(mapItunesTrack(evData.results[0], 9999));
+                    }
+                  }
+                } catch {}
+              }
+
+              if (songs.length > 0) return songs;
+            }
+          }
+        }
+      } catch (err) {
+        console.warn('iTunes artist lookup failed, trying search fallback:', err);
+      }
+    }
+
+    // 2. Discover Artist via iTunes entity=musicArtist
+    try {
+      const artUrl = `https://itunes.apple.com/search?term=${encodeURIComponent(
+        queryTerm
+      )}&entity=musicArtist&limit=5`;
+      const artRes = await fetch(artUrl);
+      if (artRes.ok) {
+        const artData = await artRes.json();
+        if (artData.results && Array.isArray(artData.results) && artData.results.length > 0) {
+          const matched =
+            artData.results.find(
+              (a: any) =>
+                a.artistName &&
+                a.artistName.toLowerCase().includes(queryTerm.toLowerCase())
+            ) || artData.results[0];
+
+          if (matched && matched.artistId) {
+            const lookupUrl = `https://itunes.apple.com/lookup?id=${matched.artistId}&entity=song&limit=50`;
+            const sRes = await fetch(lookupUrl);
+            if (sRes.ok) {
+              const sData = await sRes.json();
+              if (sData.results && Array.isArray(sData.results)) {
+                const rawTracks = sData.results.filter(
+                  (i: any) => i.wrapperType === 'track' && i.trackName
+                );
+                if (rawTracks.length > 0) {
+                  const seen = new Set<string>();
+                  const songs: BackendRadioheadTrack[] = [];
+                  for (let i = 0; i < rawTracks.length; i++) {
+                    const item = rawTracks[i];
+                    const cleanT = item.trackName
+                      .toLowerCase()
+                      .replace(/feat\..*/i, '')
+                      .replace(/\(.*\)/, '')
+                      .trim();
+                    if (!seen.has(cleanT)) {
+                      seen.add(cleanT);
+                      songs.push(mapItunesTrack(item, i));
+                    }
+                  }
+                  if (songs.length > 0) return songs;
+                }
+              }
+            }
+          }
+        }
+      }
+    } catch {}
+
+    // 3. Fallback: Search iTunes songs with STRICT artist name matching
+    const url = `https://itunes.apple.com/search?term=${encodeURIComponent(
+      queryTerm
+    )}&entity=song&limit=50`;
+    const res = await fetch(url);
+    if (!res.ok) return [];
+
+    const data = await res.json();
+    if (!data.results || !Array.isArray(data.results)) return [];
+
+    const seen = new Set<string>();
+    const songs: BackendRadioheadTrack[] = [];
+
+    for (let idx = 0; idx < data.results.length; idx++) {
+      const item = data.results[idx];
+      if (!item.trackName || !item.artistName) continue;
+
+      // STRICT FILTER: artist name must match query to prevent non-artist songs from leaking in
+      const artNameLower = item.artistName.toLowerCase();
+      const qLower = queryTerm.toLowerCase();
+      const isArtistMatch =
+        artNameLower.includes(qLower) ||
+        qLower.includes(artNameLower) ||
+        (lower.includes('hindia') && artNameLower.includes('hindia')) ||
+        (lower.includes('tsuk') && artNameLower.includes('tsuk'));
+
+      if (!isArtistMatch && data.results.length > 5) continue;
+
+      const cleanT = item.trackName
+        .toLowerCase()
+        .replace(/feat\..*/i, '')
+        .replace(/\(.*\)/, '')
+        .trim();
+      if (seen.has(cleanT)) continue;
+      seen.add(cleanT);
+
+      songs.push(mapItunesTrack(item, idx));
     }
 
     return songs;

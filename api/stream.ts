@@ -51,23 +51,103 @@ export default async function handler(req: any, res: any) {
         const searchTarget = `${q}`;
         const searchResults = await y.search(searchTarget);
 
-        // Filter out shorts (< 45s) and multi-hour mix loops (> 660s)
-        const validMatches = searchResults.filter(
-          (item: any) => item.lengthSeconds >= 45 && item.lengthSeconds <= 660
-        );
+        const forbiddenKeywords = [
+          'karaoke',
+          'instrumental',
+          'backing track',
+          'minus one',
+          'off vocal',
+          'tanpa vokal',
+          'no vocal',
+          'karaoke version',
+          'karaoke video',
+          'lirik karaoke',
+          'cover',
+          'remix',
+          'acoustic cover',
+          'piano cover',
+          'guitar cover',
+          'drum cover',
+          'fingerstyle',
+          'bass tab',
+          'tutorial',
+          'how to play',
+          'slowed',
+          'reverb',
+          'sped up',
+          'speed up',
+          'nightcore',
+          'parody',
+          'reaction',
+          'teaser',
+          'ringtone',
+        ];
 
-        // Prefer official audio / topic / studio release for 100% lyric synchronization
-        const match =
-          validMatches.find((item: any) => {
-            const t = item.title.toLowerCase();
+        const isForbidden = (title: string, authorName?: string) => {
+          const lower = `${title} ${authorName || ''}`.toLowerCase();
+          return forbiddenKeywords.some((word) => lower.includes(word));
+        };
+
+        // Filter out shorts (< 45s) and multi-hour mix loops (> 660s) and karaoke/instrumentals
+        let validMatches = searchResults.filter((item: any) => {
+          const sec = item.lengthSeconds || 0;
+          return sec >= 45 && sec <= 660 && !isForbidden(item.title, item.author?.name);
+        });
+
+        // If all were filtered (rare), relax non-karaoke filter but strictly keep no-karaoke
+        if (validMatches.length === 0) {
+          validMatches = searchResults.filter((item: any) => {
+            const lower = `${item.title || ''} ${item.author?.name || ''}`.toLowerCase();
             return (
-              (t.includes('audio') || t.includes('topic') || t.includes('official track')) &&
-              !t.includes('cover') &&
-              !t.includes('remix')
+              !lower.includes('karaoke') &&
+              !lower.includes('instrumental') &&
+              !lower.includes('minus one') &&
+              !lower.includes('off vocal')
             );
-          }) ||
-          validMatches[0] ||
-          searchResults[0];
+          });
+        }
+
+        // Score candidates for official studio vocals & exact sync
+        const scoreCandidate = (item: any) => {
+          let score = 0;
+          const t = (item.title || '').toLowerCase();
+          const a = (item.author?.name || '').toLowerCase();
+          const qLower = q.toLowerCase();
+
+          // 1. YouTube Topic channel (Official release directly uploaded by record label/distributor)
+          if (a.includes('- topic') || a.includes('topic')) score += 120;
+
+          // 2. Author matches artist name in query
+          const words = qLower.split(/[\s-]+/).filter((w: string) => w.length > 2);
+          if (words.some((w: string) => a.includes(w))) score += 60;
+
+          // 3. Official studio audio badges
+          if (t.includes('official audio')) score += 50;
+          if (t.includes('audio') || t.includes('official track')) score += 40;
+          if (
+            t.includes('official lyric video') ||
+            t.includes('official video') ||
+            t.includes('official music video')
+          )
+            score += 30;
+          if (t.includes('lyric') || t.includes('lirik')) score += 25;
+
+          // 4. Exact title matching
+          if (t.includes(qLower) || qLower.includes(t)) score += 35;
+
+          // 5. Heavy penalties for live, acoustic, concert, slowed
+          if (t.includes('live') && !qLower.includes('live')) score -= 60;
+          if (t.includes('concert') && !qLower.includes('concert')) score -= 60;
+          if (t.includes('acoustic') && !qLower.includes('acoustic')) score -= 40;
+          if (t.includes('mix') && !qLower.includes('mix')) score -= 50;
+
+          return score;
+        };
+
+        const sortedMatches = [...validMatches].sort(
+          (a: any, b: any) => scoreCandidate(b) - scoreCandidate(a)
+        );
+        const match = sortedMatches[0] || validMatches[0] || searchResults[0];
 
         if (!match) {
           res.statusCode = 404;
