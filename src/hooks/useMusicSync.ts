@@ -492,6 +492,19 @@ export function useMusicSync(): SyncedMusicState {
         const found = DEFAULT_RADIOHEAD_TRACKS.find((t) => t.id === savedId);
         if (found) return found;
       }
+      const savedAlbum = localStorage.getItem('kasatune_active_album');
+      if (savedAlbum && savedAlbum !== 'radiohead' && savedAlbum !== 'friend' && savedAlbum !== 'favorites') {
+        const foundAlbumTrack = DEFAULT_RADIOHEAD_TRACKS.find(
+          (t) =>
+            t.category === savedAlbum ||
+            (savedAlbum === 'vander' && t.category === 'vander') ||
+            (savedAlbum === 'vender' && t.category === 'vander') ||
+            t.artist.toLowerCase().includes(savedAlbum)
+        );
+        if (foundAlbumTrack) return foundAlbumTrack;
+      }
+      const defaultVander = DEFAULT_RADIOHEAD_TRACKS.find((t) => t.id === 'vander-kingmokondo');
+      if (defaultVander) return defaultVander;
     } catch {}
     return DEFAULT_RADIOHEAD_TRACKS[0];
   });

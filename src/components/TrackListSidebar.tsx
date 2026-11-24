@@ -64,7 +64,7 @@ export const matchesAlbumFilter = (
   if (activeAlbum === 'h2h') return track.artist.toLowerCase().includes('heart') || track.artist.toLowerCase().includes('h2h');
   if (activeAlbum === 'RUNW') return track.title.toLowerCase().includes('runway') || track.album.toLowerCase().includes('runway');
   if (activeAlbum === 'riskiinrahim') return track.category === 'riskiinrahim' || track.artist.toLowerCase().includes('inrahim') || track.album.toLowerCase().includes('kematian');
-  if (activeAlbum === 'vander') {
+  if (activeAlbum === 'vander' || activeAlbum === 'vender') {
     return (
       track.category === 'vander' ||
       track.category === 'vender' ||

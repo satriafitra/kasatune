@@ -229,6 +229,8 @@ export const App: React.FC = () => {
         const targetTrack =
           savedTrack ||
           (savedTrackId && tracks.find((t) => t.id === savedTrackId)) ||
+          (activeAlbum && activeAlbum !== 'friend' && tracks.find((t) => matchesAlbumFilter(t, activeAlbum, likedTrackIds))) ||
+          tracks.find((t) => t.category === 'vander') ||
           tracks[0];
 
         if (targetTrack) {
@@ -524,6 +526,16 @@ export const App: React.FC = () => {
             imageUrl: '/covers/playboicarti.jpg',
             type: 'artist',
           };
+        } else if (album === 'vander' || album === 'vender') {
+          resolvedEntity = {
+            id: 'vander',
+            name: 'vander! / vender!',
+            artist: 'vander! (vandereism)',
+            albumTitle: 'KING MOKONDO & Bencana Alam',
+            year: 2025,
+            imageUrl: '/covers/vander.jpg',
+            type: 'artist',
+          };
         }
       }
       setCurrentAlbumEntity(resolvedEntity);
@@ -541,6 +553,7 @@ export const App: React.FC = () => {
           selectTrack(firstLiked);
           try {
             localStorage.setItem('kasatune_saved_track_id', firstLiked.id);
+            localStorage.setItem('kasatune_saved_track', JSON.stringify(firstLiked));
           } catch {}
           loadTrack(
             firstLiked.previewUrl,
@@ -549,6 +562,7 @@ export const App: React.FC = () => {
             true
           );
         }
+        return;
       } else if (album === 'friend') {
         setIsFriendSyncConnected(true);
         try {
@@ -601,6 +615,7 @@ export const App: React.FC = () => {
           selectTrack(first);
           try {
             localStorage.setItem('kasatune_saved_track_id', first.id);
+            localStorage.setItem('kasatune_saved_track', JSON.stringify(first));
           } catch {}
           loadTrack(
             first.previewUrl,
@@ -610,11 +625,14 @@ export const App: React.FC = () => {
           );
         }
       } else {
-        const matchedTrack = tracks.find((t) => matchesAlbumFilter(t, album, likedTrackIds)) || tracks[0];
+        const matchedTrack =
+          tracks.find((t) => matchesAlbumFilter(t, album, likedTrackIds)) ||
+          tracks.find((t) => t.category === 'vander');
         if (matchedTrack) {
           selectTrack(matchedTrack);
           try {
             localStorage.setItem('kasatune_saved_track_id', matchedTrack.id);
+            localStorage.setItem('kasatune_saved_track', JSON.stringify(matchedTrack));
           } catch {}
           loadTrack(
             matchedTrack.previewUrl,

@@ -179,15 +179,57 @@ export const AddAlbumModal: React.FC<AddAlbumModalProps> = ({
       return;
     }
 
+    const lowerQ = q.toLowerCase();
+    const localMatches: LiveAlbumItem[] = CATALOG_ALBUMS.filter((c) => {
+      const name = c.name.toLowerCase();
+      const artist = c.artist.toLowerCase();
+      const album = c.albumTitle.toLowerCase();
+      const id = c.id.toLowerCase();
+      return (
+        name.includes(lowerQ) ||
+        artist.includes(lowerQ) ||
+        album.includes(lowerQ) ||
+        id.includes(lowerQ) ||
+        (lowerQ.includes('vender') && (id === 'vander' || name.includes('vender'))) ||
+        (lowerQ.includes('vander') && (id === 'vander' || name.includes('vander')))
+      );
+    }).map((c) => ({
+      id: c.id,
+      name: c.name,
+      artist: c.artist,
+      albumTitle: c.albumTitle,
+      imageUrl: c.imageUrl,
+      type: 'artist' as const,
+      genre: c.categoryTag || 'Artis Terverifikasi',
+      description: c.description || 'Artis Terverifikasi Kasatune',
+    }));
+
+    if (localMatches.length > 0) {
+      setOnlineArtists(localMatches);
+    }
+
     const controller = new AbortController();
     setIsSearchingOnline(true);
 
     const timeoutId = setTimeout(async () => {
       try {
         const results = await searchLiveArtists(q, controller.signal);
-        setOnlineArtists(results);
+        const seen = new Set(localMatches.map((m) => m.name.toLowerCase().trim()));
+        const combined = [...localMatches];
+        for (const item of results) {
+          const key = item.name.toLowerCase().trim();
+          if (!seen.has(key)) {
+            seen.add(key);
+            combined.push(item);
+          }
+        }
+        setOnlineArtists(combined);
       } catch {
-        setOnlineArtists([]);
+        if (localMatches.length > 0) {
+          setOnlineArtists(localMatches);
+        } else {
+          setOnlineArtists([]);
+        }
       } finally {
         setIsSearchingOnline(false);
       }

@@ -10,6 +10,7 @@
  */
 
 import type { BackendRadioheadTrack } from './backend';
+import musicLibraryData from '../data/music_library.json';
 
 export interface LiveSearchResult {
   tracks: BackendRadioheadTrack[];
@@ -171,6 +172,23 @@ export async function searchLiveArtists(
   const trimmed = query.trim();
   if (!trimmed || trimmed.length < 2) return [];
 
+  // Special match for Vander / Vender (Local Indonesian underground catalog)
+  const lowerQ = trimmed.toLowerCase();
+  if (lowerQ.includes('vander') || lowerQ.includes('vender')) {
+    return [
+      {
+        id: 'vander',
+        name: 'vander! / vender!',
+        artist: 'vander! (vandereism)',
+        albumTitle: 'KING MOKONDO & Bencana Alam',
+        imageUrl: '/covers/vander.jpg',
+        type: 'artist',
+        genre: 'Hip-Hop / Rap',
+        description: '1.2M monthly listeners • Bencana Alam, King Mokondo & Vandereism album hits',
+      },
+    ];
+  }
+
   // 1. Try Deezer artist search proxy (gives 1000x1000 artist portrait & fan stats)
   try {
     const proxyUrl = `/api/deezer/search/artist?q=${encodeURIComponent(trimmed)}&limit=10`;
@@ -253,46 +271,59 @@ export async function searchLiveAlbums(
   const trimmed = query.trim();
   if (!trimmed || trimmed.length < 2) return [];
 
+  const lowerQ = trimmed.toLowerCase();
+  const vanderAlbumMatch: LiveAlbumItem[] =
+    lowerQ.includes('vander') || lowerQ.includes('vender')
+      ? [
+          {
+            id: 'vander',
+            name: 'vander! / vender!',
+            artist: 'vander! (vandereism)',
+            albumTitle: 'KING MOKONDO & Bencana Alam',
+            imageUrl: '/covers/vander.jpg',
+            type: 'album',
+            genre: 'Hip-Hop / Rap',
+            description: '1.2M monthly listeners • Bencana Alam, King Mokondo & Vandereism album hits',
+          },
+        ]
+      : [];
+
   try {
     const url = `https://itunes.apple.com/search?term=${encodeURIComponent(
       trimmed
     )}&entity=album&limit=${limit}`;
 
     const res = await fetch(url, { signal });
-    if (!res.ok) return [];
+    if (!res.ok) return vanderAlbumMatch;
 
     const data = await res.json();
-    if (!data.results || !Array.isArray(data.results)) return [];
+    if (!data.results || !Array.isArray(data.results)) return vanderAlbumMatch;
 
-    return data.results
+    const mapped = data.results
       .filter((item: any) => item.collectionName && item.collectionId)
       .map((item: any) => {
         const coverUrl = item.artworkUrl100
           ? item.artworkUrl100.replace('100x100bb.jpg', '600x600bb.jpg')
           : 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=600&auto=format&fit=crop&q=80';
 
-        const year = item.releaseDate
-          ? parseInt(item.releaseDate.slice(0, 4), 10)
-          : undefined;
-
         return {
           id: `online-album-${item.collectionId}`,
           name: item.collectionName,
           artist: item.artistName || 'Unknown Artist',
           albumTitle: item.collectionName,
-          year,
+          year: item.releaseDate ? parseInt(item.releaseDate.slice(0, 4), 10) : 2024,
           imageUrl: coverUrl,
           trackCount: item.trackCount || 10,
           collectionId: item.collectionId,
           type: 'album' as const,
-          genre: item.primaryGenreName,
-          description: `${item.trackCount || 10} lagu • Rilis ${year || ''}`,
+          genre: item.primaryGenreName || 'Pop / Rock',
         };
       });
-  } catch (err: any) {
-    if (err.name === 'AbortError') return [];
-    console.error('Live album search failed:', err);
-    return [];
+
+    return [...vanderAlbumMatch, ...mapped];
+  } catch (err) {
+    console.error('Album search failed:', err);
+    return vanderAlbumMatch;
   }
 }
 
@@ -361,6 +392,23 @@ export async function fetchArtistTracks(
   artistName: string
 ): Promise<BackendRadioheadTrack[]> {
   try {
+    const cleanQuery = artistName.replace(/^online-artist-/, '').trim();
+    const lower = cleanQuery.toLowerCase();
+
+    // Check if it's Vander / Vender (Local Indonesian underground catalog)
+    if (lower.includes('vander') || lower.includes('vender')) {
+      const vanderTracks = (musicLibraryData as unknown as BackendRadioheadTrack[]).filter(
+        (t) =>
+          t.category === 'vander' ||
+          t.category === 'vender' ||
+          t.artist.toLowerCase().includes('vander') ||
+          t.artist.toLowerCase().includes('vender') ||
+          t.title.toLowerCase().includes('vander') ||
+          t.title.toLowerCase().includes('vender')
+      );
+      if (vanderTracks.length > 0) return vanderTracks;
+    }
+
     // 1. Try Deezer top tracks for this artist if artistId is available
     const numericIdMatch = artistName.match(/\d+/);
     if (numericIdMatch) {
@@ -393,7 +441,6 @@ export async function fetchArtistTracks(
     }
 
     // 2. iTunes Top Songs for Artist
-    const cleanQuery = artistName.replace(/^online-artist-/, '');
     const url = `https://itunes.apple.com/search?term=${encodeURIComponent(
       cleanQuery
     )}&entity=song&limit=35`;
@@ -457,6 +504,21 @@ export async function searchLiveMusic(
 ): Promise<BackendRadioheadTrack[]> {
   const trimmed = query.trim();
   if (!trimmed || trimmed.length < 2) return [];
+
+  // Special match for Vander / Vender (Local Indonesian underground catalog)
+  const lowerQ = trimmed.toLowerCase();
+  if (lowerQ.includes('vander') || lowerQ.includes('vender')) {
+    const vanderTracks = (musicLibraryData as unknown as BackendRadioheadTrack[]).filter(
+      (t) =>
+        t.category === 'vander' ||
+        t.category === 'vender' ||
+        t.artist.toLowerCase().includes('vander') ||
+        t.artist.toLowerCase().includes('vender') ||
+        t.title.toLowerCase().includes('vander') ||
+        t.title.toLowerCase().includes('vender')
+    );
+    if (vanderTracks.length > 0) return vanderTracks;
+  }
 
   try {
     const itunesUrl = `https://itunes.apple.com/search?term=${encodeURIComponent(
