@@ -110,7 +110,7 @@ interface TrackListSidebarProps {
   activeTrackId: string;
   onSelectTrack: (track: BackendRadioheadTrack) => void;
   isPlaying: boolean;
-  searchFilter: string;
+  searchFilter?: string;
   activeAlbum: AlbumFilterType;
   onSelectAlbum: (album: AlbumFilterType) => void;
   liveTracks?: BackendRadioheadTrack[];
@@ -139,10 +139,7 @@ export const TrackListSidebar: React.FC<TrackListSidebarProps> = ({
   activeTrackId,
   onSelectTrack,
   isPlaying,
-  searchFilter,
   activeAlbum,
-  liveTracks = [],
-  isLoadingLive = false,
   friendPlayback = null,
   friendLiveProgressMs = 0,
   isLoadingFriend = false,
@@ -161,32 +158,18 @@ export const TrackListSidebar: React.FC<TrackListSidebarProps> = ({
   isLikedTrack,
   onToggleLikeTrack,
 }) => {
-  const isSearching = searchFilter.trim().length >= 2;
-  const filteredTracks = tracks.filter((t) => {
-    if (!isSearching) {
-      return matchesAlbumFilter(t, activeAlbum, likedTrackIds);
-    }
-    const q = searchFilter.toLowerCase();
-    const isVanderSearch = q.includes('vander') || q.includes('vender');
-    return (
-      t.title.toLowerCase().includes(q) ||
-      t.album.toLowerCase().includes(q) ||
-      t.mood.toLowerCase().includes(q) ||
-      t.artist.toLowerCase().includes(q) ||
-      (isVanderSearch && (t.category === 'vander' || t.artist.toLowerCase().includes('vander') || t.artist.toLowerCase().includes('vender')))
-    );
-  });
+  const filteredTracks = tracks.filter((t) => matchesAlbumFilter(t, activeAlbum, likedTrackIds));
 
   return (
     <aside className="w-full h-full bg-[#111215] border-r border-[#282B32] flex flex-col overflow-hidden select-none">
       {/* Top Discord Server Title Header */}
       <div 
         className="h-12 px-4 flex items-center justify-between border-b border-[#282B32] bg-[#141619] hover:bg-[#1C1E22] transition-colors cursor-pointer shadow-sm"
-        title={isSearching ? `Pencarian: "${searchFilter}"` : `Album / Kategori: ${getCategoryTitle(activeAlbum, customPlaylistTitle)}`}
+        title={`Album / Kategori: ${getCategoryTitle(activeAlbum, customPlaylistTitle)}`}
       >
         <div className="flex items-center gap-1.5 min-w-0">
           <span className="font-extrabold text-sm text-white tracking-tight truncate">
-            {isSearching ? `Pencarian: "${searchFilter}"` : getCategoryTitle(activeAlbum, customPlaylistTitle)}
+            {getCategoryTitle(activeAlbum, customPlaylistTitle)}
           </span>
         </div>
         <ChevronDown className="w-4 h-4 text-[#A0A5AD]" />
@@ -195,22 +178,15 @@ export const TrackListSidebar: React.FC<TrackListSidebarProps> = ({
       {/* Channel Category Header */}
       <div className="px-3 pt-3 pb-1">
         <div className="flex items-center justify-between text-[10px] font-bold uppercase tracking-wider text-[#656A74] px-1">
-          <span>{isSearching ? 'Hasil Pencarian' : 'Channels & Tracks'}</span>
+          <span>Channels & Tracks</span>
           <span className="font-mono text-[10px] text-[#BFE7EA] font-semibold">
-            {filteredTracks.length + liveTracks.length} ready
+            {filteredTracks.length} ready
           </span>
         </div>
       </div>
 
       {/* Track List as Discord Channels */}
       <div className="flex-1 overflow-y-auto px-2 py-1 space-y-0.5 custom-scrollbar">
-        {/* Local Library Section */}
-        {isSearching && filteredTracks.length > 0 && (
-          <div className="px-2 pt-1 pb-1 text-[9px] font-extrabold uppercase tracking-wider text-[#949BA4] flex items-center gap-1">
-            <span>Koleksi Lokal ({filteredTracks.length})</span>
-          </div>
-        )}
-
         {filteredTracks.map((track) => {
           const isActive = track.id === activeTrackId;
           const isLiked = isLikedTrack ? isLikedTrack(track.id) : false;
@@ -282,96 +258,9 @@ export const TrackListSidebar: React.FC<TrackListSidebarProps> = ({
           );
         })}
 
-        {/* Online Real-Time Discovery Section */}
-        {isSearching && (
-          <div className="pt-2">
-            <div className="px-2 pb-1 text-[9px] font-extrabold uppercase tracking-wider text-[#1DB954] flex items-center justify-between">
-              <span className="flex items-center gap-1">
-                <Globe className="w-3 h-3 text-[#1DB954]" />
-                <span>Online Global (Real-time)</span>
-              </span>
-              {isLoadingLive && (
-                <span className="flex items-center gap-1 text-[9px] text-[#949BA4] normal-case">
-                  <Loader2 className="w-2.5 h-2.5 animate-spin text-[#1DB954]" />
-                  <span>Mencari...</span>
-                </span>
-              )}
-            </div>
-
-            {liveTracks.map((track) => {
-              const isActive = track.id === activeTrackId;
-              const isLiked = isLikedTrack ? isLikedTrack(track.id) : false;
-
-              return (
-                <div
-                  key={track.id}
-                  onClick={() => onSelectTrack(track)}
-                  title={`Judul: ${track.title} • Album: ${track.album} • Artis: ${track.artist}`}
-                  className={`group flex items-center justify-between gap-2.5 px-2.5 py-2 rounded-md cursor-pointer transition-all ${
-                    isActive
-                      ? 'bg-[#1C1E22] text-white shadow-sm'
-                      : 'hover:bg-[#18191D] text-[#A0A5AD] hover:text-[#F2F3F5]'
-                  }`}
-                >
-                  <div className="flex items-center gap-2.5 min-w-0">
-                    <div className="w-7 h-7 rounded overflow-hidden flex-shrink-0 bg-[#141619] border border-[#282B32]">
-                      <img
-                        src={track.coverUrl}
-                        alt={track.title}
-                        className="w-full h-full object-cover"
-                        onError={(e) => {
-                          (e.currentTarget as HTMLElement).style.display = 'none';
-                        }}
-                      />
-                    </div>
-                    <div className="min-w-0 flex flex-col justify-center">
-                      <p
-                        className={`text-xs font-bold truncate leading-tight ${
-                          isActive ? 'text-[#1DB954]' : 'text-[#E0E2E5]'
-                        }`}
-                      >
-                        {track.title}
-                      </p>
-                      <p className="text-[10px] text-[#656A74] truncate">
-                        {track.artist}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-1.5 flex-shrink-0">
-                    {onToggleLikeTrack && (
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onToggleLikeTrack(track);
-                        }}
-                        className={`p-1 rounded hover:bg-white/10 transition-colors ${
-                          isLiked
-                            ? 'text-[#FF4B72]'
-                            : 'text-[#656A74] opacity-0 group-hover:opacity-100 hover:text-white'
-                        }`}
-                        title={isLiked ? 'Hapus dari favorit' : 'Simpan ke favorit'}
-                      >
-                        <Heart
-                          className={`w-3.5 h-3.5 ${
-                            isLiked ? 'fill-[#FF4B72]' : ''
-                          }`}
-                        />
-                      </button>
-                    )}
-                    {isActive && (
-                      <span className="w-2 h-2 rounded-full bg-[#1DB954] flex-shrink-0" />
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
-
-        {filteredTracks.length === 0 && liveTracks.length === 0 && !isLoadingLive && (
+        {filteredTracks.length === 0 && (
           <div className="p-6 text-center text-xs text-[#656A74]">
-            {isSearching ? 'Tidak ada lagu yang ditemukan.' : 'No tracks found in this category'}
+            No tracks found in this category
           </div>
         )}
       </div>

@@ -356,35 +356,14 @@ export const App: React.FC = () => {
     resolveTargetTrack,
   ]);
 
-  // Filter tracks based on active Discord Server or Real-time Search
+  // Filter tracks based on active Discord Server or Custom Playlist
   const displayTracks = useMemo(() => {
-    if (searchFilter.trim().length >= 2) {
-      const q = searchFilter.toLowerCase();
-      const localMatches = tracks.filter((t) => {
-        return (
-          t.title.toLowerCase().includes(q) ||
-          t.artist.toLowerCase().includes(q) ||
-          (t.album && t.album.toLowerCase().includes(q))
-        );
-      });
-
-      const existingIds = new Set(localMatches.map((t) => t.id));
-      const merged = [...localMatches];
-      liveTracks.forEach((lt) => {
-        if (!existingIds.has(lt.id)) {
-          merged.push(lt);
-          existingIds.add(lt.id);
-        }
-      });
-      return merged;
-    }
-
     if (activeAlbum === 'favorites') {
       return likedTracks;
     }
 
     return tracks.filter((t) => matchesAlbumFilter(t, activeAlbum, likedTrackIds));
-  }, [tracks, activeAlbum, searchFilter, liveTracks, likedTracks, likedTrackIds]);
+  }, [tracks, activeAlbum, likedTracks, likedTrackIds]);
 
   // Switch Discord Server category & automatically load the primary track
   const handleSelectAlbum = useCallback(
@@ -699,7 +678,7 @@ export const App: React.FC = () => {
 
   return (
     <div className="h-screen w-full bg-[#0B0C0E] text-white flex flex-col overflow-hidden font-sans select-none">
-      {/* 1. Discord x Spotify Top Navigation Header */}
+      {/* 1. Discord x Spotify Top Navigation Header with Search Dropdown */}
       <Navbar
         isBackendOnline={isBackendOnline}
         onRefreshBackend={refetchTracks}
@@ -719,6 +698,14 @@ export const App: React.FC = () => {
         onConnectFriendSpotify={handleConnectFriendSpotify}
         mobileView={mobileView}
         onSelectMobileView={setMobileView}
+        tracks={tracks}
+        liveTracks={liveTracks}
+        isLoadingLive={isLoadingLive}
+        onSelectTrack={handleSelectTrack}
+        activeTrackId={activeTrack.id}
+        isPlaying={isPlaying}
+        isLikedTrack={isLiked}
+        onToggleLikeTrack={toggleLike}
       />
 
       {/* 2. Main Workspace (Responsive: Discord Server Rail + Channels + Grand Vinyl & Lyric Stage) */}
