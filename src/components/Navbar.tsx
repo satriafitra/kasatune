@@ -291,18 +291,11 @@ export const Navbar: React.FC<NavbarProps> = ({
           )}
         </div>
 
-        {/* Dropdown Menu Popover */}
+        {/* Dropdown Menu Popover (Self-contained dark frosted blur without dimming the page) */}
         {isDropdownOpen && searchQuery.trim().length >= 1 && (
-          <>
-            {/* Deep Dark Backdrop Dimmer to avoid collision/clash with background hero & artwork */}
-            <div
-              className="fixed inset-0 bg-black/80 backdrop-blur-md z-40 transition-opacity"
-              onClick={() => setIsDropdownOpen(false)}
-            />
-
-            <div className="absolute top-full left-0 right-0 mt-2 bg-[#090A0D] border-2 border-[#383C45] rounded-xl shadow-[0_30px_90px_rgba(0,0,0,0.98)] ring-1 ring-black/80 z-50 overflow-hidden max-h-[480px] flex flex-col animate-in fade-in zoom-in-95 duration-150">
-              {/* Dropdown Header Info */}
-              <div className="px-4 py-2.5 border-b border-[#282B32] bg-[#07080A] flex items-center justify-between text-xs text-[#A0A5AD]">
+          <div className="absolute top-full left-0 right-0 mt-2 bg-[#0A0C0E]/95 backdrop-blur-2xl border border-[#32363E] rounded-xl shadow-[0_25px_60px_rgba(0,0,0,0.95)] ring-1 ring-black/80 z-50 overflow-hidden max-h-[480px] flex flex-col animate-in fade-in zoom-in-95 duration-150">
+            {/* Dropdown Header Info */}
+            <div className="px-4 py-2.5 border-b border-[#282B32] bg-[#07080A]/95 flex items-center justify-between text-xs text-[#A0A5AD]">
                 <div className="flex items-center gap-1.5 truncate">
                   <Search className="w-3.5 h-3.5 text-[#BFE7EA]" />
                   <span className="font-semibold text-white truncate">
@@ -321,7 +314,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               </div>
 
               {/* Dropdown Scrollable Results */}
-              <div className="flex-1 overflow-y-auto p-2 space-y-1.5 custom-scrollbar bg-[#090A0D]">
+              <div className="flex-1 overflow-y-auto p-2 space-y-1.5 custom-scrollbar bg-transparent">
                 {/* 1. Local Library Results */}
                 {localMatches.length > 0 && (
                   <div className="space-y-1">
@@ -504,26 +497,20 @@ export const Navbar: React.FC<NavbarProps> = ({
               </div>
 
               {/* Dropdown Footer Tip */}
-              <div className="px-4 py-2 bg-[#07080A] border-t border-[#282B32] flex items-center justify-between text-[10px] text-[#71757E]">
+              <div className="px-4 py-2 bg-[#07080A]/95 border-t border-[#282B32] flex items-center justify-between text-[10px] text-[#71757E]">
                 <span>Klik lagu untuk langsung memutar</span>
                 <span>ESC untuk menutup</span>
               </div>
             </div>
-          </>
         )}
       </div>
 
       {/* Mobile Search Overlay Drawer (Visible when isMobileSearchOpen on < md) */}
       {isMobileSearchOpen && (
-        <>
-          <div
-            className="md:hidden fixed inset-0 bg-black/85 backdrop-blur-md z-40 transition-opacity"
-            onClick={() => setIsMobileSearchOpen(false)}
-          />
-          <div
-            ref={mobileSearchRef}
-            className="md:hidden fixed top-14 left-0 right-0 bg-[#090A0D] border-b border-[#383C45] p-3 z-50 shadow-2xl animate-in slide-in-from-top-2 duration-150"
-          >
+        <div
+          ref={mobileSearchRef}
+          className="md:hidden fixed top-14 left-0 right-0 bg-[#0A0C0E]/95 backdrop-blur-2xl border-b border-[#383C45] p-3 z-50 shadow-[0_20px_50px_rgba(0,0,0,0.9)] animate-in slide-in-from-top-2 duration-150"
+        >
             <div className="relative flex items-center">
               <Search className="w-4 h-4 absolute left-3 text-[#949BA4]" />
               <input
@@ -607,7 +594,6 @@ export const Navbar: React.FC<NavbarProps> = ({
               </div>
             )}
           </div>
-        </>
       )}
 
       {/* Right Controls: Desktop full status & settings, Mobile single sleek icon button */}
