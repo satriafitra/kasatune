@@ -352,8 +352,12 @@ export const DiscordServerRail: React.FC<DiscordServerRailProps> = ({
                 }`}
               >
                 {server.isHome ? (
-                  <div className="w-full h-full bg-[#12141A] flex items-center justify-center p-1.5 group">
-                    <KasatuneLogoIcon size={32} className="transform group-hover:scale-110" />
+                  <div className="w-full h-full bg-white flex items-center justify-center p-1 group">
+                    <img
+                      src="/kasatune-logo.jpg"
+                      alt="Kasatune"
+                      className="w-full h-full object-contain select-none transform group-hover:scale-105 transition-transform"
+                    />
                   </div>
                 ) : server.isFavorites ? (
                   <div className="relative w-full h-full flex items-center justify-center overflow-hidden bg-gradient-to-br from-[#FF4B72]/20 via-[#141619] to-[#1DB954]/20 group">

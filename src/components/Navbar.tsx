@@ -196,20 +196,20 @@ export const Navbar: React.FC<NavbarProps> = ({
         <div className="flex items-center gap-2.5 group cursor-pointer select-none">
           <div className="relative flex items-center justify-center">
             {/* Ambient Backlight Glow on hover */}
-            <div className="absolute -inset-1 bg-gradient-to-r from-[#00F5A0]/30 to-[#00D9F5]/30 rounded-xl blur-sm opacity-50 group-hover:opacity-100 transition duration-300" />
-            <KasatuneLogoIcon size={32} className="relative transform group-hover:scale-105" />
+            <div className="absolute -inset-1 bg-gradient-to-r from-white/30 to-[#FF4C00]/30 rounded-xl blur-sm opacity-0 group-hover:opacity-100 transition duration-300" />
+            <KasatuneLogoIcon size={32} className="relative transform group-hover:scale-105 transition-transform" />
           </div>
           <div className="flex flex-col">
             <div className="flex items-center gap-1.5">
-              <span className="font-black text-sm text-white tracking-tight leading-none group-hover:text-[#00F5A0] transition-colors">
+              <span className="font-black text-sm text-white tracking-tight leading-none group-hover:text-white transition-colors">
                 Kasatune
               </span>
-              <span className="text-[9px] font-black uppercase tracking-wider px-1.5 py-0.2 rounded bg-[#00F5A0]/10 text-[#00F5A0] border border-[#00F5A0]/30 leading-normal">
+              <span className="text-[9px] font-black uppercase tracking-wider px-1.5 py-0.2 rounded bg-[#FF4C00]/15 text-[#FF5A1F] border border-[#FF4C00]/30 leading-normal">
                 STUDIO
               </span>
             </div>
             <span className="hidden md:inline text-[10px] text-[#8C929C] font-medium leading-tight pt-0.5">
-              High-Fidelity Audio
+              Music Studio
             </span>
           </div>
         </div>
