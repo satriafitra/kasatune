@@ -8,7 +8,7 @@
  * - Persistent Bottom Dock with Kasatune Warm Sunset Palette (#FFEAD3, #BFE7EA, #E89B5B, #D46743)
  */
 
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { Navbar } from './components/Navbar';
 import { DiscordServerRail, type AlbumFilterType } from './components/DiscordServerRail';
 import { TrackListSidebar, matchesAlbumFilter } from './components/TrackListSidebar';
@@ -21,11 +21,43 @@ import { useAlbumColor } from './hooks/useAlbumColor';
 import { useAudioVisualizer } from './hooks/useAudioVisualizer';
 import { useFriendSpotify, type FriendTrack } from './hooks/useFriendSpotify';
 import type { BackendRadioheadTrack } from './api/backend';
+import { searchLiveMusic } from './api/liveSearch';
 
 export const App: React.FC = () => {
   const [showLyrics, setShowLyrics] = useState(true);
   const [searchFilter, setSearchFilter] = useState('');
+  const [liveTracks, setLiveTracks] = useState<BackendRadioheadTrack[]>([]);
+  const [isLoadingLive, setIsLoadingLive] = useState<boolean>(false);
   const [mobileView, setMobileView] = useState<'player' | 'lyrics' | 'sidebar'>('sidebar');
+
+  // Real-time Global Online Music Scraper / Search Engine
+  useEffect(() => {
+    const query = searchFilter.trim();
+    if (!query || query.length < 2) {
+      setLiveTracks([]);
+      setIsLoadingLive(false);
+      return;
+    }
+
+    const controller = new AbortController();
+    setIsLoadingLive(true);
+
+    const timeoutId = setTimeout(async () => {
+      try {
+        const results = await searchLiveMusic(query, 12, controller.signal);
+        setLiveTracks(results);
+      } catch {
+        setLiveTracks([]);
+      } finally {
+        setIsLoadingLive(false);
+      }
+    }, 350);
+
+    return () => {
+      clearTimeout(timeoutId);
+      controller.abort();
+    };
+  }, [searchFilter]);
 
   // Session & Condition Persistence: Restore the exact last condition on refresh
   const [activeAlbum, setActiveAlbum] = useState<AlbumFilterType>(() => {
@@ -311,8 +343,31 @@ export const App: React.FC = () => {
     resolveTargetTrack,
   ]);
 
-  // Filter tracks based on active Discord Server (Friend Spotify, Radiohead albums, or new artists)
-  const displayTracks = tracks.filter((t) => matchesAlbumFilter(t, activeAlbum));
+  // Filter tracks based on active Discord Server or Real-time Search
+  const displayTracks = useMemo(() => {
+    if (searchFilter.trim().length >= 2) {
+      const q = searchFilter.toLowerCase();
+      const localMatches = tracks.filter((t) => {
+        return (
+          t.title.toLowerCase().includes(q) ||
+          t.artist.toLowerCase().includes(q) ||
+          (t.album && t.album.toLowerCase().includes(q))
+        );
+      });
+
+      const existingIds = new Set(localMatches.map((t) => t.id));
+      const merged = [...localMatches];
+      liveTracks.forEach((lt) => {
+        if (!existingIds.has(lt.id)) {
+          merged.push(lt);
+          existingIds.add(lt.id);
+        }
+      });
+      return merged;
+    }
+
+    return tracks.filter((t) => matchesAlbumFilter(t, activeAlbum));
+  }, [tracks, activeAlbum, searchFilter, liveTracks]);
 
   // Switch Discord Server category & automatically load the primary track
   const handleSelectAlbum = useCallback(
@@ -663,6 +718,8 @@ export const App: React.FC = () => {
             searchFilter={searchFilter}
             activeAlbum={activeAlbum}
             onSelectAlbum={handleSelectAlbum}
+            liveTracks={liveTracks}
+            isLoadingLive={isLoadingLive}
             friendPlayback={friendPlayback}
             friendLiveProgressMs={friendLiveProgressMs}
             isLoadingFriend={isLoadingFriend}

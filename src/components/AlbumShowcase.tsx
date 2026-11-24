@@ -284,11 +284,16 @@ export const AlbumShowcase: React.FC<AlbumShowcaseProps> = ({
                   </div>
                   <div className="flex flex-col min-w-0">
                     <span
-                      className={`font-bold truncate text-xs leading-tight ${
+                      className={`font-bold truncate text-xs leading-tight flex items-center gap-1.5 ${
                         isActive ? 'text-white' : 'text-[#F2F3F5]'
                       }`}
                     >
-                      {t.title}
+                      <span className="truncate">{t.title}</span>
+                      {t.category === 'online' && (
+                        <span className="text-[9px] font-mono px-1 py-0.2 rounded bg-[#1DB954]/20 text-[#1DB954] border border-[#1DB954]/30 flex-shrink-0">
+                          LIVE
+                        </span>
+                      )}
                     </span>
                     <span className="text-[11px] text-[#A0A5AD] hover:text-white cursor-pointer truncate">
                       {t.artist}
