@@ -52,6 +52,10 @@ export async function searchLiveMusic(
           ? parseInt(item.releaseDate.slice(0, 4), 10)
           : 2024;
 
+        const fullStreamUrl = `/api/stream?q=${encodeURIComponent(
+          item.artistName + ' ' + item.trackName
+        )}`;
+
         return {
           id: `live-online-${item.trackId}`,
           title: item.trackName,
@@ -60,8 +64,8 @@ export async function searchLiveMusic(
           category: 'online',
           year,
           coverUrl,
-          previewUrl: item.previewUrl,
-          durationMs: item.trackTimeMillis || 30000,
+          previewUrl: fullStreamUrl, // Full-Length Stream (Intro to Outro) via YouTube engine
+          durationMs: item.trackTimeMillis || 240000, // Full song duration in ms
           bpm: 110,
           mood: item.primaryGenreName || 'Pop / Rock',
           dominantColors: ['#1DB954', '#5865F2', '#141619'],
