@@ -17,13 +17,22 @@ import {
   ChevronDown,
   Globe,
   Loader2,
+  Heart,
 } from 'lucide-react';
 import type { BackendRadioheadTrack } from '../api/backend';
 import type { AlbumFilterType } from './DiscordServerRail';
 import type { FriendPlaybackState, FriendLiveInfo } from '../hooks/useFriendSpotify';
 import { FriendSpotifyCard } from './FriendSpotifyCard';
 
-export const matchesAlbumFilter = (track: BackendRadioheadTrack, activeAlbum: AlbumFilterType): boolean => {
+export const matchesAlbumFilter = (
+  track: BackendRadioheadTrack,
+  activeAlbum: AlbumFilterType,
+  likedTrackIds?: string[]
+): boolean => {
+  if (activeAlbum === 'favorites') {
+    return likedTrackIds ? likedTrackIds.includes(track.id) : false;
+  }
+
   const isFriendTrack =
     track.artist.toLowerCase().includes('liella') ||
     track.album.toLowerCase().includes('shine') ||
@@ -74,8 +83,9 @@ export const matchesAlbumFilter = (track: BackendRadioheadTrack, activeAlbum: Al
   return track.album.toLowerCase() === activeAlbum.toLowerCase();
 };
 
-const getCategoryTitle = (album: AlbumFilterType): string => {
+const getCategoryTitle = (album: AlbumFilterType, customTitle?: string): string => {
   switch (album) {
+    case 'favorites': return customTitle || "Playlist Favorit Saya";
     case 'friend': return "Teman (Spotify Live)";
     case 'all': return "Semua Koleksi (All Music)";
     case 'radiohead': return "Radiohead (Discography)";
@@ -118,6 +128,10 @@ interface TrackListSidebarProps {
   onListenAlong?: (trackTitle: string, progressMs: number) => void;
   onToggleFriendSync?: () => void;
   onSwitchToMyMusic?: () => void;
+  customPlaylistTitle?: string;
+  likedTrackIds?: string[];
+  isLikedTrack?: (trackId: string) => boolean;
+  onToggleLikeTrack?: (track: BackendRadioheadTrack) => void;
 }
 
 export const TrackListSidebar: React.FC<TrackListSidebarProps> = ({
@@ -142,11 +156,15 @@ export const TrackListSidebar: React.FC<TrackListSidebarProps> = ({
   onListenAlong = () => {},
   onToggleFriendSync = () => {},
   onSwitchToMyMusic,
+  customPlaylistTitle,
+  likedTrackIds = [],
+  isLikedTrack,
+  onToggleLikeTrack,
 }) => {
   const isSearching = searchFilter.trim().length >= 2;
   const filteredTracks = tracks.filter((t) => {
     if (!isSearching) {
-      return matchesAlbumFilter(t, activeAlbum);
+      return matchesAlbumFilter(t, activeAlbum, likedTrackIds);
     }
     const q = searchFilter.toLowerCase();
     const isVanderSearch = q.includes('vander') || q.includes('vender');
@@ -164,11 +182,11 @@ export const TrackListSidebar: React.FC<TrackListSidebarProps> = ({
       {/* Top Discord Server Title Header */}
       <div 
         className="h-12 px-4 flex items-center justify-between border-b border-[#282B32] bg-[#141619] hover:bg-[#1C1E22] transition-colors cursor-pointer shadow-sm"
-        title={isSearching ? `Pencarian: "${searchFilter}"` : `Album / Kategori: ${getCategoryTitle(activeAlbum)}`}
+        title={isSearching ? `Pencarian: "${searchFilter}"` : `Album / Kategori: ${getCategoryTitle(activeAlbum, customPlaylistTitle)}`}
       >
         <div className="flex items-center gap-1.5 min-w-0">
           <span className="font-extrabold text-sm text-white tracking-tight truncate">
-            {isSearching ? `Pencarian: "${searchFilter}"` : getCategoryTitle(activeAlbum)}
+            {isSearching ? `Pencarian: "${searchFilter}"` : getCategoryTitle(activeAlbum, customPlaylistTitle)}
           </span>
         </div>
         <ChevronDown className="w-4 h-4 text-[#A0A5AD]" />
@@ -195,6 +213,7 @@ export const TrackListSidebar: React.FC<TrackListSidebarProps> = ({
 
         {filteredTracks.map((track) => {
           const isActive = track.id === activeTrackId;
+          const isLiked = isLikedTrack ? isLikedTrack(track.id) : false;
 
           return (
             <div
@@ -234,9 +253,31 @@ export const TrackListSidebar: React.FC<TrackListSidebarProps> = ({
                 </div>
               </div>
 
-              {isActive && (
-                <span className="w-2 h-2 rounded-full bg-[#BFE7EA] flex-shrink-0" />
-              )}
+              <div className="flex items-center gap-1.5 flex-shrink-0">
+                {onToggleLikeTrack && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onToggleLikeTrack(track);
+                    }}
+                    className={`p-1 rounded hover:bg-white/10 transition-colors ${
+                      isLiked
+                        ? 'text-[#FF4B72]'
+                        : 'text-[#656A74] opacity-0 group-hover:opacity-100 hover:text-white'
+                    }`}
+                    title={isLiked ? 'Hapus dari favorit' : 'Simpan ke favorit'}
+                  >
+                    <Heart
+                      className={`w-3.5 h-3.5 ${
+                        isLiked ? 'fill-[#FF4B72]' : ''
+                      }`}
+                    />
+                  </button>
+                )}
+                {isActive && (
+                  <span className="w-2 h-2 rounded-full bg-[#BFE7EA] flex-shrink-0" />
+                )}
+              </div>
             </div>
           );
         })}
@@ -259,6 +300,7 @@ export const TrackListSidebar: React.FC<TrackListSidebarProps> = ({
 
             {liveTracks.map((track) => {
               const isActive = track.id === activeTrackId;
+              const isLiked = isLikedTrack ? isLikedTrack(track.id) : false;
 
               return (
                 <div
@@ -282,29 +324,45 @@ export const TrackListSidebar: React.FC<TrackListSidebarProps> = ({
                         }}
                       />
                     </div>
-
                     <div className="min-w-0 flex flex-col justify-center">
-                      <div className="flex items-center gap-1">
-                        <p
-                          className={`text-xs font-bold truncate leading-tight ${
-                            isActive ? 'text-[#1DB954]' : 'text-[#E0E2E5]'
-                          }`}
-                        >
-                          {track.title}
-                        </p>
-                        <span className="text-[8px] font-mono px-1 py-0.2 rounded bg-[#1DB954]/20 text-[#1DB954] border border-[#1DB954]/30 flex-shrink-0">
-                          LIVE
-                        </span>
-                      </div>
+                      <p
+                        className={`text-xs font-bold truncate leading-tight ${
+                          isActive ? 'text-[#1DB954]' : 'text-[#E0E2E5]'
+                        }`}
+                      >
+                        {track.title}
+                      </p>
                       <p className="text-[10px] text-[#656A74] truncate">
-                        {track.artist} &bull; {track.album}
+                        {track.artist}
                       </p>
                     </div>
                   </div>
 
-                  {isActive && (
-                    <span className="w-2 h-2 rounded-full bg-[#1DB954] flex-shrink-0 animate-pulse" />
-                  )}
+                  <div className="flex items-center gap-1.5 flex-shrink-0">
+                    {onToggleLikeTrack && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onToggleLikeTrack(track);
+                        }}
+                        className={`p-1 rounded hover:bg-white/10 transition-colors ${
+                          isLiked
+                            ? 'text-[#FF4B72]'
+                            : 'text-[#656A74] opacity-0 group-hover:opacity-100 hover:text-white'
+                        }`}
+                        title={isLiked ? 'Hapus dari favorit' : 'Simpan ke favorit'}
+                      >
+                        <Heart
+                          className={`w-3.5 h-3.5 ${
+                            isLiked ? 'fill-[#FF4B72]' : ''
+                          }`}
+                        />
+                      </button>
+                    )}
+                    {isActive && (
+                      <span className="w-2 h-2 rounded-full bg-[#1DB954] flex-shrink-0" />
+                    )}
+                  </div>
                 </div>
               );
             })}

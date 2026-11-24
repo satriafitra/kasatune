@@ -9,11 +9,13 @@
  */
 
 import React, { useState } from 'react';
-import { Music2, Disc, Sparkles } from 'lucide-react';
+import { Music2, Disc, Sparkles, Heart } from 'lucide-react';
+import type { CustomPlaylistData } from '../hooks/useCustomPlaylist';
 
 export type AlbumFilterType =
   | 'friend'
   | 'all'
+  | 'favorites'
   | 'radiohead'
   | 'Pablo Honey'
   | 'The Bends'
@@ -42,6 +44,8 @@ interface DiscordServerRailProps {
   onSelectAlbum: (album: AlbumFilterType) => void;
   onRefreshBackend: () => void;
   isBackendOnline: boolean;
+  customPlaylist?: CustomPlaylistData;
+  likedCount?: number;
 }
 
 interface ServerItem {
@@ -53,6 +57,7 @@ interface ServerItem {
   imageUrl?: string;
   isHome?: boolean;
   isSpotify?: boolean;
+  isFavorites?: boolean;
   categoryDivider?: string;
 }
 
@@ -74,6 +79,15 @@ const SERVERS: ServerItem[] = [
     albumTitle: 'Semua Album & Lagu (250+ Tracks)',
     artistName: 'Koleksi Kasatune',
     isHome: true,
+  },
+
+  // 3. Custom Playlist / Liked Songs
+  {
+    id: 'favorites',
+    name: 'Playlist Favorit Saya',
+    albumTitle: 'Lagu Favorit & Koleksi Kustom',
+    artistName: 'Playlist Saya',
+    isFavorites: true,
   },
 
   // 3. Radiohead Complete & 9 Studio Albums
@@ -258,19 +272,29 @@ export const DiscordServerRail: React.FC<DiscordServerRailProps> = ({
   onSelectAlbum,
   onRefreshBackend,
   isBackendOnline,
+  customPlaylist,
+  likedCount = 0,
 }) => {
   const [hoveredId, setHoveredId] = useState<string | null>(null);
+
+  const playlistName = customPlaylist?.name || 'Playlist Favorit Saya';
+  const playlistCover = customPlaylist?.coverUrl || 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=600&auto=format&fit=crop&q=80';
 
   return (
     <nav className="w-[72px] h-full bg-[#0B0C0E] border-r border-[#282B32] flex flex-col items-center py-3 gap-2 flex-shrink-0 select-none z-30 overflow-y-auto overflow-x-hidden custom-scrollbar">
       {SERVERS.map((server, index) => {
         const isActive = activeAlbum === server.id;
         const isHovered = hoveredId === server.id;
+        const displayName = server.isFavorites ? playlistName : server.name;
 
         return (
           <React.Fragment key={server.id}>
             {/* Divider after Friend Spotify */}
-            {index === 1 && (
+            {index === 0 && (
+              <div className="w-8 h-[2px] bg-[#282B32] rounded-md my-1 flex-shrink-0" />
+            )}
+            {/* Divider after Favorites Playlist */}
+            {index === 2 && (
               <div className="w-8 h-[2px] bg-[#282B32] rounded-md my-1 flex-shrink-0" />
             )}
             {/* Divider after Radiohead Discography (before JKT48) */}
@@ -287,13 +311,21 @@ export const DiscordServerRail: React.FC<DiscordServerRailProps> = ({
               onMouseEnter={() => setHoveredId(server.id)}
               onMouseLeave={() => setHoveredId(null)}
               onClick={() => onSelectAlbum(server.id)}
-              title={server.albumTitle ? `${server.name} • Album: ${server.albumTitle}${server.year ? ` (${server.year})` : ''}` : server.name}
+              title={
+                server.isFavorites
+                  ? `${playlistName} • ${likedCount} lagu favorit tersimpan`
+                  : server.albumTitle
+                  ? `${server.name} • Album: ${server.albumTitle}${server.year ? ` (${server.year})` : ''}`
+                  : server.name
+              }
             >
               {/* Discord Pill Indicator (Left Edge) */}
               <div
                 className={`absolute left-0 w-1 ${
                   server.isSpotify
                     ? 'bg-[#1DB954]'
+                    : server.isFavorites
+                    ? 'bg-[#FF4B72]'
                     : 'bg-[#BFE7EA]'
                 } rounded-r-md transition-all duration-200 ${
                   isActive
@@ -310,6 +342,8 @@ export const DiscordServerRail: React.FC<DiscordServerRailProps> = ({
                   isActive
                     ? server.isSpotify
                       ? 'rounded-[16px] ring-2 ring-[#1DB954] border-transparent'
+                      : server.isFavorites
+                      ? 'rounded-[16px] ring-2 ring-[#FF4B72] border-transparent'
                       : 'rounded-[16px] ring-2 ring-[#BFE7EA] border-transparent'
                     : isHovered
                     ? 'rounded-[16px] bg-[#1C1E22] border-[#282B32]'
@@ -319,6 +353,27 @@ export const DiscordServerRail: React.FC<DiscordServerRailProps> = ({
                 {server.isHome ? (
                   <div className="w-full h-full bg-[#1DB954] flex items-center justify-center text-black">
                     <Music2 className="w-5 h-5 stroke-[2.5]" />
+                  </div>
+                ) : server.isFavorites ? (
+                  <div className="relative w-full h-full flex items-center justify-center overflow-hidden bg-gradient-to-br from-[#FF4B72]/20 via-[#141619] to-[#1DB954]/20 group">
+                    <img
+                      src={playlistCover}
+                      alt={playlistName}
+                      loading="eager"
+                      referrerPolicy="no-referrer"
+                      onError={(e) => {
+                        (e.currentTarget as HTMLElement).style.display = 'none';
+                      }}
+                      className="w-full h-full object-cover relative z-10"
+                    />
+                    <div className="absolute inset-0 z-20 flex items-center justify-center bg-black/40 group-hover:bg-black/20 transition-colors">
+                      <Heart className="w-5 h-5 text-white fill-[#FF4B72] drop-shadow-md" />
+                    </div>
+                    {likedCount > 0 && (
+                      <span className="absolute bottom-1 right-1 z-30 px-1 py-0.5 text-[9px] font-black rounded bg-[#FF4B72] text-white shadow-md font-mono leading-none">
+                        {likedCount > 99 ? '99+' : likedCount}
+                      </span>
+                    )}
                   </div>
                 ) : server.imageUrl ? (
                   <>
@@ -350,17 +405,25 @@ export const DiscordServerRail: React.FC<DiscordServerRailProps> = ({
                   <div className="flex items-center gap-1.5 font-bold text-white text-xs">
                     <span
                       className={`w-2 h-2 rounded-full flex-shrink-0 ${
-                        server.isSpotify ? 'bg-[#1DB954]' : 'bg-[#BFE7EA]'
+                        server.isSpotify
+                          ? 'bg-[#1DB954]'
+                          : server.isFavorites
+                          ? 'bg-[#FF4B72]'
+                          : 'bg-[#BFE7EA]'
                       }`}
                     />
-                    <span className="truncate">{server.name}</span>
+                    <span className="truncate">{displayName}</span>
                   </div>
-                  {server.albumTitle && (
+                  {server.isFavorites ? (
+                    <div className="text-[11px] text-[#A0A5AD] font-medium leading-tight mt-0.5">
+                      <span className="text-[#FF4B72] font-semibold">{likedCount} lagu</span> tersimpan di playlist ini
+                    </div>
+                  ) : server.albumTitle ? (
                     <div className="text-[11px] text-[#A0A5AD] font-medium leading-tight mt-0.5">
                       <span className="text-[#BFE7EA] font-semibold">Album:</span> {server.albumTitle}
                       {server.year ? ` (${server.year})` : ''}
                     </div>
-                  )}
+                  ) : null}
                   {server.artistName && (
                     <div className="text-[10px] text-[#71757E]">
                       Artis: {server.artistName}

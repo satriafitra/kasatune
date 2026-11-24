@@ -48,6 +48,8 @@ interface PlayerBarProps {
   showLyrics: boolean;
   onToggleLyrics: () => void;
   onOpenPlayer?: () => void;
+  isLiked?: boolean;
+  onToggleLike?: () => void;
 }
 
 export const PlayerBar: React.FC<PlayerBarProps> = ({
@@ -73,8 +75,9 @@ export const PlayerBar: React.FC<PlayerBarProps> = ({
   showLyrics,
   onToggleLyrics,
   onOpenPlayer,
+  isLiked = false,
+  onToggleLike,
 }) => {
-  const [isLiked, setIsLiked] = useState(false);
   const [isScrubbingHover, setIsScrubbingHover] = useState(false);
 
   const safeDuration = durationSec > 0 ? durationSec : 238;
@@ -122,14 +125,14 @@ export const PlayerBar: React.FC<PlayerBarProps> = ({
         <button
           onClick={(e) => {
             e.stopPropagation();
-            setIsLiked(!isLiked);
+            onToggleLike?.();
           }}
           className={`p-1.5 transition-colors ml-0.5 rounded hover:bg-[#1C1E22] ${
-            isLiked ? 'text-[#D46743]' : 'text-[#656A74] hover:text-white'
+            isLiked ? 'text-[#FF4B72]' : 'text-[#656A74] hover:text-white'
           }`}
-          title={isLiked ? 'Liked' : 'Like'}
+          title={isLiked ? 'Hapus dari favorit' : 'Simpan ke favorit'}
         >
-          <Heart className={`w-4 h-4 ${isLiked ? 'fill-[#D46743]' : ''}`} />
+          <Heart className={`w-4 h-4 ${isLiked ? 'fill-[#FF4B72]' : ''}`} />
         </button>
       </div>
 

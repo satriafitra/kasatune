@@ -20,6 +20,8 @@ import { useMusicSync } from './hooks/useMusicSync';
 import { useAlbumColor } from './hooks/useAlbumColor';
 import { useAudioVisualizer } from './hooks/useAudioVisualizer';
 import { useFriendSpotify, type FriendTrack } from './hooks/useFriendSpotify';
+import { useCustomPlaylist } from './hooks/useCustomPlaylist';
+import { EditPlaylistModal } from './components/EditPlaylistModal';
 import type { BackendRadioheadTrack } from './api/backend';
 import { searchLiveMusic } from './api/liveSearch';
 
@@ -29,6 +31,7 @@ export const App: React.FC = () => {
   const [liveTracks, setLiveTracks] = useState<BackendRadioheadTrack[]>([]);
   const [isLoadingLive, setIsLoadingLive] = useState<boolean>(false);
   const [mobileView, setMobileView] = useState<'player' | 'lyrics' | 'sidebar'>('sidebar');
+  const [isEditPlaylistModalOpen, setIsEditPlaylistModalOpen] = useState(false);
 
   // Real-time Global Online Music Scraper / Search Engine
   useEffect(() => {
@@ -106,6 +109,16 @@ export const App: React.FC = () => {
     toggleRepeat,
     refetchTracks,
   } = useMusicSync();
+
+  // 2.1 User Custom Playlist & Liked Songs Hub
+  const {
+    playlist: customPlaylist,
+    likedTracks,
+    likedTrackIds,
+    isLiked,
+    toggleLike,
+    updatePlaylist,
+  } = useCustomPlaylist(tracks);
 
   // 3. Dynamic Color Extraction from Album Art via ColorThief
   const albumColors = useAlbumColor(activeTrack.coverUrl);
@@ -366,8 +379,12 @@ export const App: React.FC = () => {
       return merged;
     }
 
-    return tracks.filter((t) => matchesAlbumFilter(t, activeAlbum));
-  }, [tracks, activeAlbum, searchFilter, liveTracks]);
+    if (activeAlbum === 'favorites') {
+      return likedTracks;
+    }
+
+    return tracks.filter((t) => matchesAlbumFilter(t, activeAlbum, likedTrackIds));
+  }, [tracks, activeAlbum, searchFilter, liveTracks, likedTracks, likedTrackIds]);
 
   // Switch Discord Server category & automatically load the primary track
   const handleSelectAlbum = useCallback(
@@ -377,7 +394,21 @@ export const App: React.FC = () => {
         localStorage.setItem('kasatune_active_album', album);
       } catch {}
 
-      if (album === 'friend') {
+      if (album === 'favorites') {
+        if (likedTracks.length > 0) {
+          const firstLiked = likedTracks[0];
+          selectTrack(firstLiked);
+          try {
+            localStorage.setItem('kasatune_saved_track_id', firstLiked.id);
+          } catch {}
+          loadTrack(
+            firstLiked.previewUrl,
+            firstLiked.bpm,
+            firstLiked.durationMs > 0 ? firstLiked.durationMs / 1000 : 238,
+            true
+          );
+        }
+      } else if (album === 'friend') {
         setIsFriendSyncConnected(true);
         try {
           localStorage.setItem('kasatune_is_friend_connected', 'true');
@@ -403,7 +434,7 @@ export const App: React.FC = () => {
           play();
         }
       } else {
-        const matchedTrack = tracks.find((t) => matchesAlbumFilter(t, album)) || tracks[0];
+        const matchedTrack = tracks.find((t) => matchesAlbumFilter(t, album, likedTrackIds)) || tracks[0];
         if (matchedTrack) {
           selectTrack(matchedTrack);
           try {
@@ -418,7 +449,7 @@ export const App: React.FC = () => {
         }
       }
     },
-    [tracks, selectTrack, loadTrack, friendPlayback, friendLiveProgressMs, seekToSeconds, play, resolveTargetTrack]
+    [tracks, selectTrack, loadTrack, friendPlayback, friendLiveProgressMs, seekToSeconds, play, resolveTargetTrack, likedTracks, likedTrackIds]
   );
 
   // Toggle Live Sync connection state and start immediate playback at friend's current playtime
@@ -701,6 +732,8 @@ export const App: React.FC = () => {
             }}
             onRefreshBackend={refetchTracks}
             isBackendOnline={isBackendOnline}
+            customPlaylist={customPlaylist}
+            likedCount={likedTrackIds.length}
           />
         </div>
 
@@ -733,6 +766,10 @@ export const App: React.FC = () => {
             onSetDiscordUserId={handleSetDiscordUserId}
             onToggleFriendSync={handleToggleFriendSync}
             onSwitchToMyMusic={handleSwitchToMyMusic}
+            customPlaylistTitle={customPlaylist.name}
+            likedTrackIds={likedTrackIds}
+            isLikedTrack={isLiked}
+            onToggleLikeTrack={toggleLike}
           />
         </div>
 
@@ -753,6 +790,11 @@ export const App: React.FC = () => {
                 avatarUrl: friendPlayback?.avatarUrl,
                 isStandby: Boolean(friendPlayback && !friendPlayback.isPlaying && !friendPlayback.track),
               }}
+              activeAlbum={activeAlbum}
+              customPlaylist={customPlaylist}
+              onOpenEditModal={() => setIsEditPlaylistModalOpen(true)}
+              isLikedTrack={isLiked}
+              onToggleLikeTrack={toggleLike}
             />
           </div>
 
@@ -808,6 +850,21 @@ export const App: React.FC = () => {
           }
         }}
         onOpenPlayer={() => setMobileView('player')}
+        isLiked={isLiked(activeTrack.id)}
+        onToggleLike={() => toggleLike(activeTrack)}
+      />
+
+      {/* 4. Edit Custom Playlist Modal */}
+      <EditPlaylistModal
+        isOpen={isEditPlaylistModalOpen}
+        onClose={() => setIsEditPlaylistModalOpen(false)}
+        initialName={customPlaylist.name}
+        initialDescription={customPlaylist.description}
+        initialCoverUrl={customPlaylist.coverUrl}
+        onSave={(data) => {
+          updatePlaylist(data);
+          setIsEditPlaylistModalOpen(false);
+        }}
       />
     </div>
   );

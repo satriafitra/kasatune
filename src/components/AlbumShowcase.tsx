@@ -8,9 +8,11 @@
  */
 
 import React, { useState } from 'react';
-import { Play, Pause, Heart, MoreHorizontal, Clock, Volume2 } from 'lucide-react';
+import { Play, Pause, Heart, MoreHorizontal, Clock, Volume2, Pencil, Sparkles } from 'lucide-react';
 import type { BackendRadioheadTrack } from '../api/backend';
 import type { AlbumColors } from '../hooks/useAlbumColor';
+import type { AlbumFilterType } from './DiscordServerRail';
+import type { CustomPlaylistData } from '../hooks/useCustomPlaylist';
 
 interface AlbumShowcaseProps {
   track: BackendRadioheadTrack | null;
@@ -25,6 +27,11 @@ interface AlbumShowcaseProps {
     avatarUrl?: string;
     isStandby: boolean;
   };
+  activeAlbum?: AlbumFilterType;
+  customPlaylist?: CustomPlaylistData;
+  onOpenEditModal?: () => void;
+  isLikedTrack?: (trackId: string) => boolean;
+  onToggleLikeTrack?: (track: BackendRadioheadTrack) => void;
 }
 
 export const AlbumShowcase: React.FC<AlbumShowcaseProps> = ({
@@ -36,19 +43,34 @@ export const AlbumShowcase: React.FC<AlbumShowcaseProps> = ({
   onTogglePlay,
   onSelectTrack,
   friendStandbyInfo,
+  activeAlbum,
+  customPlaylist,
+  onOpenEditModal,
+  isLikedTrack,
+  onToggleLikeTrack,
 }) => {
-  const title = track?.title || 'HOLLOW HUNGER';
-  const artist = track?.artist || 'OxT';
-  const album = track?.album || 'OVERLORD IV OP - HOLLOW HUNGER';
-  const year = track?.year || 2022;
-  const imageUrl = track?.coverUrl || 'https://is1-ssl.mzstatic.com/image/thumb/Music112/v4/0a/a7/9f/0aa79f8a-101c-f475-c158-66e56d4a378a/JK_ZMCZ-15801.jpg/600x600bb.jpg';
+  const isFavorites = activeAlbum === 'favorites';
 
-  const [isLiked, setIsLiked] = useState(false);
+  const title = isFavorites
+    ? (customPlaylist?.name || 'Playlist Favorit Saya')
+    : (track?.title || 'HOLLOW HUNGER');
+  const artist = isFavorites
+    ? 'Dibuat oleh Anda'
+    : (track?.artist || 'OxT');
+  const album = isFavorites
+    ? (customPlaylist?.description || `${tracks.length} lagu favorit pilihan`)
+    : (track?.album || 'OVERLORD IV OP - HOLLOW HUNGER');
+  const year = isFavorites ? 2025 : (track?.year || 2022);
+  const imageUrl = isFavorites
+    ? (customPlaylist?.coverUrl || 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=600&auto=format&fit=crop&q=80')
+    : (track?.coverUrl || 'https://is1-ssl.mzstatic.com/image/thumb/Music112/v4/0a/a7/9f/0aa79f8a-101c-f475-c158-66e56d4a378a/JK_ZMCZ-15801.jpg/600x600bb.jpg');
+
   const [hoveredTrackId, setHoveredTrackId] = useState<string | null>(null);
 
   const [r, g, b] = colors.dominantColor || [232, 155, 91];
   const albumColorRgb = `rgb(${r}, ${g}, ${b})`;
-  const albumColorGlow = `rgba(${r}, ${g}, ${b}, 0.5)`;
+
+  const activeTrackLiked = track ? (isLikedTrack ? isLikedTrack(track.id) : false) : false;
 
   const formatDuration = (ms: number) => {
     if (!ms || ms <= 0) return '3:58';
@@ -138,11 +160,18 @@ export const AlbumShowcase: React.FC<AlbumShowcaseProps> = ({
           {/* Metadata Block */}
           <div className="flex flex-col gap-1.5 min-w-0 text-center sm:text-left z-10 pl-2">
             <div className="flex items-center justify-center sm:justify-start gap-2">
-              <span className="text-[10px] font-black uppercase tracking-wider text-[#0B0C0E] bg-[#BFE7EA] px-2 py-0.5 rounded shadow-sm">
-                Master Audio
-              </span>
+              {isFavorites ? (
+                <span className="text-[10px] font-black uppercase tracking-wider text-white bg-[#FF4B72] px-2 py-0.5 rounded shadow-sm flex items-center gap-1">
+                  <Heart className="w-3 h-3 fill-white" />
+                  <span>Kustom &bull; Playlist Saya</span>
+                </span>
+              ) : (
+                <span className="text-[10px] font-black uppercase tracking-wider text-[#0B0C0E] bg-[#BFE7EA] px-2 py-0.5 rounded shadow-sm">
+                  Master Audio
+                </span>
+              )}
               <span className="text-[11px] font-mono text-[#BFE7EA] font-semibold">
-                44.1 kHz &bull; FLAC
+                {isFavorites ? `${tracks.length} Lagu Favorit` : '44.1 kHz • FLAC'}
               </span>
             </div>
 
@@ -160,7 +189,7 @@ export const AlbumShowcase: React.FC<AlbumShowcaseProps> = ({
                 {artist}
               </span>
               <span>&bull;</span>
-              <span className="text-white font-semibold">{album}</span>
+              <span className="text-white font-semibold truncate max-w-xs">{album}</span>
               <span>&bull;</span>
               <span>{year}</span>
             </div>
@@ -180,20 +209,35 @@ export const AlbumShowcase: React.FC<AlbumShowcaseProps> = ({
                 ) : (
                   <>
                     <Play className="w-3.5 h-3.5 fill-black stroke-black translate-x-0.5" />
-                    <span>Play Master</span>
+                    <span>{isFavorites ? 'Putar Semua' : 'Play Master'}</span>
                   </>
                 )}
               </button>
 
-              <button
-                onClick={() => setIsLiked(!isLiked)}
-                className={`h-9 w-9 flex items-center justify-center transition-colors rounded-md bg-[#141619] border border-[#282B32] hover:bg-[#1C1E22] ${
-                  isLiked ? 'text-[#1DB954]' : 'text-[#A0A5AD] hover:text-white'
-                }`}
-                title={isLiked ? 'Remove from favorites' : 'Save to favorites'}
-              >
-                <Heart className={`w-4 h-4 ${isLiked ? 'fill-[#1DB954]' : ''}`} />
-              </button>
+              {/* Heart Button */}
+              {track && (
+                <button
+                  onClick={() => onToggleLikeTrack?.(track)}
+                  className={`h-9 w-9 flex items-center justify-center transition-colors rounded-md bg-[#141619] border border-[#282B32] hover:bg-[#1C1E22] ${
+                    activeTrackLiked ? 'text-[#FF4B72]' : 'text-[#A0A5AD] hover:text-white'
+                  }`}
+                  title={activeTrackLiked ? 'Hapus dari favorit' : 'Simpan ke favorit'}
+                >
+                  <Heart className={`w-4 h-4 ${activeTrackLiked ? 'fill-[#FF4B72]' : ''}`} />
+                </button>
+              )}
+
+              {/* Edit Details Button */}
+              {isFavorites && onOpenEditModal && (
+                <button
+                  onClick={onOpenEditModal}
+                  className="h-9 px-3.5 rounded-md bg-[#1C1E22] hover:bg-[#282B32] text-white flex items-center gap-1.5 text-xs font-bold border border-[#282B32] hover:border-[#BFE7EA]/40 transition-colors shadow-sm"
+                  title="Kustomisasi nama, profil foto, dan deskripsi playlist"
+                >
+                  <Pencil className="w-3.5 h-3.5 text-[#BFE7EA]" />
+                  <span>Edit Rincian</span>
+                </button>
+              )}
 
               <button
                 className="h-9 w-9 flex items-center justify-center text-[#A0A5AD] hover:text-white rounded-md bg-[#141619] border border-[#282B32] hover:bg-[#1C1E22] transition-colors"
@@ -208,112 +252,168 @@ export const AlbumShowcase: React.FC<AlbumShowcaseProps> = ({
 
       {/* 2. Authentic Spotify Tracklist Table */}
       <div className="px-4 sm:px-6 pb-6 flex-1 flex flex-col pt-3">
-        {/* Table Header */}
-        <div className="grid grid-cols-[20px_1fr_auto] md:grid-cols-[20px_4fr_3fr_auto] gap-4 px-3 py-2 text-[11px] font-bold uppercase tracking-wider text-[#A0A5AD] border-b border-[#282B32] mb-1">
-          <div className="text-center">#</div>
-          <div>Title</div>
-          <div className="hidden md:block">Album</div>
-          <div className="text-right flex items-center justify-end pr-2">
-            <Clock className="w-3.5 h-3.5" />
-          </div>
-        </div>
-
-        {/* Table Rows */}
-        <div className="space-y-0.5">
-          {tracks.map((t, index) => {
-            const isActive = t.id === activeTrackId;
-            const isHovered = hoveredTrackId === t.id;
-
-            return (
-              <div
-                key={t.id}
-                onMouseEnter={() => setHoveredTrackId(t.id)}
-                onMouseLeave={() => setHoveredTrackId(null)}
-                onClick={() => {
-                  if (isActive) {
-                    onTogglePlay();
-                  } else {
-                    onSelectTrack(t);
-                  }
-                }}
-                className={`grid grid-cols-[20px_1fr_auto] md:grid-cols-[20px_4fr_3fr_auto] gap-4 px-3 py-2 rounded-md text-sm items-center cursor-pointer transition-all ${
-                  isActive
-                    ? 'bg-[#1C1E22] shadow-sm'
-                    : 'hover:bg-[#1E2025] text-[#A0A5AD]'
-                }`}
+        {/* Empty State for Favorites */}
+        {isFavorites && tracks.length === 0 ? (
+          <div className="flex-1 flex flex-col items-center justify-center py-16 text-center text-[#A0A5AD]">
+            <div className="w-16 h-16 rounded-full bg-[#1C1E22] border border-[#282B32] flex items-center justify-center mb-4 text-[#FF4B72]">
+              <Heart className="w-8 h-8 fill-current" />
+            </div>
+            <h3 className="text-base font-bold text-white mb-1.5">
+              Belum Ada Lagu Favorit
+            </h3>
+            <p className="text-xs text-[#656A74] max-w-sm mb-4 leading-relaxed">
+              Klik ikon hati (<Heart className="inline w-3 h-3 text-[#FF4B72] fill-current" />) pada lagu apa saja untuk menyimpannya otomatis ke playlist ini.
+            </p>
+            {onOpenEditModal && (
+              <button
+                onClick={onOpenEditModal}
+                className="px-4 py-2 rounded-md bg-[#1C1E22] hover:bg-[#282B32] text-xs font-bold text-white border border-[#282B32] flex items-center gap-1.5 transition-colors"
               >
-                {/* Index / Play Button */}
-                <div
-                  className="text-center text-xs font-semibold flex items-center justify-center cursor-pointer hover:scale-110 active:scale-95 transition-transform"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    if (isActive) {
-                      onTogglePlay();
-                    } else {
-                      onSelectTrack(t);
-                    }
-                  }}
-                  title={isActive ? (isPlaying ? 'Pause lagu' : 'Putar lagu') : 'Putar lagu'}
-                >
-                  {isHovered ? (
-                    isActive && isPlaying ? (
-                      <Pause className="w-3.5 h-3.5 text-white fill-white" />
-                    ) : (
-                      <Play className="w-3.5 h-3.5 text-[#BFE7EA] fill-[#BFE7EA] translate-x-0.5" />
-                    )
-                  ) : isActive && isPlaying ? (
-                    <Volume2 className="w-4 h-4 text-[#BFE7EA] animate-pulse" />
-                  ) : (
-                    <span className={isActive ? 'text-[#BFE7EA] font-black' : 'text-[#656A74]'}>
-                      {index + 1}
-                    </span>
-                  )}
-                </div>
+                <Pencil className="w-3.5 h-3.5 text-[#BFE7EA]" />
+                <span>Kustomisasi Profil Playlist</span>
+              </button>
+            )}
+          </div>
+        ) : (
+          <>
+            {/* Table Header */}
+            <div className="grid grid-cols-[32px_1fr_36px_auto] md:grid-cols-[32px_4fr_3fr_36px_auto] gap-3 sm:gap-4 px-3 py-2 text-[11px] font-bold uppercase tracking-wider text-[#A0A5AD] border-b border-[#282B32] mb-1">
+              <div className="text-center">#</div>
+              <div>Title</div>
+              <div className="hidden md:block">Album</div>
+              <div className="text-center flex items-center justify-center">
+                <Heart className="w-3.5 h-3.5 text-[#656A74]" />
+              </div>
+              <div className="text-right flex items-center justify-end pr-2">
+                <Clock className="w-3.5 h-3.5" />
+              </div>
+            </div>
 
-                {/* Title + Thumbnail + Artist */}
-                <div className="flex items-center gap-3 min-w-0">
-                  <div className="w-10 h-10 min-w-[40px] min-h-[40px] max-w-[40px] max-h-[40px] rounded-md overflow-hidden flex-shrink-0 bg-[#0B0C0E] border border-[#282B32]/70 shadow-sm relative">
-                    <img
-                      src={t.coverUrl}
-                      alt={t.title}
-                      onError={(e) => {
-                        (e.currentTarget as HTMLElement).style.display = 'none';
+            {/* Table Rows */}
+            <div className="space-y-0.5">
+              {tracks.map((t, index) => {
+                const isActive = t.id === activeTrackId;
+                const isHovered = hoveredTrackId === t.id;
+                const isLiked = isLikedTrack ? isLikedTrack(t.id) : false;
+
+                return (
+                  <div
+                    key={t.id}
+                    onMouseEnter={() => setHoveredTrackId(t.id)}
+                    onMouseLeave={() => setHoveredTrackId(null)}
+                    onClick={() => {
+                      if (isActive) {
+                        onTogglePlay();
+                      } else {
+                        onSelectTrack(t);
+                      }
+                    }}
+                    className={`grid grid-cols-[32px_1fr_36px_auto] md:grid-cols-[32px_4fr_3fr_36px_auto] gap-3 sm:gap-4 px-3 py-2 rounded-md text-sm items-center cursor-pointer transition-all ${
+                      isActive
+                        ? 'bg-[#1C1E22] shadow-sm'
+                        : 'hover:bg-[#1E2025] text-[#A0A5AD]'
+                    }`}
+                  >
+                    {/* Index / Play / Pause Button with larger, comfortable click area */}
+                    <div
+                      className="w-8 h-8 rounded-md flex items-center justify-center cursor-pointer hover:bg-white/10 active:scale-90 transition-all flex-shrink-0"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (isActive) {
+                          onTogglePlay();
+                        } else {
+                          onSelectTrack(t);
+                        }
                       }}
-                      className="w-full h-full object-cover block"
-                    />
-                  </div>
-                  <div className="flex flex-col min-w-0">
-                    <span
-                      className={`font-bold truncate text-xs leading-tight flex items-center gap-1.5 ${
-                        isActive ? 'text-white' : 'text-[#F2F3F5]'
-                      }`}
+                      title={isActive ? (isPlaying ? 'Pause lagu' : 'Putar lagu') : 'Putar lagu'}
                     >
-                      <span className="truncate">{t.title}</span>
-                      {t.category === 'online' && (
-                        <span className="text-[9px] font-mono px-1 py-0.2 rounded bg-[#1DB954]/20 text-[#1DB954] border border-[#1DB954]/30 flex-shrink-0">
-                          LIVE
+                      {isActive ? (
+                        isPlaying ? (
+                          isHovered ? (
+                            <Pause className="w-4 h-4 text-white fill-white" />
+                          ) : (
+                            <Volume2 className="w-4 h-4 text-[#BFE7EA] animate-pulse" />
+                          )
+                        ) : (
+                          <Play className="w-4 h-4 text-[#BFE7EA] fill-[#BFE7EA] translate-x-0.5" />
+                        )
+                      ) : isHovered ? (
+                        <Play className="w-4 h-4 text-white fill-white translate-x-0.5" />
+                      ) : (
+                        <span className={isActive ? 'text-[#BFE7EA] font-black text-xs' : 'text-[#656A74] text-xs font-semibold'}>
+                          {index + 1}
                         </span>
                       )}
-                    </span>
-                    <span className="text-[11px] text-[#A0A5AD] hover:text-white cursor-pointer truncate">
-                      {t.artist}
-                    </span>
+                    </div>
+
+                    {/* Title + Thumbnail + Artist */}
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="w-10 h-10 min-w-[40px] min-h-[40px] max-w-[40px] max-h-[40px] rounded-md overflow-hidden flex-shrink-0 bg-[#0B0C0E] border border-[#282B32]/70 shadow-sm relative">
+                        <img
+                          src={t.coverUrl}
+                          alt={t.title}
+                          onError={(e) => {
+                            (e.currentTarget as HTMLElement).style.display = 'none';
+                          }}
+                          className="w-full h-full object-cover block"
+                        />
+                      </div>
+                      <div className="flex flex-col min-w-0">
+                        <span
+                          className={`font-bold truncate text-xs leading-tight flex items-center gap-1.5 ${
+                            isActive ? 'text-white' : 'text-[#F2F3F5]'
+                          }`}
+                        >
+                          <span className="truncate">{t.title}</span>
+                          {t.category === 'online' && (
+                            <span className="text-[9px] font-mono px-1 py-0.2 rounded bg-[#1DB954]/20 text-[#1DB954] border border-[#1DB954]/30 flex-shrink-0">
+                              LIVE
+                            </span>
+                          )}
+                        </span>
+                        <span className="text-[11px] text-[#A0A5AD] hover:text-white cursor-pointer truncate">
+                          {t.artist}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Album */}
+                    <div className="hidden md:block text-xs text-[#A0A5AD] hover:text-white truncate">
+                      {t.album}
+                    </div>
+
+                    {/* Heart Action Button */}
+                    <div className="flex items-center justify-center">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onToggleLikeTrack?.(t);
+                        }}
+                        className={`p-1.5 rounded-full transition-all hover:scale-110 active:scale-95 ${
+                          isLiked
+                            ? 'text-[#FF4B72]'
+                            : 'text-[#656A74] opacity-0 group-hover:opacity-100 hover:text-white'
+                        }`}
+                        title={isLiked ? 'Hapus dari favorit' : 'Simpan ke favorit'}
+                      >
+                        <Heart
+                          className={`w-4 h-4 ${
+                            isLiked ? 'fill-[#FF4B72]' : ''
+                          }`}
+                        />
+                      </button>
+                    </div>
+
+                    {/* Duration */}
+                    <div className="text-right text-xs font-mono text-[#A0A5AD] pr-2">
+                      {formatDuration(t.durationMs)}
+                    </div>
                   </div>
-                </div>
-
-                {/* Album */}
-                <div className="hidden md:block text-xs text-[#A0A5AD] hover:text-white truncate">
-                  {t.album}
-                </div>
-
-                {/* Duration */}
-                <div className="text-right text-xs font-mono text-[#A0A5AD] pr-2">
-                  {formatDuration(t.durationMs)}
-                </div>
-              </div>
-            );
-          })}
-        </div>
+                );
+              })}
+            </div>
+          </>
+        )}
       </div>
     </div>
   );
