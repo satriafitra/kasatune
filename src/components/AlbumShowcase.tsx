@@ -23,7 +23,7 @@ import type { AlbumColors } from '../hooks/useAlbumColor';
 import type { AlbumFilterType } from './DiscordServerRail';
 import type { CustomPlaylistData } from '../hooks/useCustomPlaylist';
 import type { PinnedServerItem } from './AddAlbumModal';
-import { computeRealtimeStreams, getMonthlyListeners } from '../api/liveSearch';
+import { computeRealtimeStreams, getMonthlyListeners, isSameTrack, isValidImageUrl } from '../api/liveSearch';
 
 interface AlbumShowcaseProps {
   track: BackendRadioheadTrack | null;
@@ -108,7 +108,7 @@ export const AlbumShowcase: React.FC<AlbumShowcaseProps> = ({
     'Album';
 
   const coverImage =
-    albumEntity?.imageUrl ||
+    (isValidImageUrl(albumEntity?.imageUrl) ? albumEntity?.imageUrl : '') ||
     (tracks.length > 0 ? tracks[0].coverUrl : track?.coverUrl) ||
     '/covers/radiohead.jpg';
 
@@ -130,8 +130,8 @@ export const AlbumShowcase: React.FC<AlbumShowcaseProps> = ({
     return `${min}:${sec < 10 ? '0' : ''}${sec}`;
   };
 
-  // Check if active track belongs to current tracklist
-  const isCurrentTrackInView = tracks.some((t) => t.id === activeTrackId);
+  // Check if active track belongs to current tracklist (syncs search results with artist tracklists)
+  const isCurrentTrackInView = tracks.some((t) => isSameTrack(t, track) || t.id === activeTrackId);
   const isStagePlaying = isPlaying && isCurrentTrackInView;
 
   const handleMasterPlayToggle = () => {
@@ -343,7 +343,7 @@ export const AlbumShowcase: React.FC<AlbumShowcaseProps> = ({
         ) : (
           <div className="space-y-0.5">
             {tracks.map((t, index) => {
-              const isActive = t.id === activeTrackId;
+              const isActive = isSameTrack(t, track) || t.id === activeTrackId;
               const isHovered = hoveredTrackId === t.id;
               const isLiked = isLikedTrack ? isLikedTrack(t.id) : false;
               const streamsFormatted = computeRealtimeStreams(t.title, t.artist, index, (t as any).rank);

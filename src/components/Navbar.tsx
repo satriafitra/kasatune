@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import { KasatuneLogoIcon } from './KasatuneLogo';
 import type { BackendRadioheadTrack } from '../api/backend';
+import { isSameTrack } from '../api/liveSearch';
 
 interface NavbarProps {
   isBackendOnline: boolean;
@@ -386,7 +387,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                     </div>
 
                     {deduplicatedLiveMatches.map((t) => {
-                      const isActive = t.id === activeTrackId;
+                      const isActive = t.id === activeTrackId || isSameTrack(t, tracks.find((lt) => lt.id === activeTrackId));
                       const isLiked = isLikedTrack ? isLikedTrack(t.id) : false;
 
                       return (

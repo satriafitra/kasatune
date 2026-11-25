@@ -12,6 +12,44 @@
 import type { BackendRadioheadTrack } from './backend';
 import musicLibraryData from '../data/music_library.json';
 
+export function isValidImageUrl(url?: string | null): boolean {
+  if (!url) return false;
+  const trimmed = url.trim();
+  if (!trimmed) return false;
+  if (trimmed.includes('/artist//') || trimmed.includes('/cover//')) return false;
+  if (trimmed.includes('d41d8cd98f00b204e9800998ecf8427e')) return false;
+  if (trimmed.includes('images.genius.com')) return false;
+  if (trimmed.includes('images.unsplash.com/photo-1511671782779')) return false;
+  return true;
+}
+
+const normalizeMatchText = (str?: string): string =>
+  (str || '')
+    .toLowerCase()
+    .replace(/\(.*?\)|\[.*?\]/g, ' ')
+    .replace(/\b(feat|ft)\.?\b.*/i, ' ')
+    .replace(/[^\p{L}\p{N}\s]/gu, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+/**
+ * Matches tracks reliably across local library, search results, and artist discography views.
+ */
+export function isSameTrack(
+  a?: Partial<BackendRadioheadTrack> | null,
+  b?: Partial<BackendRadioheadTrack> | null
+): boolean {
+  if (!a || !b) return false;
+  if (a.id && b.id && a.id === b.id) return true;
+  const at = normalizeMatchText(a.title);
+  const bt = normalizeMatchText(b.title);
+  if (!at || !bt || at !== bt) return false;
+  const aa = normalizeMatchText(a.artist);
+  const ba = normalizeMatchText(b.artist);
+  if (!aa || !ba) return true;
+  return aa === ba || aa.includes(ba) || ba.includes(aa);
+}
+
 /**
  * Builds an accurate full-song stream URL with artist, title, and expected duration
  * so the backend matches the exact original studio recording & lyric timing.
@@ -213,41 +251,82 @@ export async function searchLiveArtists(
   const artists: LiveAlbumItem[] = [];
   const seenNames = new Set<string>();
 
-  // 1. Try Deezer artist search proxy (gives 1000x1000 artist portrait & fan stats)
+  // 1. Try Deezer artist search proxy (resolves portrait or top album cover when portrait is blank)
   try {
     const proxyUrl = `/api/deezer/search/artist?q=${encodeURIComponent(queryTerm)}&limit=8`;
     const res = await fetch(proxyUrl, { signal });
     if (res.ok) {
       const data = await res.json();
       if (data.data && Array.isArray(data.data) && data.data.length > 0) {
-        for (const a of data.data) {
-          if (!a.name) continue;
-          const k = a.name.toLowerCase().trim();
-          if (!seenNames.has(k)) {
-            seenNames.add(k);
-            artists.push({
+        const dzResolved = await Promise.all(
+          data.data.map(async (a: any) => {
+            if (!a?.name) return null;
+            let pic = isValidImageUrl(a.picture_xl)
+              ? a.picture_xl
+              : isValidImageUrl(a.picture_medium)
+              ? a.picture_medium
+              : '';
+
+            // When Deezer artist has blank default silhouette (/artist//), resolve album art from Deezer top or iTunes
+            if (!pic) {
+              try {
+                const topRes = await fetch(`/api/deezer/artist/${a.id}/top?limit=1`, { signal });
+                if (topRes.ok) {
+                  const topJson = await topRes.json();
+                  const albumArt = topJson?.data?.[0]?.album?.cover_xl || topJson?.data?.[0]?.album?.cover_big;
+                  if (isValidImageUrl(albumArt)) pic = albumArt;
+                }
+              } catch {}
+            }
+            if (!pic) {
+              try {
+                const sRes = await fetch(
+                  `https://itunes.apple.com/search?term=${encodeURIComponent(a.name)}&entity=song&limit=5`,
+                  { signal }
+                );
+                if (sRes.ok) {
+                  const sJson = await sRes.json();
+                  const hit = (sJson.results || []).find(
+                    (r: any) =>
+                      r.artworkUrl100 &&
+                      r.artistName?.toLowerCase().includes(a.name.toLowerCase())
+                  ) || sJson.results?.[0];
+                  if (hit?.artworkUrl100) {
+                    pic = hit.artworkUrl100.replace('100x100bb.jpg', '600x600bb.jpg');
+                  }
+                }
+              } catch {}
+            }
+
+            return {
               id: `online-artist-dz-${a.id}`,
               name: a.name,
               artist: a.name,
               albumTitle: 'Lagu Populer',
-              imageUrl:
-                a.picture_xl ||
-                a.picture_medium ||
-                'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=600&auto=format&fit=crop&q=80',
+              imageUrl: pic,
               type: 'artist' as const,
               genre: 'Artis Terverifikasi',
               description: `${(a.nb_fan ? (a.nb_fan * 45).toLocaleString() : '2,800,000')} pendengar • Populer di Spotify`,
               nb_fan: a.nb_fan,
-            });
+            };
+          })
+        );
+
+        for (const item of dzResolved) {
+          if (!item) continue;
+          const k = item.name.toLowerCase().trim();
+          if (!seenNames.has(k)) {
+            seenNames.add(k);
+            artists.push(item);
           }
         }
       }
     }
-  } catch (err) {
+  } catch {
     // Continue to Apple Music
   }
 
-  // 2. Apple Music / iTunes artist search with entity=musicArtist (Real artist entities, not random songs)
+  // 2. Apple Music / iTunes artist search with entity=musicArtist (Real artist entities & cover art)
   try {
     const itunesUrl = `https://itunes.apple.com/search?term=${encodeURIComponent(
       queryTerm
@@ -258,20 +337,18 @@ export async function searchLiveArtists(
       if (data.results && Array.isArray(data.results)) {
         const itunesArtists = data.results.filter((a: any) => a.artistName && a.artistId);
 
-        // Fetch top album artwork in parallel for high-res 600x600 covers
         const artworkPromises = itunesArtists.slice(0, 8).map(async (art: any) => {
-          let coverUrl =
-            'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=600&auto=format&fit=crop&q=80';
+          let coverUrl = '';
           try {
             const albRes = await fetch(
-              `https://itunes.apple.com/lookup?id=${art.artistId}&entity=album&limit=1`,
+              `https://itunes.apple.com/lookup?id=${art.artistId}&entity=song&limit=3`,
               { signal }
             );
             if (albRes.ok) {
               const albJson = await albRes.json();
-              const alb = albJson.results?.find((r: any) => r.wrapperType === 'collection');
-              if (alb && alb.artworkUrl100) {
-                coverUrl = alb.artworkUrl100.replace('100x100bb.jpg', '600x600bb.jpg');
+              const trk = albJson.results?.find((r: any) => r.wrapperType === 'track' && r.artworkUrl100);
+              if (trk?.artworkUrl100) {
+                coverUrl = trk.artworkUrl100.replace('100x100bb.jpg', '600x600bb.jpg');
               }
             }
           } catch {}
@@ -291,7 +368,13 @@ export async function searchLiveArtists(
         const resolvedItunes = await Promise.all(artworkPromises);
         for (const item of resolvedItunes) {
           const k = item.name.toLowerCase().trim();
-          if (!seenNames.has(k)) {
+          const existingIdx = artists.findIndex((a) => a.name.toLowerCase().trim() === k);
+          if (existingIdx !== -1) {
+            // Upgrade Deezer entry image if Deezer had no valid image
+            if (!isValidImageUrl(artists[existingIdx].imageUrl) && isValidImageUrl(item.imageUrl)) {
+              artists[existingIdx] = { ...artists[existingIdx], imageUrl: item.imageUrl };
+            }
+          } else if (!seenNames.has(k)) {
             seenNames.add(k);
             artists.push(item);
           }
@@ -509,18 +592,28 @@ export async function fetchArtistTracks(
       };
     };
 
+    const NON_ORIGINAL_RX = /\b(karaoke|instrumental|sped up|speed up|slowed|reverb|nightcore|cover|tribute|fanmade|fan made|parody|lo-fi|lofi|backing track|minus one|off vocal|commentary|interview|music box|lullaby|piano version|8-bit|8d audio)\b/i;
+
+    const isStudioVersionScore = (item: any): number => {
+      const t = `${item.trackName || ''} ${item.collectionName || ''}`.toLowerCase();
+      let sc = 0;
+      if (t.includes('live') || t.includes('unplugged') || t.includes('concert') || t.includes('bbc ')) sc -= 50;
+      if (t.includes('acoustic') || t.includes('remix') || t.includes('demo') || t.includes('radio edit') || t.includes('mix)')) sc -= 30;
+      if (item.trackTimeMillis && item.trackTimeMillis < 75000) sc -= 40;
+      return sc;
+    };
+
     const normalizeAndDedupeTracks = (rawTracks: any[]): BackendRadioheadTrack[] => {
-      // Filter out instrumental/karaoke/commentary tracks when fetching artist discographies
+      // Strictly keep original artist tracks and exclude covers/karaoke/fanmade
       const cleanRaw = rawTracks.filter((i: any) => {
         if (i.wrapperType !== 'track' || !i.trackName) return false;
-        const lowerTitle = i.trackName.toLowerCase();
-        return (
-          !lowerTitle.includes('karaoke') &&
-          !lowerTitle.includes('instrumental') &&
-          !lowerTitle.includes('sped up') &&
-          !lowerTitle.includes('slowed')
-        );
+        const text = `${i.trackName} ${i.collectionName || ''}`;
+        if (NON_ORIGINAL_RX.test(text)) return false;
+        return true;
       });
+
+      // Sort studio recordings BEFORE live/acoustic/remix versions prior to deduplication
+      cleanRaw.sort((a: any, b: any) => isStudioVersionScore(b) - isStudioVersionScore(a));
 
       const seen = new Set<string>();
       const songs: BackendRadioheadTrack[] = [];
@@ -543,7 +636,7 @@ export async function fetchArtistTracks(
     // 1. Direct Apple Music Lookup if Artist ID is available
     if (resolvedArtistId) {
       try {
-        const lookupUrl = `https://itunes.apple.com/lookup?id=${resolvedArtistId}&entity=song&limit=50`;
+        const lookupUrl = `https://itunes.apple.com/lookup?id=${resolvedArtistId}&entity=song&limit=100`;
         const res = await fetch(lookupUrl);
         if (res.ok) {
           const data = await res.json();
@@ -581,34 +674,36 @@ export async function fetchArtistTracks(
       }
     }
 
-    // 2. Discover Artist via iTunes entity=musicArtist
+    // 2. Discover Artist via iTunes entity=musicArtist (pick richest matching artist catalog when homonyms exist)
     try {
       const artUrl = `https://itunes.apple.com/search?term=${encodeURIComponent(
         queryTerm
-      )}&entity=musicArtist&limit=5`;
+      )}&entity=musicArtist&limit=6`;
       const artRes = await fetch(artUrl);
       if (artRes.ok) {
         const artData = await artRes.json();
-        if (artData.results && Array.isArray(artData.results) && artData.results.length > 0) {
-          const matched =
-            artData.results.find(
-              (a: any) =>
-                a.artistName &&
-                a.artistName.toLowerCase().includes(queryTerm.toLowerCase())
-            ) || artData.results[0];
+        const candidates = (artData.results || []).filter(
+          (a: any) => a.artistId && a.artistName?.toLowerCase().includes(queryTerm.toLowerCase())
+        );
+        const toCheck = (candidates.length > 0 ? candidates : artData.results || []).slice(0, 3);
+        let bestSongs: BackendRadioheadTrack[] = [];
 
-          if (matched && matched.artistId) {
-            const lookupUrl = `https://itunes.apple.com/lookup?id=${matched.artistId}&entity=song&limit=50`;
-            const sRes = await fetch(lookupUrl);
-            if (sRes.ok) {
-              const sData = await sRes.json();
-              if (sData.results && Array.isArray(sData.results)) {
-                const songs = normalizeAndDedupeTracks(sData.results);
-                if (songs.length > 0) return songs;
+        for (const cand of toCheck) {
+          if (!cand?.artistId) continue;
+          const lookupUrl = `https://itunes.apple.com/lookup?id=${cand.artistId}&entity=song&limit=100`;
+          const sRes = await fetch(lookupUrl);
+          if (sRes.ok) {
+            const sData = await sRes.json();
+            if (sData.results && Array.isArray(sData.results)) {
+              const songs = normalizeAndDedupeTracks(sData.results);
+              if (songs.length > bestSongs.length) {
+                bestSongs = songs;
               }
+              if (bestSongs.length >= 5) break;
             }
           }
         }
+        if (bestSongs.length > 0) return bestSongs;
       }
     } catch {}
 
@@ -695,8 +790,17 @@ export async function searchLiveMusic(
     const data = await res.json();
     if (!data.results || !Array.isArray(data.results)) return [];
 
+    const nonOrigRx = /\b(karaoke|instrumental|sped up|speed up|slowed|reverb|nightcore|cover|tribute|fanmade|fan made|parody|backing track|minus one|off vocal|8d audio)\b/i;
+    const allowCoverInQuery = nonOrigRx.test(trimmed);
+
     return data.results
-      .filter((item: any) => item.trackName)
+      .filter((item: any) => {
+        if (!item.trackName) return false;
+        if (!allowCoverInQuery && nonOrigRx.test(`${item.trackName} ${item.collectionName || ''} ${item.artistName || ''}`)) {
+          return false;
+        }
+        return true;
+      })
       .map((item: any) => {
         const coverUrl = item.artworkUrl100
           ? item.artworkUrl100.replace('100x100bb.jpg', '600x600bb.jpg')
@@ -710,7 +814,7 @@ export async function searchLiveMusic(
         );
 
         return {
-          id: `live-online-${item.trackId}`,
+          id: `online-trk-${item.trackId}`,
           title: item.trackName,
           artist: item.artistName || 'Unknown Artist',
           album: item.collectionName || item.trackName,

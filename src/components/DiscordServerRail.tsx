@@ -11,6 +11,7 @@
 import React, { useState } from 'react';
 import { Plus, X, Heart, Disc, Radio } from 'lucide-react';
 import type { CustomPlaylistData } from '../hooks/useCustomPlaylist';
+import { isValidImageUrl } from '../api/liveSearch';
 import { AddAlbumModal, CATALOG_ALBUMS, type PinnedServerItem } from './AddAlbumModal';
 
 export type AlbumFilterType =
@@ -333,14 +334,16 @@ export const DiscordServerRail: React.FC<DiscordServerRailProps> = ({
                     : 'rounded-full bg-[#141619] border-[#282B32]/70'
                 }`}
               >
-                <img
-                  src={server.imageUrl}
-                  alt={server.name}
-                  className="w-full h-full object-cover relative z-10 select-none"
-                  onError={(e) => {
-                    (e.currentTarget as HTMLElement).style.display = 'none';
-                  }}
-                />
+                {isValidImageUrl(server.imageUrl) && (
+                  <img
+                    src={server.imageUrl}
+                    alt={server.name}
+                    className="w-full h-full object-cover relative z-10 select-none"
+                    onError={(e) => {
+                      (e.currentTarget as HTMLElement).style.display = 'none';
+                    }}
+                  />
+                )}
                 <div className="absolute inset-0 flex items-center justify-center font-bold text-xs text-white/90 uppercase select-none pointer-events-none bg-[#1C1E22]">
                   {server.name.replace(/[^a-zA-Z0-9]/g, '').slice(0, 3)}
                 </div>

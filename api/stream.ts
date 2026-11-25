@@ -188,7 +188,41 @@ async function fetchSoundCloudTrackBuffer(
     }
   }
 
-  // Secondary SoundCloud check: progressive MP3 (non-DRM direct stream)
+  // Secondary SoundCloud check: unencrypted HLS audio/mpeg (assembled MP3 segments)
+  const hlsMp3List = transcodings.filter(
+    (x: any) => x.format?.protocol === 'hls' && x.format?.mime_type?.includes('audio/mpeg')
+  );
+  for (const mp3Tr of hlsMp3List) {
+    try {
+      const trInfo: any = await fetch(`${mp3Tr.url}?client_id=${cid}`, {
+        headers: { Origin: 'https://soundcloud.com', Referer: 'https://soundcloud.com/' },
+        signal: AbortSignal.timeout(4000),
+      }).then((r) => r.json());
+      if (!trInfo?.url) continue;
+
+      const m3u8 = await fetch(trInfo.url, { signal: AbortSignal.timeout(4000) }).then((r) => r.text());
+      if (!m3u8 || m3u8.includes('#EXT-X-KEY') || m3u8.includes('SAMPLE-AES')) continue;
+
+      const segUrls = m3u8
+        .split('\n')
+        .map((l) => l.trim())
+        .filter((l) => l.startsWith('http'));
+      if (segUrls.length === 0) continue;
+
+      const bufs = await Promise.all(
+        segUrls.map((u) => fetch(u, { signal: AbortSignal.timeout(6000) }).then((r) => r.arrayBuffer()))
+      );
+      const assembled = Buffer.concat(bufs.map((b) => Buffer.from(b)));
+      return {
+        buffer: assembled,
+        mimeType: 'audio/mpeg',
+        contentLength: String(assembled.length),
+        maxChunkBytes: DEFAULT_MAX_CHUNK_BYTES,
+      };
+    } catch {}
+  }
+
+  // Tertiary SoundCloud check: progressive MP3 (non-DRM direct stream)
   const progTr = transcodings.find(
     (x: any) => x.format?.protocol === 'progressive' && x.format?.mime_type?.includes('audio/mpeg')
   );
@@ -229,6 +263,17 @@ async function resolveViaSoundCloud(
     const cleanArtistStr = artist.trim();
     const { artistAliases, titleAliases } = getLocalizedAliases(cleanArtistStr, cleanTitleStr);
 
+    const stopArtist = new Set(['the', 'and', 'feat', 'ft', 'official']);
+    const artistTokens = cleanArtistStr
+      .toLowerCase()
+      .replace(/[^\p{L}\p{N}\s]/gu, ' ')
+      .split(/\s+/)
+      .filter((w) => w.length >= 2 && !stopArtist.has(w));
+    const allArtistChecks = [
+      ...artistTokens,
+      ...artistAliases.map((a) => a.toLowerCase()),
+    ];
+
     const searchJobs: Array<{ query: string; matchWords: string[] }> = [];
     const titleWords = cleanTitleStr
       .toLowerCase()
@@ -253,8 +298,11 @@ async function resolveViaSoundCloud(
     const allowLive = qLower.includes('live') || qLower.includes('acoustic') || qLower.includes('unplugged');
     const forbidden = [
       'cover', 'remix', 'flip', 'slowed', 'reverb', 'low pitch', 'karaoke', 'off vocal',
-      'instrumental', 'nightcore', 'sped up', 'speed up', 'dj ',
-      'mashup', 'edit', 'gym', 'motivation', 'podcast', 'tutorial', 'tv size', '8d ', 'piano',
+      'minus one', 'instrumental', 'nightcore', 'sped up', 'speed up', 'sped', 'dj ',
+      'mashup', 'edit', 'amapiano', 'fanmade', 'fan made', 'fan-made', 'tribute',
+      'gym', 'motivation', 'podcast', 'tutorial', 'tv size', '8d ', '3d ', 'piano',
+      'guitar', 'drum', 'violin', 'cello', 'music box', 'lofi', 'lo-fi',
+      'bass boosted', 'synthesia', '1 hour', 'tik tok', 'tiktok',
     ];
 
     for (const job of searchJobs) {
@@ -264,22 +312,24 @@ async function resolveViaSoundCloud(
       ).then((r) => r.json()).catch(() => null);
 
       const candidates = (sr?.collection || []).filter((t: any) => {
-        if (!t?.duration || t.duration < 45000 || t.duration > 660000) return false;
+        if (!t?.duration || t.duration < 45000 || t.duration > 600000) return false;
         const hasAudio = t.media?.transcodings?.some(
           (x: any) =>
-            x.format?.mime_type?.includes('audio/mp4') ||
-            (x.format?.protocol === 'progressive' && x.format?.mime_type?.includes('audio/mpeg'))
+            !x.snipped &&
+            (x.format?.mime_type?.includes('audio/mp4') || x.format?.mime_type?.includes('audio/mpeg'))
         );
         if (!hasAudio) return false;
 
         const tLower = `${t.title || ''}`.toLowerCase();
+        const metaLower = `${t.title || ''} ${t.user?.username || ''} ${t.user?.permalink || ''} ${t.publisher_metadata?.artist || ''} ${t.tag_list || ''}`.toLowerCase();
         if (forbidden.some((f) => tLower.includes(f))) return false;
-        if (!allowLive && tLower.includes('live')) return false;
+        if (!allowLive && (tLower.includes('live') || tLower.includes('unplugged') || tLower.includes('acoustic'))) return false;
         if (job.matchWords.length > 0 && !job.matchWords.every((w) => tLower.includes(w))) return false;
+        if (allArtistChecks.length > 0 && !allArtistChecks.some((a) => metaLower.includes(a))) return false;
 
         if (durationSec > 30) {
           const diff = Math.abs(t.duration / 1000 - durationSec);
-          if (diff > 25) return false;
+          if (diff > 22) return false;
         }
         return true;
       });
@@ -287,10 +337,19 @@ async function resolveViaSoundCloud(
       if (candidates.length === 0) continue;
 
       candidates.sort((a: any, b: any) => {
-        if (durationSec > 30) {
-          return Math.abs(a.duration / 1000 - durationSec) - Math.abs(b.duration / 1000 - durationSec);
-        }
-        return (b.playback_count || 0) - (a.playback_count || 0);
+        const scoreSc = (x: any) => {
+          let s = 0;
+          const uLower = `${x.user?.username || ''}`.toLowerCase();
+          if (x.user?.verified) s += 80;
+          if (cleanArtistStr && uLower.includes(cleanArtistStr.toLowerCase())) s += 60;
+          if (x.publisher_metadata?.artist?.toLowerCase()?.includes(cleanArtistStr.toLowerCase())) s += 50;
+          if (durationSec > 30) {
+            s -= Math.abs(x.duration / 1000 - durationSec) * 3;
+          }
+          s += Math.min(30, Math.log10((x.playback_count || 1) + 1) * 4);
+          return s;
+        };
+        return scoreSc(b) - scoreSc(a);
       });
 
       // Iterate top candidates so DRM-encrypted tracks (enca/#EXT-X-KEY) fall through cleanly
@@ -305,10 +364,24 @@ async function resolveViaSoundCloud(
   }
 }
 
+function parseArchiveLengthSec(val: any): number {
+  if (!val) return 0;
+  const s = String(val).trim();
+  if (s.includes(':')) {
+    const parts = s.split(':').map((n) => parseFloat(n));
+    if (parts.some((n) => Number.isNaN(n))) return 0;
+    if (parts.length === 2) return parts[0] * 60 + parts[1];
+    if (parts.length === 3) return parts[0] * 3600 + parts[1] * 60 + parts[2];
+  }
+  const f = parseFloat(s);
+  return Number.isFinite(f) ? f : 0;
+}
+
 async function resolveViaArchiveOrg(
   artist: string,
   title: string,
-  rawQuery: string
+  rawQuery: string,
+  durationSec: number = 0
 ): Promise<Omit<CachedFormat, 'expires'> | null> {
   try {
     const cleanTitleStr = (title || rawQuery)
@@ -328,6 +401,12 @@ async function resolveViaArchiveOrg(
       .filter((w) => w.length >= 2);
     if (titleWords.length === 0) return null;
 
+    const artistWords = cleanArtistStr
+      .toLowerCase()
+      .replace(/[^\p{L}\p{N}\s]/gu, ' ')
+      .split(/\s+/)
+      .filter((w) => w.length >= 2 && w !== 'the' && w !== 'and');
+
     const queries = [
       `title:("${cleanTitleStr}") AND creator:("${cleanArtistStr}") AND mediatype:(audio)`,
       `"${cleanTitleStr}" AND creator:("${cleanArtistStr}") AND mediatype:(audio)`,
@@ -336,27 +415,24 @@ async function resolveViaArchiveOrg(
     ];
 
     const seenIds = new Set<string>();
-    const candidateDocs: Array<{ identifier: string; title?: string }> = [];
+    const candidateDocs: Array<{ identifier: string; title?: string; creator?: string }> = [];
+    const badDocWords = [
+      'cover', 'tribute', 'karaoke', 'interview', 'podcast', 'instrumental',
+      'episode', 'review', 'stems', 'mashup', 'remix', 'fanmade',
+    ];
 
     for (const aq of queries) {
       const res: any = await fetch(
-        `https://archive.org/advancedsearch.php?q=${encodeURIComponent(aq)}&fl[]=identifier,title&rows=12&output=json`,
+        `https://archive.org/advancedsearch.php?q=${encodeURIComponent(aq)}&fl[]=identifier,title,creator&rows=12&output=json`,
         { signal: AbortSignal.timeout(4000) }
       ).then((r) => r.json()).catch(() => null);
 
       for (const doc of res?.response?.docs || []) {
         if (!doc?.identifier || seenIds.has(doc.identifier)) continue;
-        const s = `${doc.identifier} ${doc.title || ''}`.toLowerCase();
-        if (
-          s.includes('cover') ||
-          s.includes('tribute') ||
-          s.includes('karaoke') ||
-          s.includes('interview') ||
-          s.includes('podcast') ||
-          s.includes('instrumental')
-        ) {
-          continue;
-        }
+        const creatorStr = Array.isArray(doc.creator) ? doc.creator.join(' ') : String(doc.creator || '');
+        const s = `${doc.identifier} ${doc.title || ''} ${creatorStr}`.toLowerCase();
+        if (badDocWords.some((w) => s.includes(w))) continue;
+        if (artistWords.length > 0 && !artistWords.some((w) => s.includes(w))) continue;
         seenIds.add(doc.identifier);
         candidateDocs.push(doc);
       }
@@ -365,8 +441,9 @@ async function resolveViaArchiveOrg(
 
     if (candidateDocs.length === 0) return null;
 
-    const scoreDoc = (d: { identifier: string; title?: string }) => {
-      const s = `${d.identifier} ${d.title || ''}`.toLowerCase();
+    const scoreDoc = (d: { identifier: string; title?: string; creator?: string }) => {
+      const creatorStr = Array.isArray(d.creator) ? d.creator.join(' ') : String(d.creator || '');
+      const s = `${d.identifier} ${d.title || ''} ${creatorStr}`.toLowerCase();
       let sc = 0;
       if (
         s.includes('nevermind') ||
@@ -404,15 +481,18 @@ async function resolveViaArchiveOrg(
           const m: any = await fetch(`https://archive.org/metadata/${doc.identifier}/files`, {
             signal: AbortSignal.timeout(4000),
           }).then((r) => r.json());
-          return { ident: doc.identifier, files: (m?.result || []) as any[] };
+          return { doc, files: (m?.result || []) as any[] };
         } catch {
-          return { ident: doc.identifier, files: [] as any[] };
+          return { doc, files: [] as any[] };
         }
       })
     );
 
-    const validMatches: Array<{ ident: string; file: any; livePenalty: number }> = [];
-    for (const { ident, files } of fileLists) {
+    const minBytes = durationSec >= 90 ? 900000 : 400000;
+    const validMatches: Array<{ ident: string; file: any; score: number }> = [];
+    for (const { doc, files } of fileLists) {
+      const ident = doc.identifier;
+      const docCreator = (Array.isArray(doc.creator) ? doc.creator.join(' ') : String(doc.creator || '')).toLowerCase();
       for (const f of files) {
         const name = (f.name || '').toLowerCase();
         if (!name.endsWith('.mp3') && !name.endsWith('.m4a') && !name.endsWith('.ogg')) continue;
@@ -421,21 +501,42 @@ async function resolveViaArchiveOrg(
           name.includes('cover') ||
           name.includes('demo') ||
           name.includes('instrumental') ||
-          name.includes('karaoke')
+          name.includes('karaoke') ||
+          name.includes('remix') ||
+          name.includes('mashup') ||
+          name.includes('fanmade') ||
+          name.includes('sample')
         ) {
           continue;
         }
-        if (Number(f.size || 0) < 400000) continue;
+        if (Number(f.size || 0) < minBytes) continue;
         if (!titleWords.every((w) => name.includes(w))) continue;
-        const livePenalty =
-          !allowLive && (name.includes('live') || name.includes('unplugged') || ident.toLowerCase().includes('live'))
-            ? 1
-            : 0;
-        validMatches.push({ ident, file: f, livePenalty });
+
+        const fileSec = parseArchiveLengthSec(f.length);
+        if (fileSec > 0 && durationSec > 30 && Math.abs(fileSec - durationSec) > 32) {
+          continue;
+        }
+
+        const fMetaArtist = `${f.artist || ''} ${f.creator || ''} ${docCreator} ${name} ${ident}`.toLowerCase();
+        if (artistWords.length > 0 && !artistWords.some((w) => fMetaArtist.includes(w))) {
+          continue;
+        }
+
+        let sc = 0;
+        const fArtistStr = `${f.artist || ''} ${f.creator || ''}`.toLowerCase();
+        if (artistWords.length > 0 && artistWords.every((w) => fArtistStr.includes(w))) sc += 40;
+        if (docCreator && artistWords.every((w) => docCreator.includes(w))) sc += 30;
+        if (!allowLive && (name.includes('live') || name.includes('unplugged') || ident.toLowerCase().includes('live'))) {
+          sc -= 50;
+        }
+        if (fileSec > 0 && durationSec > 30) {
+          sc -= Math.abs(fileSec - durationSec);
+        }
+        validMatches.push({ ident, file: f, score: sc });
       }
     }
 
-    validMatches.sort((a, b) => a.livePenalty - b.livePenalty);
+    validMatches.sort((a, b) => b.score - a.score);
     const picked = validMatches[0];
     if (picked) {
       const fileUrl = `https://archive.org/download/${picked.ident}/${encodeURIComponent(picked.file.name)}`;
@@ -583,6 +684,7 @@ async function resolveViaBilibili(
       '歌ってみた', 'piano', 'ピアノ', 'instrumental', '伴奏', '鼓谱', '譜面', '钢琴',
       'drum', 'bass', 'guitar', 'tab', 'midi', '反応', 'reaction', 'nightcore',
       'sped up', 'slowed', 'mad', 'amv', '夢ノ結唱', 'cevio', 'synthesizer', 'utau',
+      'fanmade', 'fan made', '饭制', '自制', '二创', 'remix', '现场', '演唱会', 'concert',
     ];
     const qLower = rawQuery.toLowerCase();
     const allowLive = qLower.includes('live') || qLower.includes('acoustic');
@@ -1043,8 +1145,8 @@ async function resolveAudioFormat(
   diag?: string[]
 ): Promise<Omit<CachedFormat, 'expires'> | null> {
   if (videoId) {
-    // Run YouTube VisionOS / ANDROID / IOS concurrently so AWS IP blocks fail fast in <=3.5s
-    const [visionRes, androidRes, iosRes] = await Promise.all([
+    // Run VisionOS / ANDROID / IOS / Embedded-VM concurrently so AWS IP blocks fail fast in <=3.5s
+    const [visionRes, androidRes, iosRes, embeddedRes] = await Promise.all([
       resolveViaVisionOS(videoId, visionYtdl),
       resolveViaAndroidInnerTube(videoId).then(async (r) =>
         r?.url && (await isStreamUrlPlayable(r.url, r.userAgent)) ? r : null
@@ -1052,31 +1154,35 @@ async function resolveAudioFormat(
       resolveViaIosInnerTube(videoId).then(async (r) =>
         r?.url && (await isStreamUrlPlayable(r.url, r.userAgent)) ? r : null
       ),
+      resolveViaEmbeddedInProcess(videoId).then(async (r) =>
+        r?.url && (await isStreamUrlPlayable(r.url, r.userAgent)) ? r : null
+      ),
     ]);
     if (visionRes) return visionRes;
     if (androidRes) return androidRes;
     if (iosRes) return iosRes;
+    if (embeddedRes) return embeddedRes;
     diag?.push('yt=blocked');
   }
 
-  // Tier 4: SoundCloud Non-DRM HLS/Progressive Fallback (Vercel AWS IP safe)
+  // Tier 4: SoundCloud Strict Artist+Title Non-DRM HLS/Progressive Fallback
   const scResult = await resolveViaSoundCloud(artist, title, rawQuery, durationSec);
   if (scResult) {
     // If SoundCloud fMP4 exceeds single-response 4MB cap, check if Archive.org has a direct single-hop MP3 first
     if (scResult.buffer && scResult.buffer.length > DEFAULT_MAX_CHUNK_BYTES) {
-      const archiveMp3 = await resolveViaArchiveOrg(artist, title, rawQuery);
+      const archiveMp3 = await resolveViaArchiveOrg(artist, title, rawQuery, durationSec);
       if (archiveMp3) return archiveMp3;
     }
     return scResult;
   }
   diag?.push('sc=0');
 
-  // Tier 5: Archive.org Studio/Album MP3/M4A Fallback (Vercel AWS IP safe, full classic rock/indie)
-  const archiveResult = await resolveViaArchiveOrg(artist, title, rawQuery);
+  // Tier 5: Archive.org Studio/Album MP3/M4A Fallback
+  const archiveResult = await resolveViaArchiveOrg(artist, title, rawQuery, durationSec);
   if (archiveResult) return archiveResult;
   diag?.push('ia=0');
 
-  // Tier 6: Bilibili Official MV MP4 Fallback (Vercel AWS IP safe, J-Pop / Asian / Anime tracks)
+  // Tier 6: Bilibili Official MV MP4 Fallback (J-Pop / Asian / Anime tracks)
   return await resolveViaBilibili(artist, title, rawQuery, durationSec, diag);
 }
 
@@ -1226,6 +1332,10 @@ export default async function handler(req: any, res: any) {
           'dj-',
           'teaser',
           'ringtone',
+          'fanmade',
+          'fan made',
+          'fan-made',
+          'tribute',
         ];
 
         const isForbidden = (title: string, authorName?: string) => {

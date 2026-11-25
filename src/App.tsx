@@ -25,7 +25,7 @@ import { useFriendSpotify, type FriendTrack } from './hooks/useFriendSpotify';
 import { useCustomPlaylist } from './hooks/useCustomPlaylist';
 import { EditPlaylistModal } from './components/EditPlaylistModal';
 import type { BackendRadioheadTrack } from './api/backend';
-import { searchLiveMusic, fetchAlbumTracks, fetchArtistTracks, buildStreamUrl } from './api/liveSearch';
+import { searchLiveMusic, fetchAlbumTracks, fetchArtistTracks, buildStreamUrl, searchLiveArtists, isValidImageUrl, isSameTrack } from './api/liveSearch';
 import { CATALOG_ALBUMS, type PinnedServerItem } from './components/AddAlbumModal';
 
 function resolvePlayableUrl(track: BackendRadioheadTrack): string {
@@ -69,6 +69,13 @@ export const App: React.FC = () => {
                 }
               );
             }
+            // Repair broken Genius/empty-silhouette artist image URLs from earlier sessions
+            if (item?.id === 'sheilaon7' && !isValidImageUrl(item.imageUrl)) {
+              return {
+                ...item,
+                imageUrl: 'https://cdn-images.dzcdn.net/images/artist/9e6cc50e80a7dcb4dacc7eb15427335b/1000x1000-000000-80-0-0.jpg',
+              };
+            }
             return item;
           });
         }
@@ -88,9 +95,39 @@ export const App: React.FC = () => {
     });
   }, []);
 
+  const repairServerImage = useCallback((serverId: string, newImageUrl?: string) => {
+    if (!newImageUrl || !isValidImageUrl(newImageUrl)) return;
+    setPinnedServers((prev) => {
+      let changed = false;
+      const next = prev.map((s) => {
+        if (s.id === serverId && !isValidImageUrl(s.imageUrl)) {
+          changed = true;
+          return { ...s, imageUrl: newImageUrl };
+        }
+        return s;
+      });
+      if (changed) {
+        try {
+          localStorage.setItem('kasatune_pinned_artists_v4', JSON.stringify(next));
+        } catch {}
+      }
+      return changed ? next : prev;
+    });
+    setCurrentAlbumEntity((prev) => {
+      if (prev && prev.id === serverId && !isValidImageUrl(prev.imageUrl)) {
+        const updated = { ...prev, imageUrl: newImageUrl };
+        try {
+          localStorage.setItem('kasatune_active_entity', JSON.stringify(updated));
+        } catch {}
+        return updated;
+      }
+      return prev;
+    });
+  }, []);
+
   const [onlineAlbumTracks, setOnlineAlbumTracks] = useState<Record<string, BackendRadioheadTrack[]>>(() => {
     try {
-      const saved = localStorage.getItem('kasatune_online_tracks_cache_v2');
+      const saved = localStorage.getItem('kasatune_online_tracks_cache_v3');
       if (saved) return JSON.parse(saved);
     } catch {}
     return {};
@@ -101,11 +138,38 @@ export const App: React.FC = () => {
     setOnlineAlbumTracks((prev) => {
       const next = { ...prev, [key]: songs };
       try {
-        localStorage.setItem('kasatune_online_tracks_cache_v2', JSON.stringify(next));
+        localStorage.setItem('kasatune_online_tracks_cache_v3', JSON.stringify(next));
       } catch {}
       return next;
     });
   }, []);
+
+  // Automatically repair any pinned artist with missing/blank silhouette artwork on mount or pin add
+  const repairedIdsRef = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    const missing = pinnedServers.filter((s) => !isValidImageUrl(s.imageUrl) && !repairedIdsRef.current.has(s.id));
+    if (missing.length === 0) return;
+    missing.forEach(async (srv) => {
+      repairedIdsRef.current.add(srv.id);
+      const cachedSongs = onlineAlbumTracks[srv.id];
+      if (cachedSongs?.[0]?.coverUrl && isValidImageUrl(cachedSongs[0].coverUrl)) {
+        repairServerImage(srv.id, cachedSongs[0].coverUrl);
+        return;
+      }
+      try {
+        const artists = await searchLiveArtists(srv.artist || srv.name);
+        const match = artists.find((a) => isValidImageUrl(a.imageUrl));
+        if (match?.imageUrl) {
+          repairServerImage(srv.id, match.imageUrl);
+          return;
+        }
+        const tracksRes = await fetchArtistTracks(srv.artist || srv.name);
+        if (tracksRes?.[0]?.coverUrl && isValidImageUrl(tracksRes[0].coverUrl)) {
+          repairServerImage(srv.id, tracksRes[0].coverUrl);
+        }
+      } catch {}
+    });
+  }, [pinnedServers, onlineAlbumTracks, repairServerImage]);
 
   // Real-time Global Online Music Scraper / Search Engine
   useEffect(() => {
@@ -537,6 +601,7 @@ export const App: React.FC = () => {
           }
           if (isSubscribed && songs.length > 0) {
             updateOnlineAlbumTracks(activeAlbum, songs);
+            repairServerImage(activeAlbum, songs[0].coverUrl);
           }
         } catch (e) {
           console.error('Failed to auto-load category songs:', e);
@@ -594,7 +659,7 @@ export const App: React.FC = () => {
             artist: 'Sheila On 7',
             albumTitle: 'Diskografi Lengkap',
             year: 1999,
-            imageUrl: 'https://images.genius.com/f9c8fbc789dd1a8a2d3c907d79b94235.1000x1000x1.jpg',
+            imageUrl: 'https://cdn-images.dzcdn.net/images/artist/9e6cc50e80a7dcb4dacc7eb15427335b/1000x1000-000000-80-0-0.jpg',
             type: 'artist',
           };
         } else if (album === 'radiohead') {
@@ -698,6 +763,7 @@ export const App: React.FC = () => {
 
           if (fetchedSongs.length > 0) {
             updateOnlineAlbumTracks(album, fetchedSongs);
+            repairServerImage(album, fetchedSongs[0].coverUrl);
           }
         }
 
@@ -951,7 +1017,7 @@ export const App: React.FC = () => {
     // On mobile, auto-navigate to player stage upon selecting a track
     setMobileView('player');
 
-    if (track.id === activeTrack.id) {
+    if (isSameTrack(track, activeTrack)) {
       togglePlay();
     } else {
       selectTrack(track);
@@ -962,14 +1028,15 @@ export const App: React.FC = () => {
         true // Immediately start playing on click!
       );
     }
-  }, [activeAlbum, friendPlayback, activeTrack.id, isPlaying, togglePlay, selectTrack, loadTrack]);
+  }, [activeAlbum, friendPlayback, activeTrack, isPlaying, togglePlay, selectTrack, loadTrack]);
 
   const handleNextTrack = useCallback(() => {
     const queue = displayTracks.length > 0 ? displayTracks : tracks;
     if (queue.length === 0) return;
+    const currentIdx = queue.findIndex((t) => isSameTrack(t, activeTrack));
     const nextIndex = isShuffle
       ? Math.floor(Math.random() * queue.length)
-      : (queue.findIndex((t) => t.id === activeTrack.id) + 1) % queue.length;
+      : ((currentIdx >= 0 ? currentIdx : -1) + 1) % queue.length;
 
     const nextTrk = queue[nextIndex];
     selectTrack(nextTrk);
@@ -979,7 +1046,7 @@ export const App: React.FC = () => {
       nextTrk.durationMs > 0 ? nextTrk.durationMs / 1000 : 238,
       true // Immediately play on next
     );
-  }, [displayTracks, tracks, activeTrack.id, isShuffle, selectTrack, loadTrack]);
+  }, [displayTracks, tracks, activeTrack, isShuffle, selectTrack, loadTrack]);
 
   const handlePrevTrack = useCallback(() => {
     const queue = displayTracks.length > 0 ? displayTracks : tracks;
@@ -990,7 +1057,8 @@ export const App: React.FC = () => {
       return;
     }
 
-    const prevIndex = (queue.findIndex((t) => t.id === activeTrack.id) - 1 + queue.length) % queue.length;
+    const currentIdx = queue.findIndex((t) => isSameTrack(t, activeTrack));
+    const prevIndex = ((currentIdx >= 0 ? currentIdx : 0) - 1 + queue.length) % queue.length;
     const prevTrk = queue[prevIndex];
     selectTrack(prevTrk);
     loadTrack(

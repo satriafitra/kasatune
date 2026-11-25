@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { X, Search, Plus, Check, Disc, Music, Sparkles, Globe, Loader2, UserCheck } from 'lucide-react';
-import { searchLiveArtists, type LiveAlbumItem } from '../api/liveSearch';
+import { searchLiveArtists, isValidImageUrl, type LiveAlbumItem } from '../api/liveSearch';
 
 export interface PinnedServerItem {
   id: string; // e.g. 'richbrian', 'playboicarti', 'sheilaon7', 'radiohead', 'online-artist-13874291'
@@ -45,7 +45,7 @@ export const CATALOG_ALBUMS: PinnedServerItem[] = [
     artist: 'Sheila On 7',
     albumTitle: 'Diskografi Lengkap & Hits Populer',
     year: 1999,
-    imageUrl: 'https://images.genius.com/f9c8fbc789dd1a8a2d3c907d79b94235.1000x1000x1.jpg',
+    imageUrl: 'https://cdn-images.dzcdn.net/images/artist/9e6cc50e80a7dcb4dacc7eb15427335b/1000x1000-000000-80-0-0.jpg',
     description: '4.8M monthly listeners • Band pop rock legendaris (Dan..., Sephia, Kita, Melompat Lebih Tinggi)',
     categoryTag: 'Indo Pop Rock',
     type: 'artist',
@@ -354,15 +354,20 @@ export const AddAlbumModal: React.FC<AddAlbumModalProps> = ({
                       onClick={() => onSelectAndPin(serverItem)}
                       className="flex items-center gap-3 min-w-0 flex-1 cursor-pointer group"
                     >
-                      <div className="w-14 h-14 rounded-full overflow-hidden bg-[#0A0C0E] border border-[#282B32] flex-shrink-0 relative shadow-sm group-hover:ring-2 group-hover:ring-[#1DB954] transition-all">
-                        <img
-                          src={item.imageUrl}
-                          alt={item.name}
-                          className="w-full h-full object-cover select-none"
-                          onError={(e) => {
-                            (e.currentTarget as HTMLElement).style.display = 'none';
-                          }}
-                        />
+                      <div className="w-14 h-14 rounded-full overflow-hidden bg-[#141619] border border-[#282B32] flex-shrink-0 relative shadow-sm group-hover:ring-2 group-hover:ring-[#1DB954] transition-all flex items-center justify-center">
+                        <span className="text-xs font-bold text-white/80 uppercase select-none">
+                          {item.name.replace(/[^a-zA-Z0-9]/g, '').slice(0, 3) || '♪'}
+                        </span>
+                        {isValidImageUrl(item.imageUrl) && (
+                          <img
+                            src={item.imageUrl}
+                            alt={item.name}
+                            className="w-full h-full object-cover select-none absolute inset-0"
+                            onError={(e) => {
+                              (e.currentTarget as HTMLElement).style.display = 'none';
+                            }}
+                          />
+                        )}
                       </div>
 
                       <div className="min-w-0 flex-1">
