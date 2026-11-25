@@ -1,15 +1,10 @@
 /**
- * DynamicLyrics Component (Dynamic Album-Colored Kinetic Lyrics Theater)
- * 100% human-synchronized vocal tracking dynamically tinted by the active album's real colors:
- * - Ambient background gradient smoothly derived from the active album cover (ColorThief)
- * - Active sung line dynamically illuminated with the album's exact dominant hue & radiant glow
- * - Upcoming lyrics styled in vibrant Ice Blue (#BFE7EA) for maximum legibility and contrast
- * - Past lines in elegant obsidian-muted gray (#656A74)
- * - Click-to-seek timestamp navigation
+ * DynamicLyrics Component (Kasatune Warm Studio Lyrics Panel)
+ * Synchronized vocal tracking with warm obsidian surface & Kasatune Orange editorial highlights.
  */
 
 import React, { useEffect, useRef, useState } from 'react';
-import { Compass, AlignLeft, Music, Sparkles } from 'lucide-react';
+import { Compass, AlignLeft, Music } from 'lucide-react';
 import type { LyricLine } from '../utils/lrcParser';
 import { findActiveLyricIndex, formatTime } from '../utils/lrcParser';
 import type { AlbumColors } from '../hooks/useAlbumColor';
@@ -38,14 +33,12 @@ export const DynamicLyrics: React.FC<DynamicLyricsProps> = ({
   const [autoScroll, setAutoScroll] = useState<boolean>(true);
   const activeIndex = findActiveLyricIndex(lyrics, currentProgressMs);
 
-  // Instantly reset scroll to top whenever the song is skipped / changed
   useEffect(() => {
     if (containerRef.current) {
       containerRef.current.scrollTop = 0;
     }
   }, [trackTitle]);
 
-  // Smooth fluid auto-centering on active line
   useEffect(() => {
     if (!autoScroll || activeIndex === -1) return;
 
@@ -57,26 +50,24 @@ export const DynamicLyrics: React.FC<DynamicLyricsProps> = ({
     }
   }, [activeIndex, autoScroll]);
 
-  const [r, g, b] = colors.dominantColor || [232, 155, 91];
-  const albumColorRgb = `rgb(${r}, ${g}, ${b})`;
-  const albumColorGlow = `rgba(${r}, ${g}, ${b}, 0.8)`;
-
+  const [r, g, b] = colors.dominantColor || [255, 107, 43];
   const isIntro = lyrics.length > 0 && activeIndex === -1 && lyrics[0].timeMs > 2500;
 
   return (
     <div
-      className="w-full h-full bg-[#121212] rounded-xl border border-[#1E2025] flex flex-col overflow-hidden select-none relative"
+      className="w-full h-full bg-[#131110] rounded-2xl border border-white/[0.07] flex flex-col overflow-hidden select-none relative"
       style={{
-        backgroundImage: `radial-gradient(ellipse at 50% 0%, rgba(${r}, ${g}, ${b}, 0.24) 0%, transparent 58%)`,
+        backgroundImage: `radial-gradient(ellipse at 50% 0%, rgba(255, 107, 43, 0.16) 0%, rgba(${r}, ${g}, ${b}, 0.10) 40%, transparent 72%)`,
       }}
     >
       {/* Clean Minimal Lyrics Header */}
-      <div className="h-11 sm:h-12 px-4 sm:px-5 flex items-center justify-between border-b border-white/[0.06] z-20 flex-shrink-0 bg-black/20 backdrop-blur-md">
+      <div className="h-12 px-4 sm:px-5 flex items-center justify-between border-b border-white/[0.06] z-20 flex-shrink-0 bg-[#131110]/70 backdrop-blur-md">
         <div className="flex items-center gap-2 min-w-0">
-          <span className="font-bold text-sm text-white tracking-tight flex-shrink-0">
+          <span className="w-1.5 h-1.5 rounded-full bg-[#FF6B2B] flex-shrink-0" />
+          <span className="font-bold text-xs uppercase tracking-wider text-[#FAF6F2] flex-shrink-0">
             Lirik
           </span>
-          <span className="text-xs text-[#949BA4] truncate">
+          <span className="text-xs text-[#8A817A] truncate">
             &bull; {trackTitle}
           </span>
         </div>
@@ -84,10 +75,10 @@ export const DynamicLyrics: React.FC<DynamicLyricsProps> = ({
         {lyrics.length > 0 && (
           <button
             onClick={() => setAutoScroll(!autoScroll)}
-            className={`px-2.5 py-1 rounded-full text-[11px] font-medium flex items-center gap-1.5 transition-colors border flex-shrink-0 ${
+            className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold flex items-center gap-1.5 transition-colors border flex-shrink-0 ${
               autoScroll
-                ? 'bg-white/10 text-white border-white/15'
-                : 'bg-transparent text-[#656A74] border-transparent hover:bg-white/10 hover:text-white'
+                ? 'bg-[#FF6B2B]/15 text-[#FF8A4C] border-[#FF6B2B]/30'
+                : 'bg-transparent text-[#756E68] border-transparent hover:bg-white/[0.06] hover:text-[#FAF6F2]'
             }`}
           >
             <Compass className="w-3 h-3" />
@@ -96,36 +87,33 @@ export const DynamicLyrics: React.FC<DynamicLyricsProps> = ({
         )}
       </div>
 
-      {/* Main Lyrics Viewport with Top & Bottom Fade Mask */}
+      {/* Main Lyrics Viewport */}
       <div
         ref={containerRef}
-        className="flex-1 overflow-y-auto overflow-x-hidden px-5 sm:px-8 py-10 sm:py-16 space-y-5 sm:space-y-6 scroll-smooth relative custom-scrollbar"
+        className="flex-1 overflow-y-auto overflow-x-hidden px-5 sm:px-7 py-10 sm:py-14 space-y-5 sm:space-y-6 scroll-smooth relative custom-scrollbar"
         style={{
           maskImage: 'linear-gradient(to bottom, transparent 0%, black 7%, black 93%, transparent 100%)',
           WebkitMaskImage: 'linear-gradient(to bottom, transparent 0%, black 7%, black 93%, transparent 100%)',
         }}
       >
         {isLoading && lyrics.length > 0 && (
-          <div className="absolute top-14 right-6 z-30 px-2.5 py-0.5 rounded-full bg-[#141619]/90 border border-[#BFE7EA]/30 text-[10px] text-[#BFE7EA] flex items-center gap-1.5 shadow-sm backdrop-blur-sm animate-pulse">
-            <span className="w-1.5 h-1.5 rounded-full bg-[#BFE7EA]" />
-            <span>Syncing lyrics...</span>
+          <div className="absolute top-14 right-5 z-30 px-2.5 py-1 rounded-lg bg-[#1A1715]/95 border border-[#FF6B2B]/30 text-[10px] text-[#FFA14A] flex items-center gap-1.5 shadow-sm backdrop-blur-sm animate-pulse">
+            <span className="w-1.5 h-1.5 rounded-full bg-[#FF6B2B]" />
+            <span>Menyelaraskan...</span>
           </div>
         )}
 
         {isLoading && lyrics.length === 0 && !plainLyrics ? (
           <div className="h-full flex flex-col items-center justify-center text-center space-y-3 py-24">
-            <div
-              className="w-8 h-8 border-2 border-t-transparent rounded-full animate-spin border-[#BFE7EA]"
-            />
-            <p className="text-xs text-[#949BA4]">Menyelaraskan lirik real-time...</p>
+            <div className="w-7 h-7 border-2 border-[#FF6B2B] border-t-transparent rounded-full animate-spin" />
+            <p className="text-xs text-[#8A817A]">Menyelaraskan lirik...</p>
           </div>
         ) : lyrics.length > 0 ? (
           <>
-            {/* Intro indicator when waiting for first vocal line */}
             {isIntro && (
-              <div className="flex items-center gap-2 py-1.5 px-3 rounded-md bg-[#141619] border border-[#282B32] w-fit text-xs text-[#949BA4] font-medium mb-6">
-                <span className="w-2 h-2 rounded-full bg-[#BFE7EA]" />
-                <span>Intro Instrumental &bull; Vocals at {formatTime(lyrics[0].timeMs)}</span>
+              <div className="flex items-center gap-2 py-1.5 px-3 rounded-lg bg-[#1B1816] border border-white/[0.07] w-fit text-xs text-[#A8A099] font-medium mb-4">
+                <span className="w-2 h-2 rounded-full bg-[#FF6B2B]" />
+                <span>Intro &bull; Vokal di {formatTime(lyrics[0].timeMs)}</span>
               </div>
             )}
 
@@ -140,22 +128,22 @@ export const DynamicLyrics: React.FC<DynamicLyricsProps> = ({
                   ref={isActive ? activeLineRef : null}
                   onClick={() => onSeek(line.timeMs)}
                   className={`transition-all duration-200 cursor-pointer flex flex-col items-start ${
-                    isActive ? 'scale-[1.01] origin-left' : ''
+                    isActive ? 'border-l-2 border-[#FF6B2B] pl-3.5' : 'pl-0'
                   }`}
                 >
                   <p
                     className={`leading-snug transition-colors duration-150 break-words max-w-full ${
                       isActive
-                        ? 'text-white font-bold text-xl sm:text-3xl'
+                        ? 'text-[#FAF6F2] font-bold text-xl sm:text-2xl'
                         : isPast
-                        ? 'text-[#555861] font-medium text-base sm:text-xl hover:text-[#949BA4]'
-                        : 'text-[#9BA1AB] font-medium text-base sm:text-xl hover:text-white'
+                        ? 'text-[#5A534E] font-medium text-base sm:text-lg hover:text-[#A8A099]'
+                        : 'text-[#9E958D] font-medium text-base sm:text-lg hover:text-[#FAF6F2]'
                     }`}
                   >
                     {isMusicalBreak ? (
-                      <span className="text-base text-[#656A74] italic flex items-center gap-2">
-                        <Music className="w-4 h-4 inline opacity-60 text-[#949BA4]" />
-                        <span>(Instrumental Break)</span>
+                      <span className="text-sm text-[#756E68] italic flex items-center gap-2">
+                        <Music className="w-4 h-4 inline opacity-60 text-[#FF8A4C]" />
+                        <span>(Instrumental)</span>
                       </span>
                     ) : (
                       line.text
@@ -165,10 +153,10 @@ export const DynamicLyrics: React.FC<DynamicLyricsProps> = ({
                     <p
                       className={`leading-normal transition-colors duration-150 mt-1 ${
                         isActive
-                          ? 'text-[#BFE7EA] font-semibold text-base sm:text-lg opacity-90 tracking-wide'
+                          ? 'text-[#FFA14A] font-semibold text-sm sm:text-base tracking-wide'
                           : isPast
-                          ? 'text-[#3B3D44] font-normal text-sm sm:text-base'
-                          : 'text-[#656A74] font-normal text-sm sm:text-base hover:text-[#949BA4]'
+                          ? 'text-[#433D39] font-normal text-xs sm:text-sm'
+                          : 'text-[#756E68] font-normal text-xs sm:text-sm hover:text-[#A8A099]'
                       }`}
                     >
                       {line.subText}
@@ -179,15 +167,15 @@ export const DynamicLyrics: React.FC<DynamicLyricsProps> = ({
             })}
           </>
         ) : plainLyrics ? (
-          <div className="space-y-4 py-8">
-            <pre className="font-sans text-lg text-[#A0A5AD] leading-relaxed whitespace-pre-wrap">
+          <div className="space-y-4 py-6">
+            <pre className="font-sans text-base sm:text-lg text-[#A8A099] leading-relaxed whitespace-pre-wrap">
               {plainLyrics}
             </pre>
           </div>
         ) : (
-          <div className="h-full flex flex-col items-center justify-center text-center space-y-3 py-24 text-[#A0A5AD]">
-            <AlignLeft className="w-10 h-10" />
-            <h4 className="text-sm font-bold text-white">No synchronized lyrics available.</h4>
+          <div className="h-full flex flex-col items-center justify-center text-center space-y-3 py-24 text-[#8A817A]">
+            <AlignLeft className="w-9 h-9 opacity-70" />
+            <h4 className="text-sm font-semibold text-[#FAF6F2]">Lirik belum tersedia</h4>
           </div>
         )}
       </div>

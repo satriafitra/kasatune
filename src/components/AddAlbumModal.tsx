@@ -263,13 +263,13 @@ export const AddAlbumModal: React.FC<AddAlbumModalProps> = ({
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/75 backdrop-blur-sm">
       <div className="fixed inset-0" onClick={onClose} />
 
-      <div className="relative w-full max-w-lg bg-[#121316] border border-white/10 rounded-xl shadow-2xl overflow-hidden flex flex-col max-h-[82vh] z-10">
+      <div className="relative w-full max-w-lg bg-[#141210] border border-white/[0.09] rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[82vh] z-10">
         {/* Header */}
-        <div className="px-4 py-3.5 border-b border-white/[0.06] flex items-center justify-between">
-          <h2 className="text-sm font-semibold text-white">Tambah Artis</h2>
+        <div className="px-4 py-3.5 border-b border-white/[0.07] flex items-center justify-between">
+          <h2 className="text-sm font-semibold text-[#FAF6F2]">Tambah Artis</h2>
           <button
             onClick={onClose}
-            className="p-1 rounded-md text-[#949BA4] hover:text-white hover:bg-white/[0.06] transition-colors"
+            className="p-1 rounded-lg text-[#9E958D] hover:text-white hover:bg-white/[0.06] transition-colors"
             title="Tutup"
           >
             <X className="w-4 h-4" />
@@ -277,23 +277,23 @@ export const AddAlbumModal: React.FC<AddAlbumModalProps> = ({
         </div>
 
         {/* Clean Search Input */}
-        <div className="px-4 py-3 border-b border-white/[0.06]">
+        <div className="px-4 py-3 border-b border-white/[0.07]">
           <div className="relative flex items-center">
-            <Search className="w-4 h-4 absolute left-3 text-[#7A8089] pointer-events-none" />
+            <Search className="w-4 h-4 absolute left-3 text-[#8A817A] pointer-events-none" />
             <input
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Cari nama artis..."
-              className="w-full h-10 pl-9 pr-9 rounded-lg bg-[#1A1C21] border border-white/[0.08] text-sm text-white placeholder-[#6B717B] focus:outline-none focus:border-white/25 transition-colors"
+              className="w-full h-10 pl-9 pr-9 rounded-xl bg-[#1D1A17] border border-white/[0.08] text-sm text-[#FAF6F2] placeholder-[#756E68] focus:outline-none focus:border-[#FF6B2B]/60 transition-colors"
               autoFocus
             />
             {isSearchingOnline ? (
-              <Loader2 className="w-4 h-4 absolute right-3 text-[#949BA4] animate-spin" />
+              <Loader2 className="w-4 h-4 absolute right-3 text-[#FF6B2B] animate-spin" />
             ) : searchQuery ? (
               <button
                 onClick={() => setSearchQuery('')}
-                className="absolute right-3 text-[#7A8089] hover:text-white"
+                className="absolute right-3 text-[#8A817A] hover:text-white"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -336,8 +336,8 @@ export const AddAlbumModal: React.FC<AddAlbumModalProps> = ({
                     }`}
                   >
                     <div className="flex items-center gap-3 min-w-0 flex-1">
-                      <div className="w-10 h-10 rounded-full overflow-hidden bg-[#1A1C21] flex-shrink-0 relative flex items-center justify-center">
-                        <span className="text-[11px] font-semibold text-white/70 uppercase select-none">
+                      <div className="w-10 h-10 rounded-xl overflow-hidden bg-[#1D1A17] flex-shrink-0 relative flex items-center justify-center border border-white/[0.06]">
+                        <span className="text-[11px] font-semibold text-[#A8A099] uppercase select-none">
                           {item.name.replace(/[^a-zA-Z0-9]/g, '').slice(0, 3) || '♪'}
                         </span>
                         {isValidImageUrl(item.imageUrl) && (
@@ -353,10 +353,10 @@ export const AddAlbumModal: React.FC<AddAlbumModalProps> = ({
                       </div>
 
                       <div className="min-w-0 flex-1">
-                        <p className="text-sm font-medium text-white truncate leading-snug">
+                        <p className="text-sm font-medium text-[#FAF6F2] truncate leading-snug">
                           {item.name}
                         </p>
-                        <p className="text-xs text-[#8C929C] truncate">
+                        <p className="text-xs text-[#9E958D] truncate">
                           {subtitle}
                         </p>
                       </div>
@@ -368,10 +368,10 @@ export const AddAlbumModal: React.FC<AddAlbumModalProps> = ({
                         e.stopPropagation();
                         onSelectAndPin(serverItem);
                       }}
-                      className={`h-7 px-3 rounded-full text-xs font-medium flex items-center gap-1 flex-shrink-0 transition-colors ${
+                      className={`h-7 px-3 rounded-lg text-xs font-medium flex items-center gap-1 flex-shrink-0 transition-colors ${
                         isPinned
-                          ? 'bg-[#1DB954]/15 text-[#1DB954]'
-                          : 'border border-white/15 text-white hover:border-white/50 group-hover:bg-white/[0.06]'
+                          ? 'bg-[#FF6B2B]/15 text-[#FF8A4C] border border-[#FF6B2B]/30'
+                          : 'border border-white/15 text-[#FAF6F2] hover:border-[#FF6B2B]/60 hover:text-[#FF8A4C] group-hover:bg-white/[0.05]'
                       }`}
                     >
                       {isPinned ? (

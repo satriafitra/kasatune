@@ -105,20 +105,20 @@ export const EditPlaylistModal: React.FC<EditPlaylistModalProps> = ({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-fadeIn">
       <div 
-        className="w-full max-w-lg bg-[#18191D] border border-[#2B2D31] rounded-2xl shadow-2xl overflow-hidden flex flex-col"
+        className="w-full max-w-lg bg-[#151210] border border-white/[0.09] rounded-2xl shadow-2xl overflow-hidden flex flex-col"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-[#282B32] bg-[#141619]">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-white/[0.07] bg-[#12100E]">
           <div className="flex items-center gap-2">
-            <Sparkles className="w-4 h-4 text-[#BFE7EA]" />
-            <h2 className="text-base font-bold text-white tracking-tight">
+            <Sparkles className="w-4 h-4 text-[#FF6B2B]" />
+            <h2 className="text-base font-bold text-[#FAF6F2] tracking-tight">
               Edit Rincian Playlist
             </h2>
           </div>
           <button
             onClick={onClose}
-            className="w-7 h-7 rounded-md flex items-center justify-center text-[#949BA4] hover:text-white hover:bg-[#282B32] transition-colors"
+            className="w-7 h-7 rounded-lg flex items-center justify-center text-[#9E958D] hover:text-white hover:bg-white/[0.07] transition-colors"
           >
             <X className="w-4 h-4" />
           </button>
@@ -130,13 +130,12 @@ export const EditPlaylistModal: React.FC<EditPlaylistModalProps> = ({
           <div className="flex flex-col sm:flex-row gap-5 items-start">
             {/* Left: Cover Preview & Upload Button */}
             <div className="flex flex-col items-center gap-2.5 flex-shrink-0 w-full sm:w-auto">
-              <div className="relative w-36 h-36 rounded-xl overflow-hidden bg-[#0E1013] border border-[#282B32] shadow-md group">
+              <div className="relative w-36 h-36 rounded-2xl overflow-hidden bg-[#0A0908] border border-white/[0.09] shadow-md group">
                 <img
                   src={coverUrl}
                   alt="Playlist Preview"
                   className="w-full h-full object-cover"
                   onError={(e) => {
-                    // Fallback image
                     (e.currentTarget as HTMLImageElement).src = initialCoverUrl;
                   }}
                 />
@@ -145,7 +144,7 @@ export const EditPlaylistModal: React.FC<EditPlaylistModalProps> = ({
                   onClick={() => fileInputRef.current?.click()}
                   className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center text-white text-xs gap-1 font-semibold"
                 >
-                  <Upload className="w-5 h-5 text-[#BFE7EA]" />
+                  <Upload className="w-5 h-5 text-[#FF8A4C]" />
                   <span>Ganti Foto</span>
                 </button>
               </div>
@@ -162,7 +161,7 @@ export const EditPlaylistModal: React.FC<EditPlaylistModalProps> = ({
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
                 disabled={isUploading}
-                className="w-full py-1.5 px-3 rounded-md bg-[#23252A] hover:bg-[#2B2D33] text-xs font-semibold text-[#BFE7EA] border border-[#282B32] flex items-center justify-center gap-1.5 transition-colors"
+                className="w-full py-1.5 px-3 rounded-xl bg-[#1D1A17] hover:bg-[#26221F] text-xs font-semibold text-[#FFA14A] border border-white/[0.08] flex items-center justify-center gap-1.5 transition-colors"
               >
                 <Upload className="w-3.5 h-3.5" />
                 <span>{isUploading ? 'Mengunggah...' : 'Pilih Foto File'}</span>
@@ -172,8 +171,8 @@ export const EditPlaylistModal: React.FC<EditPlaylistModalProps> = ({
             {/* Right: Name & Description Inputs */}
             <div className="flex-1 w-full space-y-3.5">
               <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-[#949BA4] mb-1.5">
-                  Nama Playlist <span className="text-[#D46743]">*</span>
+                <label className="block text-xs font-bold uppercase tracking-wider text-[#9E958D] mb-1.5">
+                  Nama Playlist <span className="text-[#FF6B2B]">*</span>
                 </label>
                 <input
                   type="text"
@@ -181,12 +180,12 @@ export const EditPlaylistModal: React.FC<EditPlaylistModalProps> = ({
                   onChange={(e) => setName(e.target.value)}
                   maxLength={60}
                   placeholder="Beri nama playlist Anda..."
-                  className="w-full px-3 py-2 rounded-lg bg-[#111215] border border-[#282B32] focus:border-[#BFE7EA] text-sm text-white placeholder-[#656A74] focus:outline-none transition-colors"
+                  className="w-full px-3 py-2 rounded-xl bg-[#0E0C0B] border border-white/[0.08] focus:border-[#FF6B2B]/60 text-sm text-[#FAF6F2] placeholder-[#756E68] focus:outline-none transition-colors"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-[#949BA4] mb-1.5">
+                <label className="block text-xs font-bold uppercase tracking-wider text-[#9E958D] mb-1.5">
                   Deskripsi
                 </label>
                 <textarea
@@ -195,7 +194,7 @@ export const EditPlaylistModal: React.FC<EditPlaylistModalProps> = ({
                   rows={3}
                   maxLength={200}
                   placeholder="Tambahkan deskripsi singkat tentang playlist ini..."
-                  className="w-full px-3 py-2 rounded-lg bg-[#111215] border border-[#282B32] focus:border-[#BFE7EA] text-xs text-white placeholder-[#656A74] focus:outline-none resize-none transition-colors"
+                  className="w-full px-3 py-2 rounded-xl bg-[#0E0C0B] border border-white/[0.08] focus:border-[#FF6B2B]/60 text-xs text-[#FAF6F2] placeholder-[#756E68] focus:outline-none resize-none transition-colors"
                 />
               </div>
             </div>
@@ -203,7 +202,7 @@ export const EditPlaylistModal: React.FC<EditPlaylistModalProps> = ({
 
           {/* Direct URL Input */}
           <div>
-            <label className="block text-[11px] font-bold uppercase tracking-wider text-[#949BA4] mb-1.5 flex items-center gap-1.5">
+            <label className="block text-[11px] font-bold uppercase tracking-wider text-[#9E958D] mb-1.5 flex items-center gap-1.5">
               <ImageIcon className="w-3.5 h-3.5" />
               <span>Atau Masukkan URL Gambar Cover</span>
             </label>
@@ -212,13 +211,13 @@ export const EditPlaylistModal: React.FC<EditPlaylistModalProps> = ({
               value={coverUrl.startsWith('data:') ? '' : coverUrl}
               onChange={(e) => setCoverUrl(e.target.value)}
               placeholder="https://images.unsplash.com/..."
-              className="w-full px-3 py-2 rounded-lg bg-[#111215] border border-[#282B32] focus:border-[#BFE7EA] text-xs text-white placeholder-[#656A74] focus:outline-none transition-colors font-mono"
+              className="w-full px-3 py-2 rounded-xl bg-[#0E0C0B] border border-white/[0.08] focus:border-[#FF6B2B]/60 text-xs text-[#FAF6F2] placeholder-[#756E68] focus:outline-none transition-colors font-mono"
             />
           </div>
 
           {/* Quick Presets */}
           <div>
-            <label className="block text-[11px] font-bold uppercase tracking-wider text-[#949BA4] mb-2">
+            <label className="block text-[11px] font-bold uppercase tracking-wider text-[#9E958D] mb-2">
               Pilihan Cover Estetik Bawaan
             </label>
             <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
@@ -229,10 +228,10 @@ export const EditPlaylistModal: React.FC<EditPlaylistModalProps> = ({
                     key={preset.name}
                     type="button"
                     onClick={() => setCoverUrl(preset.url)}
-                    className={`relative rounded-lg overflow-hidden border aspect-square group transition-all ${
+                    className={`relative rounded-xl overflow-hidden border aspect-square group transition-all ${
                       isSelected
-                        ? 'border-[#BFE7EA] ring-2 ring-[#BFE7EA]/40 scale-105'
-                        : 'border-[#282B32] hover:border-[#949BA4]'
+                        ? 'border-[#FF6B2B] ring-2 ring-[#FF6B2B]/40 scale-105'
+                        : 'border-white/[0.08] hover:border-white/25'
                     }`}
                     title={preset.name}
                   >
@@ -245,7 +244,7 @@ export const EditPlaylistModal: React.FC<EditPlaylistModalProps> = ({
                       {preset.name}
                     </div>
                     {isSelected && (
-                      <div className="absolute top-1 right-1 w-4 h-4 rounded-full bg-[#BFE7EA] text-black flex items-center justify-center shadow-sm">
+                      <div className="absolute top-1 right-1 w-4 h-4 rounded-full bg-[#FF6B2B] text-[#0A0908] flex items-center justify-center shadow-sm">
                         <Check className="w-2.5 h-2.5 stroke-[3]" />
                       </div>
                     )}
@@ -256,17 +255,17 @@ export const EditPlaylistModal: React.FC<EditPlaylistModalProps> = ({
           </div>
 
           {/* Modal Footer Buttons */}
-          <div className="flex items-center justify-end gap-3 pt-4 border-t border-[#282B32]">
+          <div className="flex items-center justify-end gap-3 pt-4 border-t border-white/[0.07]">
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 rounded-lg text-xs font-bold text-[#A0A5AD] hover:text-white hover:bg-[#23252A] transition-colors"
+              className="px-4 py-2 rounded-xl text-xs font-bold text-[#A8A099] hover:text-white hover:bg-white/[0.06] transition-colors"
             >
               Batal
             </button>
             <button
               type="submit"
-              className="px-5 py-2 rounded-lg text-xs font-bold text-black bg-[#1DB954] hover:bg-[#1ed760] active:scale-95 transition-all shadow-md flex items-center gap-1.5"
+              className="px-5 py-2 rounded-xl text-xs font-bold text-[#0A0908] bg-gradient-to-r from-[#FF6B2B] to-[#FF8A3D] hover:brightness-110 active:scale-95 transition-all shadow-md flex items-center gap-1.5"
             >
               <Check className="w-4 h-4" />
               <span>Simpan Perubahan</span>

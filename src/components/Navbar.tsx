@@ -172,26 +172,29 @@ export const Navbar: React.FC<NavbarProps> = ({
   const currentRedirectUri = window.location.origin + window.location.pathname;
 
   return (
-    <header className="h-[52px] sm:h-14 w-full bg-[#0B0C0E] border-b border-white/[0.06] px-3.5 sm:px-5 flex items-center justify-between gap-3 select-none z-30 flex-shrink-0">
-      {/* Left: Clean Kasatune Brand */}
+    <header className="h-[52px] sm:h-14 w-full bg-[#0A0908] border-b border-white/[0.06] px-3.5 sm:px-5 flex items-center justify-between gap-3 select-none z-30 flex-shrink-0">
+      {/* Left: Clean Kasatune Brand with Subtle Orange Dot */}
       <div className="flex items-center gap-2.5 flex-shrink-0 cursor-pointer">
         <KasatuneLogoIcon size={26} />
-        <span className="font-bold text-[15px] sm:text-sm text-white tracking-tight">
-          Kasatune
-        </span>
+        <div className="flex items-center gap-1.5">
+          <span className="font-bold text-[15px] sm:text-sm text-[#FAF6F2] tracking-tight">
+            Kasatune
+          </span>
+          <span className="w-1.5 h-1.5 rounded-full bg-[#FF6B2B]" />
+        </div>
       </div>
 
-      {/* Mobile Right Controls: Clean Search & Settings ONLY (Navigation lives in native Bottom Tab Bar) */}
+      {/* Mobile Right Controls: Clean Search & Settings ONLY */}
       <div className="flex md:hidden items-center gap-2">
         <button
           onClick={() => {
             setIsMobileSearchOpen((prev) => !prev);
             setTimeout(() => mobileInputRef.current?.focus(), 100);
           }}
-          className={`w-9 h-9 rounded-full border flex items-center justify-center transition-colors ${
+          className={`w-9 h-9 rounded-xl border flex items-center justify-center transition-colors ${
             isMobileSearchOpen
-              ? 'bg-white/10 text-white border-white/25'
-              : 'bg-[#141619] text-[#A0A5AD] border-white/[0.08] active:bg-white/10'
+              ? 'bg-[#FF6B2B]/15 text-[#FF8A4C] border-[#FF6B2B]/40'
+              : 'bg-[#151210] text-[#A8A099] border-white/[0.08] active:bg-white/10'
           }`}
           aria-label="Cari lagu"
         >
@@ -200,13 +203,13 @@ export const Navbar: React.FC<NavbarProps> = ({
 
         <button
           onClick={() => setIsSettingsOpen(true)}
-          className="w-9 h-9 rounded-full bg-[#141619] active:bg-white/10 border border-white/[0.08] flex items-center justify-center text-[#A0A5AD] relative"
+          className="w-9 h-9 rounded-xl bg-[#151210] active:bg-white/10 border border-white/[0.08] flex items-center justify-center text-[#A8A099] relative"
           aria-label="Pengaturan"
         >
           <Settings className="w-4 h-4" />
           <span
             className={`absolute top-2 right-2 w-1.5 h-1.5 rounded-full ${
-              isBackendOnline ? 'bg-[#1DB954]' : 'bg-[#FEE75C]'
+              isBackendOnline ? 'bg-[#FF6B2B]' : 'bg-[#FFA14A]'
             }`}
           />
         </button>
@@ -215,7 +218,7 @@ export const Navbar: React.FC<NavbarProps> = ({
       {/* Center: Search Bar with Dropdown Popover (Desktop) */}
       <div className="hidden md:flex flex-1 max-w-lg relative z-50" ref={searchContainerRef}>
         <div className="w-full relative flex items-center">
-          <Search className="w-4 h-4 absolute left-3 text-[#949BA4] pointer-events-none" />
+          <Search className="w-4 h-4 absolute left-3 text-[#8A817A] pointer-events-none" />
           <input
             ref={searchInputRef}
             type="text"
@@ -230,7 +233,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               }
             }}
             placeholder="Cari lagu, artis, atau album..."
-            className="w-full h-8 pl-9 pr-14 rounded-md bg-[#141619] hover:bg-[#1C1E22] focus:bg-[#1C1E22] border border-[#282B32] focus:border-[#BFE7EA] text-xs text-white placeholder-[#656A74] focus:outline-none transition-colors"
+            className="w-full h-9 pl-9 pr-14 rounded-xl bg-[#151210] hover:bg-[#1B1816] focus:bg-[#1B1816] border border-white/[0.08] focus:border-[#FF6B2B]/60 text-xs text-[#FAF6F2] placeholder-[#756E68] focus:outline-none transition-colors"
           />
 
           {searchQuery ? (
@@ -239,34 +242,33 @@ export const Navbar: React.FC<NavbarProps> = ({
                 onSearchChange('');
                 setIsDropdownOpen(false);
               }}
-              className="absolute right-8 text-[#949BA4] hover:text-white p-0.5 rounded transition-colors"
+              className="absolute right-8 text-[#8A817A] hover:text-white p-0.5 rounded transition-colors"
               title="Hapus pencarian"
             >
               <X className="w-3.5 h-3.5" />
             </button>
           ) : (
-            <kbd className="hidden sm:inline-block absolute right-2.5 px-1.5 py-0.5 text-[10px] font-mono text-[#949BA4] bg-[#0B0C0E] border border-[#282B32] rounded pointer-events-none">
+            <kbd className="hidden sm:inline-block absolute right-2.5 px-1.5 py-0.5 text-[10px] font-mono text-[#8A817A] bg-[#0A0908] border border-white/[0.08] rounded-md pointer-events-none">
               Ctrl+K
             </kbd>
           )}
         </div>
 
-        {/* Dropdown Menu Popover (Self-contained dark frosted blur without dimming the page) */}
+        {/* Dropdown Menu Popover */}
         {isDropdownOpen && searchQuery.trim().length >= 1 && (
-          <div className="absolute top-full left-0 right-0 mt-2 bg-[#0A0C0E]/95 backdrop-blur-2xl border border-[#32363E] rounded-xl shadow-[0_25px_60px_rgba(0,0,0,0.95)] ring-1 ring-black/80 z-50 overflow-hidden max-h-[480px] flex flex-col animate-in fade-in zoom-in-95 duration-150">
-            {/* Dropdown Header Info */}
-            <div className="px-4 py-2.5 border-b border-[#282B32] bg-[#07080A]/95 flex items-center justify-between text-xs text-[#A0A5AD]">
+          <div className="absolute top-full left-0 right-0 mt-2 bg-[#12100E]/96 backdrop-blur-2xl border border-white/[0.1] rounded-2xl shadow-[0_25px_60px_rgba(0,0,0,0.95)] z-50 overflow-hidden max-h-[480px] flex flex-col animate-in fade-in zoom-in-95 duration-150">
+            <div className="px-4 py-2.5 border-b border-white/[0.07] bg-[#0C0A09]/95 flex items-center justify-between text-xs text-[#A8A099]">
                 <div className="flex items-center gap-1.5 truncate">
-                  <Search className="w-3.5 h-3.5 text-[#BFE7EA]" />
-                  <span className="font-semibold text-white truncate">
+                  <Search className="w-3.5 h-3.5 text-[#FF6B2B]" />
+                  <span className="font-semibold text-[#FAF6F2] truncate">
                     "{searchQuery}"
                   </span>
-                  <span className="text-[11px] text-[#656A74]">
+                  <span className="text-[11px] text-[#756E68]">
                     &bull; {totalMatches} lagu ditemukan
                   </span>
                 </div>
                 {isLoadingLive && (
-                  <div className="flex items-center gap-1.5 text-[10px] text-[#1DB954] flex-shrink-0 font-medium">
+                  <div className="flex items-center gap-1.5 text-[10px] text-[#FFA14A] flex-shrink-0 font-medium">
                     <Loader2 className="w-3 h-3 animate-spin" />
                     <span>Mencari online...</span>
                   </div>
@@ -278,9 +280,9 @@ export const Navbar: React.FC<NavbarProps> = ({
                 {/* 1. Local Library Results */}
                 {localMatches.length > 0 && (
                   <div className="space-y-1">
-                    <div className="px-2.5 pt-1.5 pb-1 text-[9px] font-extrabold uppercase tracking-wider text-[#949BA4] flex items-center justify-between">
+                    <div className="px-2.5 pt-1.5 pb-1 text-[9px] font-extrabold uppercase tracking-wider text-[#8A817A] flex items-center justify-between">
                       <span>Koleksi Lagu ({localMatches.length})</span>
-                      <span className="text-[#BFE7EA] font-mono text-[9px]">LOKAL</span>
+                      <span className="text-[#FFA14A] font-mono text-[9px]">LOKAL</span>
                     </div>
                     {localMatches.map((t) => {
                       const isActive = t.id === activeTrackId;
@@ -290,15 +292,14 @@ export const Navbar: React.FC<NavbarProps> = ({
                         <div
                           key={t.id}
                           onClick={() => handleSelectSong(t)}
-                          className={`group flex items-center justify-between gap-3 px-3 py-2 rounded-lg cursor-pointer transition-all border ${
+                          className={`group flex items-center justify-between gap-3 px-3 py-2 rounded-xl cursor-pointer transition-all border ${
                             isActive
-                              ? 'bg-[#1C1E22] border-[#BFE7EA]/40 text-white shadow-md'
-                              : 'bg-[#111317] hover:bg-[#181A20] border-[#1F2228] hover:border-[#383C45] text-[#A0A5AD] hover:text-[#F2F3F5]'
+                              ? 'bg-[#FF6B2B]/15 border-[#FF6B2B]/40 text-white shadow-md'
+                              : 'bg-[#161311] hover:bg-[#1E1A17] border-white/[0.05] hover:border-white/[0.12] text-[#A8A099] hover:text-[#FAF6F2]'
                           }`}
                         >
                           <div className="flex items-center gap-2.5 min-w-0">
-                            {/* Thumbnail */}
-                            <div className="w-10 h-10 min-w-[40px] min-h-[40px] rounded-md overflow-hidden flex-shrink-0 bg-[#0B0C0E] border border-[#282B32] relative group-hover:border-[#BFE7EA]/50 shadow-sm">
+                            <div className="w-10 h-10 min-w-[40px] min-h-[40px] rounded-lg overflow-hidden flex-shrink-0 bg-[#0A0908] border border-white/[0.08] relative group-hover:border-[#FF6B2B]/40 shadow-sm">
                               <img
                                 src={t.coverUrl}
                                 alt={t.title}
@@ -307,12 +308,11 @@ export const Navbar: React.FC<NavbarProps> = ({
                                   (e.currentTarget as HTMLElement).style.display = 'none';
                                 }}
                               />
-                              {/* Hover Play/Pause overlay */}
                               <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
                                 {isActive && isPlaying ? (
-                                  <Pause className="w-4 h-4 text-white fill-current" />
+                                  <Pause className="w-4 h-4 text-[#FF6B2B] fill-current" />
                                 ) : (
-                                  <Play className="w-4 h-4 text-white fill-current translate-x-0.5" />
+                                  <Play className="w-4 h-4 text-[#FF6B2B] fill-current translate-x-0.5" />
                                 )}
                               </div>
                             </div>
@@ -320,18 +320,17 @@ export const Navbar: React.FC<NavbarProps> = ({
                             <div className="min-w-0 flex flex-col justify-center">
                               <p
                                 className={`text-xs font-bold truncate leading-tight ${
-                                  isActive ? 'text-[#BFE7EA]' : 'text-white'
+                                  isActive ? 'text-[#FFA14A]' : 'text-[#FAF6F2]'
                                 }`}
                               >
                                 {t.title}
                               </p>
-                              <p className="text-[11px] text-[#A0A5AD] truncate mt-0.5">
+                              <p className="text-[11px] text-[#9E958D] truncate mt-0.5">
                                 {t.artist} &bull; {t.album}
                               </p>
                             </div>
                           </div>
 
-                          {/* Right: Heart + Duration */}
                           <div className="flex items-center gap-2.5 flex-shrink-0">
                             {onToggleLikeTrack && (
                               <button
@@ -339,17 +338,17 @@ export const Navbar: React.FC<NavbarProps> = ({
                                   e.stopPropagation();
                                   onToggleLikeTrack(t);
                                 }}
-                                className={`p-1.5 rounded hover:bg-white/10 transition-colors ${
+                                className={`p-1.5 rounded-lg hover:bg-white/10 transition-colors ${
                                   isLiked
-                                    ? 'text-[#FF4B72]'
-                                    : 'text-[#656A74] opacity-0 group-hover:opacity-100 hover:text-white'
+                                    ? 'text-[#FF6B2B]'
+                                    : 'text-[#756E68] opacity-0 group-hover:opacity-100 hover:text-white'
                                 }`}
                                 title={isLiked ? 'Hapus dari favorit' : 'Simpan ke favorit'}
                               >
-                                <Heart className={`w-3.5 h-3.5 ${isLiked ? 'fill-[#FF4B72]' : ''}`} />
+                                <Heart className={`w-3.5 h-3.5 ${isLiked ? 'fill-[#FF6B2B]' : ''}`} />
                               </button>
                             )}
-                            <span className="text-[11px] font-mono text-[#8C929C]">
+                            <span className="text-[11px] font-mono text-[#8A817A]">
                               {formatDuration(t.durationMs)}
                             </span>
                           </div>
@@ -362,12 +361,12 @@ export const Navbar: React.FC<NavbarProps> = ({
                 {/* 2. Online Real-Time Discovery Results */}
                 {deduplicatedLiveMatches.length > 0 && (
                   <div className="pt-2 space-y-1">
-                    <div className="px-2.5 pb-1 text-[9px] font-extrabold uppercase tracking-wider text-[#1DB954] flex items-center justify-between">
+                    <div className="px-2.5 pb-1 text-[9px] font-extrabold uppercase tracking-wider text-[#FF8A4C] flex items-center justify-between">
                       <span className="flex items-center gap-1.5">
-                        <Globe className="w-3 h-3 text-[#1DB954]" />
+                        <Globe className="w-3 h-3 text-[#FF6B2B]" />
                         <span>Online Global (Real-time)</span>
                       </span>
-                      <span className="text-[9px] font-mono text-[#949BA4]">
+                      <span className="text-[9px] font-mono text-[#8A817A]">
                         {deduplicatedLiveMatches.length} lagu
                       </span>
                     </div>
@@ -380,14 +379,14 @@ export const Navbar: React.FC<NavbarProps> = ({
                         <div
                           key={t.id}
                           onClick={() => handleSelectSong(t)}
-                          className={`group flex items-center justify-between gap-3 px-3 py-2 rounded-lg cursor-pointer transition-all border ${
+                          className={`group flex items-center justify-between gap-3 px-3 py-2 rounded-xl cursor-pointer transition-all border ${
                             isActive
-                              ? 'bg-[#1C1E22] border-[#1DB954]/50 text-white shadow-md'
-                              : 'bg-[#111317] hover:bg-[#181A20] border-[#1F2228] hover:border-[#1DB954]/40 text-[#A0A5AD] hover:text-[#F2F3F5]'
+                              ? 'bg-[#FF6B2B]/15 border-[#FF6B2B]/45 text-white shadow-md'
+                              : 'bg-[#161311] hover:bg-[#1E1A17] border-white/[0.05] hover:border-[#FF6B2B]/35 text-[#A8A099] hover:text-[#FAF6F2]'
                           }`}
                         >
                           <div className="flex items-center gap-2.5 min-w-0">
-                            <div className="w-10 h-10 min-w-[40px] min-h-[40px] rounded-md overflow-hidden flex-shrink-0 bg-[#0B0C0E] border border-[#282B32] relative group-hover:border-[#1DB954]/50 shadow-sm">
+                            <div className="w-10 h-10 min-w-[40px] min-h-[40px] rounded-lg overflow-hidden flex-shrink-0 bg-[#0A0908] border border-white/[0.08] relative group-hover:border-[#FF6B2B]/45 shadow-sm">
                               <img
                                 src={t.coverUrl}
                                 alt={t.title}
@@ -397,20 +396,20 @@ export const Navbar: React.FC<NavbarProps> = ({
                                 }}
                               />
                               <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
-                                <Play className="w-4 h-4 text-white fill-current translate-x-0.5" />
+                                <Play className="w-4 h-4 text-[#FF6B2B] fill-current translate-x-0.5" />
                               </div>
                             </div>
 
                             <div className="min-w-0 flex flex-col justify-center">
                               <div className="flex items-center gap-1.5">
-                                <p className="text-xs font-bold text-white truncate leading-tight">
+                                <p className={`text-xs font-bold truncate leading-tight ${isActive ? 'text-[#FFA14A]' : 'text-[#FAF6F2]'}`}>
                                   {t.title}
                                 </p>
-                                <span className="text-[8px] font-mono px-1 py-0.2 rounded bg-[#1DB954]/20 text-[#1DB954] border border-[#1DB954]/30 flex-shrink-0">
+                                <span className="text-[8px] font-mono px-1 py-0.2 rounded bg-[#FF6B2B]/15 text-[#FF8A4C] border border-[#FF6B2B]/30 flex-shrink-0">
                                   LIVE
                                 </span>
                               </div>
-                              <p className="text-[11px] text-[#A0A5AD] truncate mt-0.5">
+                              <p className="text-[11px] text-[#9E958D] truncate mt-0.5">
                                 {t.artist} &bull; {t.album}
                               </p>
                             </div>
@@ -423,17 +422,17 @@ export const Navbar: React.FC<NavbarProps> = ({
                                   e.stopPropagation();
                                   onToggleLikeTrack(t);
                                 }}
-                                className={`p-1.5 rounded hover:bg-white/10 transition-colors ${
+                                className={`p-1.5 rounded-lg hover:bg-white/10 transition-colors ${
                                   isLiked
-                                    ? 'text-[#FF4B72]'
-                                    : 'text-[#656A74] opacity-0 group-hover:opacity-100 hover:text-white'
+                                    ? 'text-[#FF6B2B]'
+                                    : 'text-[#756E68] opacity-0 group-hover:opacity-100 hover:text-white'
                                 }`}
                                 title={isLiked ? 'Hapus dari favorit' : 'Simpan ke favorit'}
                               >
-                                <Heart className={`w-3.5 h-3.5 ${isLiked ? 'fill-[#FF4B72]' : ''}`} />
+                                <Heart className={`w-3.5 h-3.5 ${isLiked ? 'fill-[#FF6B2B]' : ''}`} />
                               </button>
                             )}
-                            <span className="text-[11px] font-mono text-[#8C929C]">
+                            <span className="text-[11px] font-mono text-[#8A817A]">
                               {formatDuration(t.durationMs)}
                             </span>
                           </div>
@@ -443,21 +442,19 @@ export const Navbar: React.FC<NavbarProps> = ({
                   </div>
                 )}
 
-                {/* Empty State */}
                 {totalMatches === 0 && !isLoadingLive && (
                   <div className="py-10 px-4 text-center">
-                    <p className="text-sm font-semibold text-white mb-1">
+                    <p className="text-sm font-semibold text-[#FAF6F2] mb-1">
                       Tidak ada lagu ditemukan
                     </p>
-                    <p className="text-xs text-[#71757E]">
+                    <p className="text-xs text-[#756E68]">
                       Coba kata kunci judul lagu atau nama penyanyi lain.
                     </p>
                   </div>
                 )}
               </div>
 
-              {/* Dropdown Footer Tip */}
-              <div className="px-4 py-2 bg-[#07080A]/95 border-t border-[#282B32] flex items-center justify-between text-[10px] text-[#71757E]">
+              <div className="px-4 py-2 bg-[#0C0A09]/95 border-t border-white/[0.07] flex items-center justify-between text-[10px] text-[#756E68]">
                 <span>Klik lagu untuk langsung memutar</span>
                 <span>ESC untuk menutup</span>
               </div>
@@ -465,26 +462,26 @@ export const Navbar: React.FC<NavbarProps> = ({
         )}
       </div>
 
-      {/* Mobile Search Overlay Drawer (Visible when isMobileSearchOpen on < md) */}
+      {/* Mobile Search Overlay Drawer */}
       {isMobileSearchOpen && (
         <div
           ref={mobileSearchRef}
-          className="md:hidden fixed top-[52px] left-0 right-0 bg-[#101216]/98 backdrop-blur-2xl border-b border-white/10 p-3.5 z-50 shadow-[0_24px_60px_rgba(0,0,0,0.92)] animate-in slide-in-from-top-2 duration-150"
+          className="md:hidden fixed top-[52px] left-0 right-0 bg-[#12100E]/98 backdrop-blur-2xl border-b border-white/[0.09] p-3.5 z-50 shadow-[0_24px_60px_rgba(0,0,0,0.92)] animate-in slide-in-from-top-2 duration-150"
         >
           <div className="relative flex items-center">
-            <Search className="w-4 h-4 absolute left-3 text-[#7A8089] pointer-events-none" />
+            <Search className="w-4 h-4 absolute left-3 text-[#8A817A] pointer-events-none" />
             <input
               ref={mobileInputRef}
               type="text"
               value={searchQuery}
               onChange={(e) => onSearchChange(e.target.value)}
               placeholder="Cari judul lagu atau artis..."
-              className="w-full h-10 pl-9 pr-9 rounded-xl bg-[#191B20] border border-white/10 text-sm text-white placeholder-[#6B717B] focus:outline-none focus:border-white/25"
+              className="w-full h-10 pl-9 pr-9 rounded-xl bg-[#1B1816] border border-white/[0.09] text-sm text-[#FAF6F2] placeholder-[#756E68] focus:outline-none focus:border-[#FF6B2B]/60"
             />
             {searchQuery && (
               <button
                 onClick={() => onSearchChange('')}
-                className="absolute right-2.5 text-[#949BA4] hover:text-white p-1"
+                className="absolute right-2.5 text-[#8A817A] hover:text-white p-1"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -492,25 +489,25 @@ export const Navbar: React.FC<NavbarProps> = ({
           </div>
 
           {searchQuery.trim().length >= 1 && (
-            <div className="mt-2.5 bg-[#121418] border border-white/[0.08] rounded-xl overflow-hidden max-h-[55dvh] overflow-y-auto custom-scrollbar p-1.5 space-y-1 shadow-2xl">
+            <div className="mt-2.5 bg-[#151210] border border-white/[0.08] rounded-2xl overflow-hidden max-h-[55dvh] overflow-y-auto custom-scrollbar p-1.5 space-y-1 shadow-2xl">
               {localMatches.map((t) => (
                 <div
                   key={t.id}
                   onClick={() => handleSelectSong(t)}
-                  className="flex items-center justify-between gap-2.5 p-2 rounded-lg active:bg-white/[0.08] text-white cursor-pointer"
+                  className="flex items-center justify-between gap-2.5 p-2 rounded-xl active:bg-[#FF6B2B]/15 text-[#FAF6F2] cursor-pointer"
                 >
                   <div className="flex items-center gap-2.5 min-w-0 flex-1">
                     <img
                       src={t.coverUrl}
                       alt=""
-                      className="w-10 h-10 rounded-md object-cover flex-shrink-0 bg-[#181A1F]"
+                      className="w-10 h-10 rounded-lg object-cover flex-shrink-0 bg-[#1D1A17]"
                     />
                     <div className="min-w-0 flex-1">
                       <p className="text-xs font-semibold truncate leading-tight">{t.title}</p>
-                      <p className="text-[11px] text-[#949BA4] truncate mt-0.5">{t.artist}</p>
+                      <p className="text-[11px] text-[#9E958D] truncate mt-0.5">{t.artist}</p>
                     </div>
                   </div>
-                  <span className="text-[11px] font-mono text-[#7A8089] flex-shrink-0">
+                  <span className="text-[11px] font-mono text-[#756E68] flex-shrink-0">
                     {formatDuration(t.durationMs)}
                   </span>
                 </div>
@@ -520,27 +517,27 @@ export const Navbar: React.FC<NavbarProps> = ({
                 <div
                   key={t.id}
                   onClick={() => handleSelectSong(t)}
-                  className="flex items-center justify-between gap-2.5 p-2 rounded-lg active:bg-white/[0.08] text-white cursor-pointer"
+                  className="flex items-center justify-between gap-2.5 p-2 rounded-xl active:bg-[#FF6B2B]/15 text-[#FAF6F2] cursor-pointer"
                 >
                   <div className="flex items-center gap-2.5 min-w-0 flex-1">
                     <img
                       src={t.coverUrl}
                       alt=""
-                      className="w-10 h-10 rounded-md object-cover flex-shrink-0 bg-[#181A1F]"
+                      className="w-10 h-10 rounded-lg object-cover flex-shrink-0 bg-[#1D1A17]"
                     />
                     <div className="min-w-0 flex-1">
                       <p className="text-xs font-semibold truncate leading-tight">{t.title}</p>
-                      <p className="text-[11px] text-[#949BA4] truncate mt-0.5">{t.artist}</p>
+                      <p className="text-[11px] text-[#9E958D] truncate mt-0.5">{t.artist}</p>
                     </div>
                   </div>
-                  <span className="text-[11px] font-mono text-[#7A8089] flex-shrink-0">
+                  <span className="text-[11px] font-mono text-[#756E68] flex-shrink-0">
                     {formatDuration(t.durationMs)}
                   </span>
                 </div>
               ))}
 
               {totalMatches === 0 && (
-                <div className="py-6 text-center text-xs text-[#7A8089]">
+                <div className="py-6 text-center text-xs text-[#8A817A]">
                   {isLoadingLive ? 'Mencari...' : 'Tidak ada lagu ditemukan.'}
                 </div>
               )}
@@ -549,20 +546,20 @@ export const Navbar: React.FC<NavbarProps> = ({
         </div>
       )}
 
-      {/* Right Controls: Simplified Friend Sync & Settings (Desktop only) */}
+      {/* Right Controls: Live Sync & Settings (Desktop only) */}
       <div className="hidden md:flex items-center gap-2">
         <button
           onClick={onConnectFriendSpotify}
-          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${
+          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium border transition-colors ${
             isFriendConnected
-              ? 'bg-[#1DB954]/15 border-[#1DB954]/40 text-[#1DB954]'
-              : 'bg-[#141619] border-[#282B32] text-[#A0A5AD] hover:text-white hover:bg-[#1C1E22]'
+              ? 'bg-[#FF6B2B]/15 border-[#FF6B2B]/40 text-[#FF8A4C]'
+              : 'bg-[#151210] border-white/[0.08] text-[#A8A099] hover:text-[#FAF6F2] hover:bg-[#1D1A17]'
           }`}
           title={isFriendConnected ? 'Friend Live Sync aktif' : 'Buka Live Sync Teman'}
         >
           <span
             className={`w-2 h-2 rounded-full flex-shrink-0 ${
-              isFriendConnected ? 'bg-[#1DB954]' : 'bg-[#656A74]'
+              isFriendConnected ? 'bg-[#FF6B2B]' : 'bg-[#756E68]'
             }`}
           />
           <span className="truncate max-w-[130px]">
@@ -573,14 +570,14 @@ export const Navbar: React.FC<NavbarProps> = ({
         {isAuthenticated ? (
           <button
             onClick={onLogout}
-            className="px-3 py-1.5 rounded-full bg-[#1C1E22] hover:bg-[#ED4245] text-white text-xs font-medium transition-colors border border-[#282B32]"
+            className="px-3 py-1.5 rounded-xl bg-[#1D1A17] hover:bg-[#E04F26] text-white text-xs font-medium transition-colors border border-white/[0.08]"
           >
             Disconnect
           </button>
         ) : (
           <button
             onClick={() => setIsSettingsOpen(true)}
-            className="p-2 rounded-full bg-[#141619] hover:bg-[#1C1E22] text-[#A0A5AD] hover:text-white border border-[#282B32] transition-colors"
+            className="p-2 rounded-xl bg-[#151210] hover:bg-[#1D1A17] text-[#A8A099] hover:text-[#FAF6F2] border border-white/[0.08] transition-colors"
             title="Pengaturan"
           >
             <Settings className="w-4 h-4" />
@@ -588,15 +585,15 @@ export const Navbar: React.FC<NavbarProps> = ({
         )}
       </div>
 
-      {/* Settings Modal (Deep Obsidian Style) */}
+      {/* Settings Modal */}
       {isSettingsOpen && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-[#141619] border border-[#282B32] rounded-lg max-w-md w-full p-6 space-y-4 shadow-2xl animate-in fade-in zoom-in-95 duration-150">
-            <div className="flex items-center justify-between border-b border-[#282B32] pb-3">
-              <h3 className="font-bold text-base text-white">Kasatune Settings</h3>
+          <div className="bg-[#151210] border border-white/[0.09] rounded-2xl max-w-md w-full p-6 space-y-4 shadow-2xl animate-in fade-in zoom-in-95 duration-150">
+            <div className="flex items-center justify-between border-b border-white/[0.07] pb-3">
+              <h3 className="font-bold text-base text-[#FAF6F2]">Pengaturan Kasatune</h3>
               <button
                 onClick={() => setIsSettingsOpen(false)}
-                className="text-[#656A74] hover:text-white text-sm"
+                className="text-[#8A817A] hover:text-white text-sm"
               >
                 &times;
               </button>
@@ -604,21 +601,21 @@ export const Navbar: React.FC<NavbarProps> = ({
 
             <form onSubmit={handleSaveSettings} className="space-y-4 text-xs">
               <div>
-                <label className="block text-[#A0A5AD] uppercase font-bold text-[11px] mb-1.5">
-                  Spotify Client ID (Optional for Live Remote Polling)
+                <label className="block text-[#A8A099] uppercase font-bold text-[11px] mb-1.5">
+                  Spotify Client ID (Opsional untuk Live Remote Polling)
                 </label>
                 <input
                   type="text"
                   value={tempClientId}
                   onChange={(e) => setTempClientId(e.target.value)}
                   placeholder="Paste Spotify Client ID..."
-                  className="w-full p-2.5 rounded-md bg-[#0B0C0E] border border-[#282B32] text-white focus:outline-none focus:border-[#BFE7EA]"
+                  className="w-full p-2.5 rounded-xl bg-[#0A0908] border border-white/[0.08] text-[#FAF6F2] focus:outline-none focus:border-[#FF6B2B]/60"
                 />
               </div>
 
-              <div className="bg-[#0B0C0E] p-3 rounded-md border border-[#282B32] space-y-1 text-[#A0A5AD]">
-                <p className="font-semibold text-white">Redirect URI:</p>
-                <code className="text-[11px] text-[#BFE7EA] block select-all break-all">
+              <div className="bg-[#0A0908] p-3 rounded-xl border border-white/[0.07] space-y-1 text-[#A8A099]">
+                <p className="font-semibold text-[#FAF6F2]">Redirect URI:</p>
+                <code className="text-[11px] text-[#FFA14A] block select-all break-all">
                   {currentRedirectUri}
                 </code>
               </div>
@@ -627,15 +624,15 @@ export const Navbar: React.FC<NavbarProps> = ({
                 <button
                   type="button"
                   onClick={() => setIsSettingsOpen(false)}
-                  className="px-3 py-1.5 rounded-md text-white hover:underline"
+                  className="px-3 py-1.5 rounded-xl text-[#A8A099] hover:text-white"
                 >
-                  Cancel
+                  Batal
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-1.5 rounded-md bg-gradient-to-r from-[#E89B5B] to-[#D46743] hover:opacity-95 text-white font-semibold shadow-md"
+                  className="px-4 py-1.5 rounded-xl bg-gradient-to-r from-[#FF6B2B] to-[#FF8A3D] hover:brightness-110 text-[#0A0908] font-bold shadow-md"
                 >
-                  Save
+                  Simpan
                 </button>
               </div>
             </form>

@@ -1,15 +1,12 @@
 /**
- * DiscordServerRail Component (Leftmost Discord Server Navigation Bar)
- * Features:
- * - Kasatune Brand / Home Icon
- * - Custom Playlist / Favorites (KASONGS)
- * - User-Customized Pinned Albums & Artists (Empty by default, managed via [+] button)
- * - [+] Button to open AddAlbumModal catalog
- * - Friend Spotify Presence (Visible only when connected)
+ * DiscordServerRail Component -> Kasatune Editorial Library Sidebar (Desktop)
+ * Clean, calm, rounded-2xl warm-obsidian library card distinct from Spotify/Discord icon rails:
+ * - Favorit Saya & Live Sync quick links
+ * - Saved Artists list with rounded-xl square thumbnails and inline "+ Tambah" trigger
  */
 
 import React, { useState } from 'react';
-import { Plus, X, Heart, Disc, Radio } from 'lucide-react';
+import { Plus, X, Heart, Radio } from 'lucide-react';
 import type { CustomPlaylistData } from '../hooks/useCustomPlaylist';
 import { isValidImageUrl } from '../api/liveSearch';
 import { AddAlbumModal, CATALOG_ALBUMS, type PinnedServerItem } from './AddAlbumModal';
@@ -70,13 +67,11 @@ export const DiscordServerRail: React.FC<DiscordServerRailProps> = ({
   isAddModalOpenExternal,
   onSetAddModalOpenExternal,
 }) => {
-  const [hoveredId, setHoveredId] = useState<string | null>(null);
   const [internalAddModalOpen, setInternalAddModalOpen] = useState(false);
 
   const isAddModalOpen = isAddModalOpenExternal !== undefined ? isAddModalOpenExternal : internalAddModalOpen;
   const setIsAddModalOpen = onSetAddModalOpenExternal || setInternalAddModalOpen;
 
-  // User-customized pinned artists list (Empty by default per user request, persisted in localStorage)
   const [internalPinnedServers, setInternalPinnedServers] = useState<PinnedServerItem[]>(() => {
     try {
       const saved = localStorage.getItem('kasatune_pinned_artists_v4');
@@ -142,268 +137,176 @@ export const DiscordServerRail: React.FC<DiscordServerRailProps> = ({
     setIsAddModalOpen(false);
   };
 
-  const playlistName = customPlaylist?.name || 'Playlist Favorit Saya';
-  const playlistCover =
-    customPlaylist?.coverUrl ||
-    'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=600&auto=format&fit=crop&q=80';
+  const playlistName =
+    !customPlaylist?.name || customPlaylist.name === 'Lagu Favorit Saya'
+      ? 'Favorit Saya'
+      : customPlaylist.name;
 
   return (
     <>
-      <nav className="w-[72px] h-full bg-[#0B0C0E] border-r border-[#282B32] flex flex-col items-center py-3 gap-2 flex-shrink-0 select-none z-30 overflow-y-auto overflow-x-hidden custom-scrollbar">
-        {/* 1. Friend Spotify Server (ONLY VISIBLE WHEN CONNECTED) */}
-        {isFriendConnected && (
-          <>
-            <div
-              className="relative flex items-center justify-center w-full group cursor-pointer flex-shrink-0"
-              onMouseEnter={() => setHoveredId('friend')}
-              onMouseLeave={() => setHoveredId(null)}
-              onClick={() => onSelectAlbum('friend')}
-            >
-              <div
-                className={`absolute left-0 w-1 bg-[#1DB954] rounded-r-md transition-all duration-200 ${
-                  activeAlbum === 'friend'
-                    ? 'h-10 opacity-100'
-                    : hoveredId === 'friend'
-                    ? 'h-5 opacity-80'
-                    : 'h-0 opacity-0'
-                }`}
-              />
-
-              <div
-                className={`relative w-12 h-12 flex items-center justify-center transition-all duration-200 overflow-hidden border ${
-                  activeAlbum === 'friend'
-                    ? 'rounded-[16px] ring-2 ring-[#1DB954] border-transparent'
-                    : hoveredId === 'friend'
-                    ? 'rounded-[16px] bg-[#1C1E22] border-[#282B32]'
-                    : 'rounded-[24px] bg-[#141619] border-[#282B32]/70'
-                }`}
-              >
-                <img
-                  src="https://is1-ssl.mzstatic.com/image/thumb/Music112/v4/0a/a7/9f/0aa79f8a-101c-f475-c158-66e56d4a378a/JK_ZMCZ-15801.jpg/600x600bb.jpg"
-                  alt="Friend Live"
-                  className="w-full h-full object-cover"
-                />
-                <span className="absolute bottom-1 right-1 w-2.5 h-2.5 rounded-full bg-[#1DB954] border border-[#0B0C0E] z-20" />
-              </div>
-
-              {hoveredId === 'friend' && (
-                <div className="absolute left-[80px] bg-[#111215] border border-[#282B32] text-white text-xs px-3 py-2 rounded-lg shadow-2xl z-50 pointer-events-none animate-in fade-in zoom-in-95 duration-100 flex flex-col gap-0.5 min-w-[170px] whitespace-nowrap">
-                  <div className="flex items-center gap-1.5 font-bold text-white text-xs">
-                    <span className="w-2 h-2 rounded-full bg-[#1DB954] flex-shrink-0" />
-                    <span>Teman (Spotify Live)</span>
-                  </div>
-                  <div className="text-[11px] text-[#A0A5AD] font-medium leading-tight mt-0.5">
-                    Live Sync aktif &amp; terhubung
-                  </div>
-                </div>
-              )}
-            </div>
-
-            <div className="w-8 h-[2px] bg-[#282B32] rounded-md my-0.5 flex-shrink-0" />
-          </>
-        )}
-
-        {/* 2. Kasatune Brand Logo Home Tile */}
-        <div
-          className="relative flex items-center justify-center w-full group cursor-pointer flex-shrink-0"
-          onMouseEnter={() => setHoveredId('home')}
-          onMouseLeave={() => setHoveredId(null)}
-          onClick={() => {
-            if (pinnedServers.length > 0) {
-              onSelectAlbum(pinnedServers[0].id as AlbumFilterType, pinnedServers[0]);
-            } else {
-              onSelectAlbum('favorites');
-            }
-          }}
-        >
-          <div
-            className={`relative w-12 h-12 flex items-center justify-center transition-all duration-200 overflow-hidden bg-white shadow-sm border border-white/20 ${
-              hoveredId === 'home' ? 'rounded-[16px] scale-105' : 'rounded-[24px]'
+      <nav className="w-[222px] xl:w-[238px] h-full bg-[#131110] border border-white/[0.07] rounded-2xl flex flex-col overflow-hidden select-none z-30">
+        {/* Top Library Shortcuts */}
+        <div className="p-2.5 space-y-1 border-b border-white/[0.06] flex-shrink-0">
+          <button
+            type="button"
+            onClick={() => onSelectAlbum('favorites')}
+            className={`w-full px-2.5 py-2 rounded-xl flex items-center justify-between gap-2.5 text-left transition-all border ${
+              activeAlbum === 'favorites'
+                ? 'bg-[#FF6B2B]/15 border-[#FF6B2B]/35 text-[#FAF6F2]'
+                : 'bg-transparent border-transparent hover:bg-white/[0.04] text-[#A8A099] hover:text-[#FAF6F2]'
             }`}
           >
-            <img
-              src="/kasatune-logo.jpg"
-              alt="Kasatune"
-              className="w-full h-full object-contain p-1 select-none"
-            />
-          </div>
-
-          {hoveredId === 'home' && (
-            <div className="absolute left-[80px] bg-[#111215] border border-[#282B32] text-white text-xs px-3 py-2 rounded-lg shadow-2xl z-50 pointer-events-none animate-in fade-in zoom-in-95 duration-100 flex flex-col gap-0.5 min-w-[140px] whitespace-nowrap">
-              <span className="font-bold text-white text-xs">Kasatune Studio</span>
-              <span className="text-[11px] text-[#A0A5AD]">Beranda Musik</span>
-            </div>
-          )}
-        </div>
-
-        <div className="w-8 h-[2px] bg-[#282B32] rounded-md my-0.5 flex-shrink-0" />
-
-        {/* 3. Custom Playlist / Favorites (KASONGS) */}
-        <div
-          className="relative flex items-center justify-center w-full group cursor-pointer flex-shrink-0"
-          onMouseEnter={() => setHoveredId('favorites')}
-          onMouseLeave={() => setHoveredId(null)}
-          onClick={() => onSelectAlbum('favorites')}
-        >
-          {/* Active / Hover Pill Indicator */}
-          <div
-            className={`absolute left-0 w-1 bg-[#FF4B72] rounded-r-md transition-all duration-200 ${
-              activeAlbum === 'favorites'
-                ? 'h-10 opacity-100'
-                : hoveredId === 'favorites'
-                ? 'h-5 opacity-80'
-                : 'h-0 opacity-0'
-            }`}
-          />
-
-          <div
-            className={`relative w-12 h-12 flex items-center justify-center transition-all duration-200 overflow-hidden border ${
-              activeAlbum === 'favorites'
-                ? 'rounded-[16px] ring-2 ring-[#FF4B72] border-transparent'
-                : hoveredId === 'favorites'
-                ? 'rounded-[16px] bg-[#1C1E22] border-[#282B32]'
-                : 'rounded-[24px] bg-[#141619] border-[#282B32]/70'
-            }`}
-          >
-            <div className="relative w-full h-full flex items-center justify-center overflow-hidden bg-gradient-to-br from-[#FF4B72]/20 via-[#141619] to-[#1DB954]/20 group">
-              <img
-                src={playlistCover}
-                alt={playlistName}
-                className="w-full h-full object-cover relative z-10"
-                onError={(e) => {
-                  (e.currentTarget as HTMLElement).style.display = 'none';
-                }}
-              />
-              <div className="absolute inset-0 z-20 flex items-center justify-center bg-black/40 group-hover:bg-black/20 transition-colors">
-                <Heart className="w-5 h-5 text-white fill-[#FF4B72] drop-shadow-md" />
-              </div>
-              {likedCount > 0 && (
-                <span className="absolute bottom-1 right-1 z-30 px-1 py-0.5 text-[9px] font-black rounded bg-[#FF4B72] text-white shadow-md font-mono leading-none">
-                  {likedCount > 99 ? '99+' : likedCount}
-                </span>
-              )}
-            </div>
-          </div>
-
-          {hoveredId === 'favorites' && (
-            <div className="absolute left-[80px] bg-[#111215] border border-[#282B32] text-white text-xs px-3 py-2 rounded-lg shadow-2xl z-50 pointer-events-none animate-in fade-in zoom-in-95 duration-100 flex flex-col gap-0.5 min-w-[170px] whitespace-nowrap">
-              <div className="flex items-center gap-1.5 font-bold text-white text-xs">
-                <span className="w-2 h-2 rounded-full bg-[#FF4B72] flex-shrink-0" />
-                <span className="truncate">{playlistName}</span>
-              </div>
-              <div className="text-[11px] text-[#A0A5AD] font-medium leading-tight mt-0.5">
-                <span className="text-[#FF4B72] font-semibold">{likedCount} lagu</span> tersimpan di playlist ini
-              </div>
-            </div>
-          )}
-        </div>
-
-        <div className="w-8 h-[2px] bg-[#282B32] rounded-md my-0.5 flex-shrink-0" />
-
-        {/* 4. User-Pinned Artists List (Circular Avatars & Spotify Tooltip) */}
-        {pinnedServers.map((server) => {
-          const isActive = activeAlbum === server.id;
-          const isHovered = hoveredId === server.id;
-
-          return (
-            <div
-              key={server.id}
-              className="relative flex items-center justify-center w-full group cursor-pointer flex-shrink-0"
-              onMouseEnter={() => setHoveredId(server.id)}
-              onMouseLeave={() => setHoveredId(null)}
-              onClick={() => onSelectAlbum(server.id, server)}
-            >
-              {/* Discord Pill Indicator */}
+            <div className="flex items-center gap-2.5 min-w-0">
               <div
-                className={`absolute left-0 w-1 bg-[#1DB954] rounded-r-md transition-all duration-200 ${
-                  isActive
-                    ? 'h-10 opacity-100'
-                    : isHovered
-                    ? 'h-5 opacity-80'
-                    : 'h-0 opacity-0'
-                }`}
-              />
-
-              {/* Artist Circular Avatar Icon (Matching Spotify Sidebar) */}
-              <div
-                className={`relative w-12 h-12 flex items-center justify-center transition-all duration-200 overflow-hidden border ${
-                  isActive
-                    ? 'rounded-full ring-2 ring-[#1DB954] border-transparent shadow-md'
-                    : isHovered
-                    ? 'rounded-[16px] bg-[#1C1E22] border-[#282B32]'
-                    : 'rounded-full bg-[#141619] border-[#282B32]/70'
+                className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${
+                  activeAlbum === 'favorites'
+                    ? 'bg-[#FF6B2B] text-[#0A0908]'
+                    : 'bg-[#1D1A17] text-[#FF8A4C]'
                 }`}
               >
-                {isValidImageUrl(server.imageUrl) && (
-                  <img
-                    src={server.imageUrl}
-                    alt={server.name}
-                    className="w-full h-full object-cover relative z-10 select-none"
-                    onError={(e) => {
-                      (e.currentTarget as HTMLElement).style.display = 'none';
-                    }}
-                  />
-                )}
-                <div className="absolute inset-0 flex items-center justify-center font-bold text-xs text-white/90 uppercase select-none pointer-events-none bg-[#1C1E22]">
-                  {server.name.replace(/[^a-zA-Z0-9]/g, '').slice(0, 3)}
-                </div>
+                <Heart className="w-4 h-4 fill-current" />
+              </div>
+              <span className="text-xs font-semibold truncate">{playlistName}</span>
+            </div>
+            <span
+              className={`text-[10px] font-mono px-1.5 py-0.5 rounded-md flex-shrink-0 ${
+                activeAlbum === 'favorites'
+                  ? 'bg-[#FF6B2B]/20 text-[#FFA14A]'
+                  : 'bg-white/[0.05] text-[#756E68]'
+              }`}
+            >
+              {likedCount}
+            </span>
+          </button>
 
-                {/* Unpin 'X' Button on hover */}
-                {isHovered && (
+          <button
+            type="button"
+            onClick={() => onSelectAlbum('friend')}
+            className={`w-full px-2.5 py-2 rounded-xl flex items-center justify-between gap-2.5 text-left transition-all border ${
+              activeAlbum === 'friend'
+                ? 'bg-[#FF6B2B]/15 border-[#FF6B2B]/35 text-[#FAF6F2]'
+                : 'bg-transparent border-transparent hover:bg-white/[0.04] text-[#A8A099] hover:text-[#FAF6F2]'
+            }`}
+          >
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div
+                className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${
+                  isFriendConnected
+                    ? 'bg-[#FF6B2B]/20 text-[#FF8A4C]'
+                    : 'bg-[#1D1A17] text-[#8A817A]'
+                }`}
+              >
+                <Radio className="w-4 h-4" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-xs font-semibold truncate leading-tight">Live Sync</p>
+                <p className="text-[10px] text-[#756E68] truncate">
+                  {isFriendConnected ? 'Terhubung' : 'Mode Mandiri'}
+                </p>
+              </div>
+            </div>
+            {isFriendConnected && (
+              <span className="w-2 h-2 rounded-full bg-[#FF6B2B] flex-shrink-0 animate-pulse" />
+            )}
+          </button>
+        </div>
+
+        {/* Saved Artists Header */}
+        <div className="px-3.5 pt-3 pb-2 flex items-center justify-between flex-shrink-0">
+          <span className="text-[10px] font-bold uppercase tracking-widest text-[#756E68]">
+            Artis ({pinnedServers.length})
+          </span>
+          <button
+            type="button"
+            onClick={() => setIsAddModalOpen(true)}
+            className="h-6 px-2 rounded-lg bg-[#FF6B2B]/15 hover:bg-[#FF6B2B]/25 text-[#FF8A4C] border border-[#FF6B2B]/30 text-[11px] font-semibold flex items-center gap-1 transition-colors"
+            title="Tambah artis ke koleksi"
+          >
+            <Plus className="w-3 h-3 stroke-[2.5]" />
+            <span>Tambah</span>
+          </button>
+        </div>
+
+        {/* Saved Artists Scrollable List */}
+        <div className="flex-1 overflow-y-auto px-2 pb-3 space-y-1 custom-scrollbar">
+          {pinnedServers.length === 0 ? (
+            <div className="mx-1 mt-1 p-4 rounded-xl bg-[#1A1715]/70 border border-dashed border-white/[0.08] text-center space-y-2.5">
+              <p className="text-[11px] text-[#8A817A] leading-relaxed">
+                Simpan artis favorit agar mudah diakses kapan saja.
+              </p>
+              <button
+                type="button"
+                onClick={() => setIsAddModalOpen(true)}
+                className="w-full h-8 rounded-lg bg-[#FF6B2B] hover:bg-[#FF7E45] text-[#0A0908] text-xs font-bold transition-colors"
+              >
+                Cari Artis
+              </button>
+            </div>
+          ) : (
+            pinnedServers.map((server) => {
+              const isActive = activeAlbum === server.id;
+              return (
+                <div
+                  key={server.id}
+                  onClick={() => onSelectAlbum(server.id, server)}
+                  className={`group relative px-2.5 py-2 rounded-xl flex items-center justify-between gap-2.5 cursor-pointer transition-all border ${
+                    isActive
+                      ? 'bg-[#FF6B2B]/15 border-[#FF6B2B]/30 text-[#FAF6F2]'
+                      : 'bg-transparent border-transparent hover:bg-white/[0.04] text-[#B8B0A8] hover:text-[#FAF6F2]'
+                  }`}
+                >
+                  {isActive && (
+                    <span className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-5 rounded-r-full bg-[#FF6B2B]" />
+                  )}
+
+                  <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                    <div className="w-9 h-9 rounded-lg overflow-hidden bg-[#1D1A17] border border-white/[0.07] flex-shrink-0 relative flex items-center justify-center">
+                      <span className="text-[10px] font-bold text-[#A8A099] uppercase select-none">
+                        {server.name.replace(/[^a-zA-Z0-9]/g, '').slice(0, 3) || '♪'}
+                      </span>
+                      {isValidImageUrl(server.imageUrl) && (
+                        <img
+                          src={server.imageUrl}
+                          alt={server.name}
+                          className="w-full h-full object-cover absolute inset-0"
+                          onError={(e) => {
+                            (e.currentTarget as HTMLElement).style.display = 'none';
+                          }}
+                        />
+                      )}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p
+                        className={`text-xs font-semibold truncate leading-tight ${
+                          isActive ? 'text-[#FFA14A]' : 'text-[#FAF6F2]'
+                        }`}
+                      >
+                        {server.name}
+                      </p>
+                      <p className="text-[10px] text-[#756E68] truncate mt-0.5">Artis</p>
+                    </div>
+                  </div>
+
                   <button
+                    type="button"
                     onClick={(e) => {
                       e.stopPropagation();
                       handleTogglePin(server);
                     }}
-                    className="absolute top-0.5 right-0.5 z-30 w-4 h-4 rounded-full bg-black/80 hover:bg-rose-600 text-white flex items-center justify-center transition-colors shadow-md"
-                    title="Lepas dari sidebar"
+                    className="p-1 rounded-md text-[#756E68] opacity-0 group-hover:opacity-100 hover:text-[#FF6B2B] hover:bg-white/[0.06] transition-all flex-shrink-0"
+                    title="Hapus dari koleksi"
+                    aria-label="Hapus artis"
                   >
-                    <X className="w-2.5 h-2.5" />
+                    <X className="w-3.5 h-3.5" />
                   </button>
-                )}
-              </div>
-
-              {/* Floating Tooltip (Exact match to Rich Brian Spotify screenshot) */}
-              {isHovered && (
-                <div className="absolute left-[80px] bg-[#111215] border border-[#282B32] text-white text-xs px-3 py-1.5 rounded-lg shadow-2xl z-50 pointer-events-none animate-in fade-in zoom-in-95 duration-100 flex flex-col gap-0.5 min-w-[100px] max-w-[220px] whitespace-nowrap">
-                  <span className="font-bold text-white text-xs truncate">
-                    {server.name}
-                  </span>
-                  <span className="text-[10px] text-[#A0A5AD] font-medium leading-none">
-                    Artist
-                  </span>
                 </div>
-              )}
-            </div>
-          );
-        })}
-
-        {/* 5. Add Artist Button [+] */}
-        <div
-          className="relative flex items-center justify-center w-full group cursor-pointer flex-shrink-0 mt-1"
-          onMouseEnter={() => setHoveredId('add_server')}
-          onMouseLeave={() => setHoveredId(null)}
-          onClick={() => setIsAddModalOpen(true)}
-        >
-          <div className="w-12 h-12 rounded-[24px] group-hover:rounded-[16px] bg-[#141619] group-hover:bg-[#1DB954] text-[#1DB954] group-hover:text-black border border-dashed border-[#282B32] group-hover:border-transparent flex items-center justify-center transition-all duration-200 shadow-sm">
-            <Plus className="w-5 h-5 stroke-[2.5]" />
-          </div>
-
-          {hoveredId === 'add_server' && (
-            <div className="absolute left-[80px] bg-[#111215] border border-[#282B32] text-white text-xs px-3 py-2 rounded-lg shadow-2xl z-50 pointer-events-none animate-in fade-in zoom-in-95 duration-100 flex flex-col gap-0.5 min-w-[160px] whitespace-nowrap">
-              <span className="font-bold text-white text-xs flex items-center gap-1.5">
-                <Plus className="w-3.5 h-3.5 text-[#1DB954]" />
-                <span>Tambah Artis</span>
-              </span>
-              <span className="text-[10px] text-[#A0A5AD]">
-                Cari &amp; sematkan artis favorit ke sidebar
-              </span>
-            </div>
+              );
+            })
           )}
         </div>
       </nav>
 
-      {/* Add Album Modal (Only rendered internally if parent does not control it externally) */}
+      {/* Fallback standalone modal when DiscordServerRail is used without root modal control */}
       {isAddModalOpenExternal === undefined && (
         <AddAlbumModal
           isOpen={isAddModalOpen}

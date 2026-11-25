@@ -1107,8 +1107,8 @@ export const App: React.FC = () => {
     : (activeTrack.durationMs > 0 ? activeTrack.durationMs : (audioDurationSec > 0 ? audioDurationSec * 1000 : 238000));
 
   return (
-    <div className="h-[100dvh] w-full bg-[#0B0C0E] text-white flex flex-col overflow-hidden font-sans select-none">
-      {/* 1. Discord x Spotify Top Navigation Header with Search Dropdown */}
+    <div className="h-[100dvh] w-full bg-[#0A0908] text-[#FAF6F2] flex flex-col overflow-hidden font-sans select-none">
+      {/* 1. Kasatune Studio Top Header with Live Search */}
       <Navbar
         isBackendOnline={isBackendOnline}
         onRefreshBackend={refetchTracks}
@@ -1138,9 +1138,9 @@ export const App: React.FC = () => {
         onToggleLikeTrack={toggleLike}
       />
 
-      {/* 2. Simplified Main Workspace (Left Rail + Main Stage + Collapsible Lyrics) */}
-      <main className="flex-1 flex overflow-hidden min-h-0 bg-[#0B0C0E] relative">
-        {/* Col 1: Clean Left Artist Rail (Always rendered on desktop, renders AddAlbumModal for both desktop & mobile) */}
+      {/* 2. 3-Card Bento Studio Workspace (Left Library Card + Main Stage + Lyrics Card) */}
+      <main className="flex-1 flex overflow-hidden min-h-0 bg-[#0A0908] md:px-3 md:py-2.5 md:gap-3 relative">
+        {/* Col 1: Editorial Left Library Card (Desktop) */}
         <div className="hidden md:block h-full flex-shrink-0">
           <DiscordServerRail
             activeAlbum={activeAlbum}
@@ -1175,15 +1175,15 @@ export const App: React.FC = () => {
 
         {/* Mobile Collections View (Dedicated clean mobile Koleksi tab) */}
         {mobileView === 'sidebar' && (
-          <div className="flex-1 md:hidden h-full overflow-y-auto overflow-x-hidden bg-[#0E1014] px-4 py-4 space-y-5 custom-scrollbar">
+          <div className="flex-1 md:hidden h-full overflow-y-auto overflow-x-hidden bg-[#0A0908] px-3.5 py-3.5 space-y-5 custom-scrollbar">
             <div className="flex items-center justify-between gap-2">
               <div>
-                <h2 className="text-lg font-bold text-white tracking-tight">Koleksi</h2>
-                <p className="text-xs text-[#8C929C]">Artis tersimpan &amp; playlist kamu</p>
+                <h2 className="text-lg font-bold text-[#FAF6F2] tracking-tight">Koleksi</h2>
+                <p className="text-xs text-[#8A817A]">Artis tersimpan &amp; playlist kamu</p>
               </div>
               <button
                 onClick={() => setIsAddArtistModalOpen(true)}
-                className="h-8 px-3.5 rounded-full bg-white text-black text-xs font-semibold flex items-center gap-1.5 active:scale-95 transition-transform flex-shrink-0"
+                className="h-9 px-3.5 rounded-xl bg-gradient-to-r from-[#FF6B2B] to-[#FF8A3D] text-[#0A0908] text-xs font-bold flex items-center gap-1.5 active:scale-95 transition-transform flex-shrink-0 shadow-[0_4px_14px_rgba(255,107,43,0.3)]"
               >
                 <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
                 <span>Tambah Artis</span>
@@ -1197,22 +1197,22 @@ export const App: React.FC = () => {
                   handleSelectAlbum('favorites');
                   setMobileView('player');
                 }}
-                className={`p-3 rounded-xl border flex items-center gap-2.5 cursor-pointer active:scale-[0.98] transition-all ${
+                className={`p-3 rounded-2xl border flex items-center gap-2.5 cursor-pointer active:scale-[0.98] transition-all ${
                   activeAlbum === 'favorites'
-                    ? 'bg-[#1B1D24] border-[#FF4B72]/50'
-                    : 'bg-[#15171C] border-white/[0.06]'
+                    ? 'bg-[#FF6B2B]/15 border-[#FF6B2B]/40'
+                    : 'bg-[#151210] border-white/[0.07]'
                 }`}
               >
-                <div className="w-10 h-10 rounded-lg bg-[#FF4B72]/15 flex items-center justify-center flex-shrink-0">
-                  <Heart className="w-4 h-4 text-[#FF4B72] fill-[#FF4B72]" />
+                <div className="w-10 h-10 rounded-xl bg-[#FF6B2B]/15 flex items-center justify-center flex-shrink-0">
+                  <Heart className="w-4 h-4 text-[#FF6B2B] fill-[#FF6B2B]" />
                 </div>
                 <div className="min-w-0 flex-1">
-                  <p className="text-xs font-semibold text-white truncate">
+                  <p className="text-xs font-semibold text-[#FAF6F2] truncate">
                     {!customPlaylist.name || customPlaylist.name === 'Lagu Favorit Saya'
                       ? 'Favorit'
                       : customPlaylist.name}
                   </p>
-                  <p className="text-[11px] text-[#8C929C]">{likedTrackIds.length} lagu</p>
+                  <p className="text-[11px] text-[#8A817A]">{likedTrackIds.length} lagu</p>
                 </div>
               </div>
 
@@ -1221,18 +1221,18 @@ export const App: React.FC = () => {
                   handleSelectAlbum('friend');
                   setMobileView('player');
                 }}
-                className={`p-3 rounded-xl border flex items-center gap-2.5 cursor-pointer active:scale-[0.98] transition-all ${
+                className={`p-3 rounded-2xl border flex items-center gap-2.5 cursor-pointer active:scale-[0.98] transition-all ${
                   activeAlbum === 'friend'
-                    ? 'bg-[#1B1D24] border-[#1DB954]/50'
-                    : 'bg-[#15171C] border-white/[0.06]'
+                    ? 'bg-[#FF6B2B]/15 border-[#FF6B2B]/40'
+                    : 'bg-[#151210] border-white/[0.07]'
                 }`}
               >
-                <div className="w-10 h-10 rounded-lg bg-[#1DB954]/15 flex items-center justify-center flex-shrink-0">
-                  <Radio className="w-4 h-4 text-[#1DB954]" />
+                <div className="w-10 h-10 rounded-xl bg-[#FFA14A]/15 flex items-center justify-center flex-shrink-0">
+                  <Radio className="w-4 h-4 text-[#FFA14A]" />
                 </div>
                 <div className="min-w-0 flex-1">
-                  <p className="text-xs font-semibold text-white truncate">Live Sync</p>
-                  <p className="text-[11px] text-[#8C929C] truncate">
+                  <p className="text-xs font-semibold text-[#FAF6F2] truncate">Live Sync</p>
+                  <p className="text-[11px] text-[#8A817A] truncate">
                     {isFriendSyncConnected ? 'Terhubung' : 'Mode Mandiri'}
                   </p>
                 </div>
@@ -1241,16 +1241,16 @@ export const App: React.FC = () => {
 
             {/* Pinned Artists Section */}
             <div className="space-y-2">
-              <p className="text-[11px] font-semibold uppercase tracking-wider text-[#7A8089] px-0.5">
+              <p className="text-[11px] font-bold uppercase tracking-widest text-[#756E68] px-0.5">
                 Artis Tersimpan ({pinnedServers.length})
               </p>
 
               {pinnedServers.length === 0 ? (
-                <div className="p-6 rounded-xl bg-[#15171C] border border-white/[0.06] text-center space-y-2.5">
-                  <p className="text-xs text-[#949BA4]">Belum ada artis yang disematkan.</p>
+                <div className="p-6 rounded-2xl bg-[#151210] border border-dashed border-white/[0.08] text-center space-y-2.5">
+                  <p className="text-xs text-[#8A817A]">Belum ada artis yang disematkan.</p>
                   <button
                     onClick={() => setIsAddArtistModalOpen(true)}
-                    className="h-8 px-4 rounded-full border border-white/15 text-xs font-medium text-white active:bg-white/10"
+                    className="h-8 px-4 rounded-xl bg-[#FF6B2B]/15 border border-[#FF6B2B]/35 text-xs font-semibold text-[#FF8A4C] active:bg-[#FF6B2B]/25"
                   >
                     Cari Artis Sekarang
                   </button>
@@ -1264,15 +1264,15 @@ export const App: React.FC = () => {
                         handleSelectAlbum(srv.id, srv);
                         setMobileView('player');
                       }}
-                      className={`px-3 py-2.5 rounded-xl border flex items-center justify-between gap-3 cursor-pointer active:scale-[0.99] transition-all ${
+                      className={`px-3 py-2.5 rounded-2xl border flex items-center justify-between gap-3 cursor-pointer active:scale-[0.99] transition-all ${
                         activeAlbum === srv.id
-                          ? 'bg-[#1B1E24] border-[#1DB954]/45'
-                          : 'bg-[#15171C] border-white/[0.06]'
+                          ? 'bg-[#FF6B2B]/15 border-[#FF6B2B]/40'
+                          : 'bg-[#151210] border-white/[0.07]'
                       }`}
                     >
                       <div className="flex items-center gap-3 min-w-0 flex-1">
-                        <div className="w-11 h-11 rounded-full overflow-hidden bg-[#1D2027] flex-shrink-0 relative flex items-center justify-center">
-                          <span className="text-xs font-bold text-white/75 uppercase select-none">
+                        <div className="w-11 h-11 rounded-xl overflow-hidden bg-[#1D1A17] border border-white/[0.06] flex-shrink-0 relative flex items-center justify-center">
+                          <span className="text-xs font-bold text-[#A8A099] uppercase select-none">
                             {srv.name.replace(/[^a-zA-Z0-9]/g, '').slice(0, 3) || '♪'}
                           </span>
                           {isValidImageUrl(srv.imageUrl) && (
@@ -1287,8 +1287,10 @@ export const App: React.FC = () => {
                           )}
                         </div>
                         <div className="min-w-0 flex-1">
-                          <p className="text-sm font-semibold text-white truncate">{srv.name}</p>
-                          <p className="text-xs text-[#8C929C]">Artis</p>
+                          <p className={`text-sm font-semibold truncate ${activeAlbum === srv.id ? 'text-[#FFA14A]' : 'text-[#FAF6F2]'}`}>
+                            {srv.name}
+                          </p>
+                          <p className="text-xs text-[#8A817A]">Artis</p>
                         </div>
                       </div>
                       <button
@@ -1296,7 +1298,7 @@ export const App: React.FC = () => {
                           e.stopPropagation();
                           handleTogglePinServer(srv);
                         }}
-                        className="p-2 rounded-full text-[#7A8089] active:text-rose-400 active:bg-white/5 flex-shrink-0"
+                        className="p-2 rounded-xl text-[#756E68] active:text-[#FF6B2B] active:bg-white/5 flex-shrink-0"
                         aria-label="Hapus artis"
                       >
                         <X className="w-4 h-4" />
@@ -1310,7 +1312,7 @@ export const App: React.FC = () => {
         )}
 
         {/* Center & Right Stage: Main Showcase + Collapsible Lyrics */}
-        <div className={`flex-1 h-full min-w-0 p-2 sm:p-3 gap-3 overflow-hidden ${mobileView === 'sidebar' ? 'hidden md:flex' : 'flex'}`}>
+        <div className={`flex-1 h-full min-w-0 p-2 sm:p-2.5 md:p-0 gap-3 overflow-hidden ${mobileView === 'sidebar' ? 'hidden md:flex' : 'flex'}`}>
           <div className={`flex-1 h-full min-w-0 ${mobileView === 'lyrics' ? 'hidden lg:block' : 'block'}`}>
             <AlbumShowcase
               track={activeTrack}
@@ -1414,35 +1416,41 @@ export const App: React.FC = () => {
         onToggleLike={() => toggleLike(activeTrack)}
       />
 
-      {/* 3.5 Dedicated Mobile Bottom Navigation Bar (Clean native app tabs, hidden on desktop) */}
-      <nav className="md:hidden w-full bg-[#0B0C0E]/95 backdrop-blur-xl border-t border-white/[0.08] px-4 pt-1.5 pb-[max(0.45rem,env(safe-area-inset-bottom))] grid grid-cols-3 gap-1 flex-shrink-0 z-40">
+      {/* 3.5 Dedicated Mobile Bottom Navigation Bar (Warm Obsidian + Orange Active Pill) */}
+      <nav className="md:hidden w-full bg-[#0A0908]/95 backdrop-blur-xl border-t border-white/[0.07] px-3 pt-1.5 pb-[max(0.45rem,env(safe-area-inset-bottom))] grid grid-cols-3 gap-1.5 flex-shrink-0 z-40">
         <button
           onClick={() => setMobileView('player')}
-          className={`flex flex-col items-center justify-center gap-0.5 py-1 rounded-lg transition-colors ${
-            mobileView === 'player' ? 'text-white' : 'text-[#7A8089]'
+          className={`flex flex-col items-center justify-center gap-0.5 py-1.5 rounded-xl transition-all ${
+            mobileView === 'player'
+              ? 'bg-[#FF6B2B]/15 text-[#FF8A4C]'
+              : 'text-[#8A817A]'
           }`}
         >
-          <Disc3 className={`w-5 h-5 ${mobileView === 'player' ? 'text-[#1DB954]' : ''}`} />
+          <Disc3 className={`w-5 h-5 ${mobileView === 'player' ? 'text-[#FF6B2B]' : ''}`} />
           <span className="text-[10px] font-semibold">Lagu</span>
         </button>
 
         <button
           onClick={() => setMobileView('lyrics')}
-          className={`flex flex-col items-center justify-center gap-0.5 py-1 rounded-lg transition-colors ${
-            mobileView === 'lyrics' ? 'text-white' : 'text-[#7A8089]'
+          className={`flex flex-col items-center justify-center gap-0.5 py-1.5 rounded-xl transition-all ${
+            mobileView === 'lyrics'
+              ? 'bg-[#FF6B2B]/15 text-[#FF8A4C]'
+              : 'text-[#8A817A]'
           }`}
         >
-          <Mic2 className={`w-5 h-5 ${mobileView === 'lyrics' ? 'text-[#1DB954]' : ''}`} />
+          <Mic2 className={`w-5 h-5 ${mobileView === 'lyrics' ? 'text-[#FF6B2B]' : ''}`} />
           <span className="text-[10px] font-semibold">Lirik</span>
         </button>
 
         <button
           onClick={() => setMobileView('sidebar')}
-          className={`flex flex-col items-center justify-center gap-0.5 py-1 rounded-lg transition-colors ${
-            mobileView === 'sidebar' ? 'text-white' : 'text-[#7A8089]'
+          className={`flex flex-col items-center justify-center gap-0.5 py-1.5 rounded-xl transition-all ${
+            mobileView === 'sidebar'
+              ? 'bg-[#FF6B2B]/15 text-[#FF8A4C]'
+              : 'text-[#8A817A]'
           }`}
         >
-          <Library className={`w-5 h-5 ${mobileView === 'sidebar' ? 'text-[#1DB954]' : ''}`} />
+          <Library className={`w-5 h-5 ${mobileView === 'sidebar' ? 'text-[#FF6B2B]' : ''}`} />
           <span className="text-[10px] font-semibold">Koleksi</span>
         </button>
       </nav>
