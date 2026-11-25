@@ -6,8 +6,8 @@
  */
 
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { fetchLyrics } from '../api/lrclib';
 import { parseLrc, type LyricLine } from '../utils/lrcParser';
+import { getCachedLyrics, prefetchTrackLyrics } from '../utils/mediaCache';
 import {
   checkBackendHealth,
   fetchRadioheadTracksFromBackend,
@@ -585,20 +585,21 @@ export function useMusicSync(): SyncedMusicState {
       return;
     }
 
+    // Instant 0ms localStorage/RAM Lyrics Cache hit
+    const cached = getCachedLyrics(track.artist, track.title);
+    if (cached) {
+      setLyrics(cached.syncedLyrics ? parseLrc(cached.syncedLyrics) : []);
+      setPlainLyrics(cached.syncedLyrics ? null : cached.plainLyrics);
+      setIsLoadingSong(false);
+      return;
+    }
+
     setIsLoadingSong(true);
     try {
-      const lyricsRes = await fetchLyrics(track.title, track.artist, track.durationMs);
+      const result = await prefetchTrackLyrics(track.title, track.artist, track.durationMs);
       if (currentLyricsTrackIdRef.current === trackKey) {
-        if (lyricsRes.syncedLyrics) {
-          setLyrics(parseLrc(lyricsRes.syncedLyrics));
-          setPlainLyrics(null);
-        } else if (lyricsRes.plainLyrics) {
-          setLyrics([]);
-          setPlainLyrics(lyricsRes.plainLyrics);
-        } else {
-          setLyrics([]);
-          setPlainLyrics(null);
-        }
+        setLyrics(result.lyrics);
+        setPlainLyrics(result.plainLyrics);
       }
     } finally {
       if (currentLyricsTrackIdRef.current === trackKey) {

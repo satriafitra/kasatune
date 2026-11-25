@@ -1470,9 +1470,9 @@ export default async function handler(req: any, res: any) {
 
       formatInfo = {
         ...resolved,
-        expires: now + 5 * 60 * 1000, // Cache for 5 minutes
+        expires: now + 20 * 60 * 1000, // Cache resolved audio URL for 20 minutes
       };
-      if (urlCache.size >= 20) {
+      if (urlCache.size >= 80) {
         const oldestKey = urlCache.keys().next().value;
         if (oldestKey) urlCache.delete(oldestKey);
       }
@@ -1503,7 +1503,7 @@ export default async function handler(req: any, res: any) {
       res.statusCode = 206;
       res.setHeader('Content-Type', formatInfo.mimeType || 'audio/mp4');
       res.setHeader('Accept-Ranges', 'bytes');
-      res.setHeader('Cache-Control', 'public, max-age=300');
+      res.setHeader('Cache-Control', 'public, max-age=1800, s-maxage=1800');
       res.setHeader('Vary', 'Range');
       res.setHeader('Content-Range', `bytes ${start}-${end}/${total}`);
       res.setHeader('Content-Length', String(slice.length));
@@ -1548,7 +1548,7 @@ export default async function handler(req: any, res: any) {
     res.statusCode = mediaRes.status; // 206 for range requests, 200 for full stream
     res.setHeader('Content-Type', mediaRes.headers.get('content-type') || formatInfo.mimeType);
     res.setHeader('Accept-Ranges', 'bytes');
-    res.setHeader('Cache-Control', 'public, max-age=300');
+    res.setHeader('Cache-Control', 'public, max-age=1800, s-maxage=1800');
     res.setHeader('Vary', 'Range');
 
     const contentRange = mediaRes.headers.get('content-range');

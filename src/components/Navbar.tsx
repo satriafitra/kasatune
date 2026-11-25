@@ -18,6 +18,7 @@ import {
   Heart,
   Globe,
   Loader2,
+  ListPlus,
 } from 'lucide-react';
 import { KasatuneLogoIcon } from './KasatuneLogo';
 import type { BackendRadioheadTrack } from '../api/backend';
@@ -37,8 +38,8 @@ interface NavbarProps {
   friendTrackTitle?: string;
   isFriendConnected?: boolean;
   onConnectFriendSpotify?: () => void;
-  mobileView?: 'player' | 'lyrics' | 'sidebar';
-  onSelectMobileView?: (view: 'player' | 'lyrics' | 'sidebar') => void;
+  mobileView?: 'player' | 'lyrics' | 'queue' | 'sidebar';
+  onSelectMobileView?: (view: 'player' | 'lyrics' | 'queue' | 'sidebar') => void;
   tracks?: BackendRadioheadTrack[];
   liveTracks?: BackendRadioheadTrack[];
   isLoadingLive?: boolean;
@@ -47,6 +48,7 @@ interface NavbarProps {
   isPlaying?: boolean;
   isLikedTrack?: (trackId: string) => boolean;
   onToggleLikeTrack?: (track: BackendRadioheadTrack) => void;
+  onAddToQueue?: (track: BackendRadioheadTrack) => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -73,6 +75,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   isPlaying = false,
   isLikedTrack,
   onToggleLikeTrack,
+  onAddToQueue,
 }) => {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [tempClientId, setTempClientId] = useState(clientId);
@@ -310,7 +313,19 @@ export const Navbar: React.FC<NavbarProps> = ({
                           </div>
                         </div>
 
-                        <div className="flex items-center gap-2.5 flex-shrink-0">
+                        <div className="flex items-center gap-1.5 flex-shrink-0">
+                          {onAddToQueue && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onAddToQueue(t);
+                              }}
+                              className="p-1.5 rounded text-[#68625B]"
+                              title="Tambah ke antrian"
+                            >
+                              <ListPlus className="w-3.5 h-3.5" />
+                            </button>
+                          )}
                           {onToggleLikeTrack && (
                             <button
                               onClick={(e) => {
@@ -386,7 +401,19 @@ export const Navbar: React.FC<NavbarProps> = ({
                           </div>
                         </div>
 
-                        <div className="flex items-center gap-2.5 flex-shrink-0">
+                        <div className="flex items-center gap-1.5 flex-shrink-0">
+                          {onAddToQueue && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onAddToQueue(t);
+                              }}
+                              className="p-1.5 rounded text-[#68625B]"
+                              title="Tambah ke antrian"
+                            >
+                              <ListPlus className="w-3.5 h-3.5" />
+                            </button>
+                          )}
                           {onToggleLikeTrack && (
                             <button
                               onClick={(e) => {
@@ -474,9 +501,24 @@ export const Navbar: React.FC<NavbarProps> = ({
                       <p className="text-[11px] text-[#9A9288] truncate mt-0.5">{t.artist}</p>
                     </div>
                   </div>
-                  <span className="text-[11px] font-mono text-[#68625B] flex-shrink-0">
-                    {formatDuration(t.durationMs)}
-                  </span>
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    {onAddToQueue && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onAddToQueue(t);
+                        }}
+                        className="p-1.5 rounded text-[#9A9288]"
+                        title="Tambah ke antrian"
+                        aria-label="Tambah ke antrian"
+                      >
+                        <ListPlus className="w-4 h-4" />
+                      </button>
+                    )}
+                    <span className="text-[11px] font-mono text-[#68625B]">
+                      {formatDuration(t.durationMs)}
+                    </span>
+                  </div>
                 </div>
               ))}
 
@@ -497,9 +539,24 @@ export const Navbar: React.FC<NavbarProps> = ({
                       <p className="text-[11px] text-[#9A9288] truncate mt-0.5">{t.artist}</p>
                     </div>
                   </div>
-                  <span className="text-[11px] font-mono text-[#68625B] flex-shrink-0">
-                    {formatDuration(t.durationMs)}
-                  </span>
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    {onAddToQueue && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onAddToQueue(t);
+                        }}
+                        className="p-1.5 rounded text-[#9A9288]"
+                        title="Tambah ke antrian"
+                        aria-label="Tambah ke antrian"
+                      >
+                        <ListPlus className="w-4 h-4" />
+                      </button>
+                    )}
+                    <span className="text-[11px] font-mono text-[#68625B]">
+                      {formatDuration(t.durationMs)}
+                    </span>
+                  </div>
                 </div>
               ))}
 

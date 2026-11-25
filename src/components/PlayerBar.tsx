@@ -17,6 +17,7 @@ import {
   Volume2,
   VolumeX,
   Mic2,
+  ListMusic,
   ChevronDown,
 } from 'lucide-react';
 import { formatTime } from '../utils/lrcParser';
@@ -46,6 +47,9 @@ interface PlayerBarProps {
   beatPulse?: number;
   showLyrics: boolean;
   onToggleLyrics: () => void;
+  showQueue?: boolean;
+  queueCount?: number;
+  onToggleQueue?: () => void;
   onOpenPlayer?: () => void;
   isLiked?: boolean;
   onToggleLike?: () => void;
@@ -71,6 +75,9 @@ export const PlayerBar: React.FC<PlayerBarProps> = ({
   onSeek,
   showLyrics,
   onToggleLyrics,
+  showQueue = false,
+  queueCount = 0,
+  onToggleQueue,
   onOpenPlayer,
   isLiked = false,
   onToggleLike,
@@ -196,16 +203,32 @@ export const PlayerBar: React.FC<PlayerBarProps> = ({
               </p>
             </div>
 
-            <button
-              onClick={() => {
-                setIsMobileSheetOpen(false);
-                onToggleLyrics();
-              }}
-              className="h-9 px-3 rounded-lg bg-[#171719] border border-white/[0.08] text-xs font-medium text-[#EEDFC7] flex items-center gap-1.5"
-            >
-              <Mic2 className="w-3.5 h-3.5 text-[#CE7F20]" />
-              <span>Lirik</span>
-            </button>
+            <div className="flex items-center gap-1.5 flex-shrink-0">
+              {onToggleQueue && (
+                <button
+                  onClick={() => {
+                    setIsMobileSheetOpen(false);
+                    onToggleQueue();
+                  }}
+                  className="h-9 px-2.5 rounded-lg bg-[#171719] border border-white/[0.08] text-xs font-medium text-[#EEDFC7] flex items-center gap-1"
+                  aria-label="Antrian"
+                >
+                  <ListMusic className="w-3.5 h-3.5 text-[#CE7F20]" />
+                  {queueCount > 0 && <span className="text-[11px] font-mono">{queueCount}</span>}
+                </button>
+              )}
+
+              <button
+                onClick={() => {
+                  setIsMobileSheetOpen(false);
+                  onToggleLyrics();
+                }}
+                className="h-9 px-2.5 rounded-lg bg-[#171719] border border-white/[0.08] text-xs font-medium text-[#EEDFC7] flex items-center gap-1.5"
+              >
+                <Mic2 className="w-3.5 h-3.5 text-[#CE7F20]" />
+                <span>Lirik</span>
+              </button>
+            </div>
           </div>
 
           {/* Centered Large Artwork */}
@@ -441,8 +464,28 @@ export const PlayerBar: React.FC<PlayerBarProps> = ({
             </div>
           </div>
 
-          {/* Right: Lyrics Toggle & Volume Slider */}
-          <div className="flex items-center gap-3 min-w-[165px] justify-end flex-shrink-0">
+          {/* Right: Queue, Lyrics Toggle & Volume Slider */}
+          <div className="flex items-center gap-2 min-w-[205px] justify-end flex-shrink-0">
+            {onToggleQueue && (
+              <button
+                onClick={onToggleQueue}
+                className={`h-8 px-2.5 rounded-lg text-xs font-medium flex items-center gap-1.5 border ${
+                  showQueue
+                    ? 'text-[#EEDFC7] bg-[#53341A]/45 border-[#CE7F20]/45'
+                    : 'text-[#9A9288] border-transparent'
+                }`}
+                title="Tampilkan / Sembunyikan Antrian"
+              >
+                <ListMusic className="w-3.5 h-3.5 text-[#CE7F20]" />
+                <span className="hidden xl:inline">Antrian</span>
+                {queueCount > 0 && (
+                  <span className="text-[10px] font-mono px-1 rounded bg-[#CE7F20] text-[#0B0B0C] font-semibold leading-tight">
+                    {queueCount}
+                  </span>
+                )}
+              </button>
+            )}
+
             <button
               onClick={onToggleLyrics}
               className={`h-8 px-2.5 rounded-lg text-xs font-medium flex items-center gap-1.5 border ${
@@ -453,7 +496,7 @@ export const PlayerBar: React.FC<PlayerBarProps> = ({
               title="Tampilkan / Sembunyikan Lirik"
             >
               <Mic2 className="w-3.5 h-3.5 text-[#CE7F20]" />
-              <span className="hidden lg:inline">Lirik</span>
+              <span className="hidden xl:inline">Lirik</span>
             </button>
 
             <div className="flex items-center gap-2">

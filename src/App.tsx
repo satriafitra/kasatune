@@ -9,12 +9,13 @@
  */
 
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import { Plus, Heart, Radio, X, Disc3, Mic2, Library } from 'lucide-react';
+import { Plus, Heart, Radio, X, Disc3, Mic2, Library, ListMusic } from 'lucide-react';
 import { Navbar } from './components/Navbar';
 import { DiscordServerRail, type AlbumFilterType } from './components/DiscordServerRail';
 import { matchesAlbumFilter } from './components/TrackListSidebar';
 import { AlbumShowcase } from './components/AlbumShowcase';
 import { DynamicLyrics } from './components/DynamicLyrics';
+import { QueuePanel } from './components/QueuePanel';
 import { PlayerBar } from './components/PlayerBar';
 import { FriendSpotifyCard } from './components/FriendSpotifyCard';
 import { useSpotifyAuth } from './hooks/useSpotifyAuth';
@@ -27,6 +28,12 @@ import { EditPlaylistModal } from './components/EditPlaylistModal';
 import type { BackendRadioheadTrack } from './api/backend';
 import { searchLiveMusic, fetchAlbumTracks, fetchArtistTracks, buildStreamUrl, searchLiveArtists, isValidImageUrl, isSameTrack } from './api/liveSearch';
 import { AddAlbumModal, CATALOG_ALBUMS, type PinnedServerItem } from './components/AddAlbumModal';
+import {
+  isAudioInRamCache,
+  prefetchAudioTrack,
+  prefetchTrackLyrics,
+  subscribeMediaCache,
+} from './utils/mediaCache';
 
 function resolvePlayableUrl(track: BackendRadioheadTrack): string {
   const url = (track.previewUrl || '').trim();
@@ -42,11 +49,26 @@ function resolvePlayableUrl(track: BackendRadioheadTrack): string {
 }
 
 export const App: React.FC = () => {
-  const [showLyrics, setShowLyrics] = useState(true);
+  const [rightPanelMode, setRightPanelMode] = useState<'lyrics' | 'queue' | null>('lyrics');
+  const showLyrics = rightPanelMode === 'lyrics';
+  const showQueue = rightPanelMode === 'queue';
   const [searchFilter, setSearchFilter] = useState('');
   const [liveTracks, setLiveTracks] = useState<BackendRadioheadTrack[]>([]);
   const [isLoadingLive, setIsLoadingLive] = useState<boolean>(false);
-  const [mobileView, setMobileView] = useState<'player' | 'lyrics' | 'sidebar'>('player');
+  const [mobileView, setMobileView] = useState<'player' | 'lyrics' | 'queue' | 'sidebar'>('player');
+  const [queueToast, setQueueToast] = useState<string | null>(null);
+  const [, setCacheTick] = useState(0);
+  const [manualQueue, setManualQueue] = useState<BackendRadioheadTrack[]>(() => {
+    try {
+      const saved = localStorage.getItem('kasatune_queue_v1');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) return parsed;
+      }
+    } catch {}
+    return [];
+  });
+  const [shuffleOrder, setShuffleOrder] = useState<BackendRadioheadTrack[]>([]);
   const [isEditPlaylistModalOpen, setIsEditPlaylistModalOpen] = useState(false);
   const [isAddArtistModalOpen, setIsAddArtistModalOpen] = useState(false);
   const [pinnedServers, setPinnedServers] = useState<PinnedServerItem[]>(() => {
@@ -1030,23 +1052,205 @@ export const App: React.FC = () => {
     }
   }, [activeAlbum, friendPlayback, activeTrack, isPlaying, togglePlay, selectTrack, loadTrack]);
 
-  const handleNextTrack = useCallback(() => {
-    const queue = displayTracks.length > 0 ? displayTracks : tracks;
-    if (queue.length === 0) return;
-    const currentIdx = queue.findIndex((t) => isSameTrack(t, activeTrack));
-    const nextIndex = isShuffle
-      ? Math.floor(Math.random() * queue.length)
-      : ((currentIdx >= 0 ? currentIdx : -1) + 1) % queue.length;
+  // Persist manual queue & subscribe to RAM audio cache updates
+  const updateManualQueue = useCallback(
+    (updater: (prev: BackendRadioheadTrack[]) => BackendRadioheadTrack[]) => {
+      setManualQueue((prev) => {
+        const next = updater(prev);
+        try {
+          localStorage.setItem('kasatune_queue_v1', JSON.stringify(next.slice(0, 100)));
+        } catch {}
+        return next;
+      });
+    },
+    []
+  );
 
-    const nextTrk = queue[nextIndex];
+  useEffect(() => {
+    return subscribeMediaCache(() => setCacheTick((n) => n + 1));
+  }, []);
+
+  const showQueueFeedback = useCallback((msg: string) => {
+    setQueueToast(msg);
+  }, []);
+
+  useEffect(() => {
+    if (!queueToast) return;
+    const t = setTimeout(() => setQueueToast(null), 1800);
+    return () => clearTimeout(t);
+  }, [queueToast]);
+
+  const handleAddToQueue = useCallback(
+    (track: BackendRadioheadTrack) => {
+      updateManualQueue((prev) => [...prev, track]);
+      showQueueFeedback(`Ditambahkan ke antrian: ${track.title}`);
+      // Pre-warm audio + lyrics immediately in background
+      prefetchAudioTrack(resolvePlayableUrl(track)).catch(() => {});
+      if (!track.syncedLyrics) {
+        prefetchTrackLyrics(track.title, track.artist, track.durationMs).catch(() => {});
+      }
+    },
+    [updateManualQueue, showQueueFeedback]
+  );
+
+  const handleRemoveQueuedTrack = useCallback(
+    (index: number) => {
+      updateManualQueue((prev) => prev.filter((_, i) => i !== index));
+    },
+    [updateManualQueue]
+  );
+
+  const handleMoveQueuedTrack = useCallback(
+    (fromIndex: number, toIndex: number) => {
+      updateManualQueue((prev) => {
+        if (toIndex < 0 || toIndex >= prev.length || fromIndex === toIndex) return prev;
+        const copy = [...prev];
+        const [moved] = copy.splice(fromIndex, 1);
+        copy.splice(toIndex, 0, moved);
+        return copy;
+      });
+    },
+    [updateManualQueue]
+  );
+
+  const handleClearQueue = useCallback(() => {
+    updateManualQueue(() => []);
+  }, [updateManualQueue]);
+
+  // Deterministic Fisher-Yates shuffle order so random switching is instant & prefetched!
+  useEffect(() => {
+    const source = displayTracks.length > 0 ? displayTracks : tracks;
+    if (!isShuffle || source.length <= 1) {
+      setShuffleOrder([]);
+      return;
+    }
+    const pool = source.filter((t) => !isSameTrack(t, activeTrack));
+    for (let i = pool.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [pool[i], pool[j]] = [pool[j], pool[i]];
+    }
+    setShuffleOrder(pool);
+  }, [isShuffle, activeAlbum, displayTracks.length]);
+
+  const upcomingAutoTracks = useMemo(() => {
+    const source = displayTracks.length > 0 ? displayTracks : tracks;
+    if (source.length === 0) return [];
+    if (isShuffle && shuffleOrder.length > 0) {
+      return shuffleOrder.filter((t) => !isSameTrack(t, activeTrack));
+    }
+    const currentIdx = source.findIndex((t) => isSameTrack(t, activeTrack));
+    if (currentIdx === -1) return source;
+    return [...source.slice(currentIdx + 1), ...source.slice(0, currentIdx)];
+  }, [displayTracks, tracks, isShuffle, shuffleOrder, activeTrack]);
+
+  // Background Prefetcher: warms audio + lyrics for next 3 upcoming tracks (Queue first, then Shuffle/Next)
+  useEffect(() => {
+    const targets: BackendRadioheadTrack[] = [];
+    const seen = new Set<string>();
+    const addCandidate = (t?: BackendRadioheadTrack) => {
+      if (!t || isSameTrack(t, activeTrack)) return;
+      const key = `${t.artist.toLowerCase()}::${t.title.toLowerCase()}`;
+      if (seen.has(key)) return;
+      seen.add(key);
+      targets.push(t);
+    };
+
+    manualQueue.slice(0, 3).forEach(addCandidate);
+    upcomingAutoTracks.slice(0, 3).forEach(addCandidate);
+    const toPrefetch = targets.slice(0, 3);
+    if (toPrefetch.length === 0) return;
+
+    const controller = new AbortController();
+    const timer = setTimeout(() => {
+      (async () => {
+        for (const item of toPrefetch) {
+          if (controller.signal.aborted) break;
+          if (!item.syncedLyrics) {
+            prefetchTrackLyrics(item.title, item.artist, item.durationMs).catch(() => {});
+          }
+          await prefetchAudioTrack(resolvePlayableUrl(item), controller.signal);
+        }
+      })();
+    }, 850);
+
+    return () => {
+      clearTimeout(timer);
+      controller.abort();
+    };
+  }, [activeTrack.id, manualQueue, upcomingAutoTracks]);
+
+  const handlePlayQueuedTrack = useCallback(
+    (index: number) => {
+      const target = manualQueue[index];
+      if (!target) return;
+      updateManualQueue((prev) => prev.slice(index + 1));
+      selectTrack(target);
+      loadTrack(
+        resolvePlayableUrl(target),
+        target.bpm,
+        target.durationMs > 0 ? target.durationMs / 1000 : 238,
+        true
+      );
+    },
+    [manualQueue, updateManualQueue, selectTrack, loadTrack]
+  );
+
+  const isTrackCached = useCallback((t: BackendRadioheadTrack) => {
+    return isAudioInRamCache(resolvePlayableUrl(t));
+  }, []);
+
+  const handleNextTrack = useCallback(() => {
+    // 1. Always drain manual Queue first
+    if (manualQueue.length > 0) {
+      const nextQueued = manualQueue[0];
+      updateManualQueue((prev) => prev.slice(1));
+      selectTrack(nextQueued);
+      loadTrack(
+        resolvePlayableUrl(nextQueued),
+        nextQueued.bpm,
+        nextQueued.durationMs > 0 ? nextQueued.durationMs / 1000 : 238,
+        true
+      );
+      return;
+    }
+
+    // 2. Shuffle mode: pull from pre-computed (and pre-cached!) shuffleOrder
+    const source = displayTracks.length > 0 ? displayTracks : tracks;
+    if (source.length === 0) return;
+
+    if (isShuffle) {
+      let pool = shuffleOrder.filter((t) => !isSameTrack(t, activeTrack));
+      if (pool.length === 0) {
+        pool = source.filter((t) => !isSameTrack(t, activeTrack));
+        for (let i = pool.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [pool[i], pool[j]] = [pool[j], pool[i]];
+        }
+      }
+      const nextTrk = pool[0] || source[0];
+      setShuffleOrder(pool.slice(1));
+      selectTrack(nextTrk);
+      loadTrack(
+        resolvePlayableUrl(nextTrk),
+        nextTrk.bpm,
+        nextTrk.durationMs > 0 ? nextTrk.durationMs / 1000 : 238,
+        true
+      );
+      return;
+    }
+
+    // 3. Sequential next track
+    const currentIdx = source.findIndex((t) => isSameTrack(t, activeTrack));
+    const nextIndex = ((currentIdx >= 0 ? currentIdx : -1) + 1) % source.length;
+    const nextTrk = source[nextIndex];
     selectTrack(nextTrk);
     loadTrack(
       resolvePlayableUrl(nextTrk),
       nextTrk.bpm,
       nextTrk.durationMs > 0 ? nextTrk.durationMs / 1000 : 238,
-      true // Immediately play on next
+      true
     );
-  }, [displayTracks, tracks, activeTrack, isShuffle, selectTrack, loadTrack]);
+  }, [manualQueue, updateManualQueue, displayTracks, tracks, activeTrack, isShuffle, shuffleOrder, selectTrack, loadTrack]);
 
   const handlePrevTrack = useCallback(() => {
     const queue = displayTracks.length > 0 ? displayTracks : tracks;
@@ -1136,6 +1340,7 @@ export const App: React.FC = () => {
         isPlaying={isPlaying}
         isLikedTrack={isLiked}
         onToggleLikeTrack={toggleLike}
+        onAddToQueue={handleAddToQueue}
       />
 
       {/* 2. Clean 3-Card Dark Matte Workspace */}
@@ -1311,9 +1516,9 @@ export const App: React.FC = () => {
           </div>
         )}
 
-        {/* Center & Right Stage: Main Showcase + Collapsible Lyrics */}
+        {/* Center & Right Stage: Main Showcase + Collapsible Lyrics / Queue */}
         <div className={`flex-1 h-full min-w-0 p-2 sm:p-2.5 md:p-0 gap-3 overflow-hidden ${mobileView === 'sidebar' ? 'hidden md:flex' : 'flex'}`}>
-          <div className={`flex-1 h-full min-w-0 ${mobileView === 'lyrics' ? 'hidden lg:block' : 'block'}`}>
+          <div className={`flex-1 h-full min-w-0 ${mobileView === 'lyrics' || mobileView === 'queue' ? 'hidden lg:block' : 'block'}`}>
             <AlbumShowcase
               track={activeTrack}
               tracks={displayTracks}
@@ -1355,17 +1560,18 @@ export const App: React.FC = () => {
               onOpenEditModal={() => setIsEditPlaylistModalOpen(true)}
               isLikedTrack={isLiked}
               onToggleLikeTrack={toggleLike}
+              onAddToQueue={handleAddToQueue}
               onToggleShuffle={toggleShuffle}
               isShuffle={isShuffle}
             />
           </div>
 
-          {/* Right Lyrics Panel (Collapsible) */}
+          {/* Right Lyrics Panel */}
           {(showLyrics || mobileView === 'lyrics') && (
-            <div className={`h-full flex-shrink-0 animate-in fade-in duration-200 ${
+            <div className={`h-full flex-shrink-0 ${
               mobileView === 'lyrics'
-                ? 'w-full block lg:w-[340px] xl:w-[390px]'
-                : 'hidden lg:block lg:w-[340px] xl:w-[390px]'
+                ? 'w-full block lg:w-[330px] xl:w-[375px]'
+                : 'hidden lg:block lg:w-[330px] xl:w-[375px]'
             }`}>
               <DynamicLyrics
                 lyrics={lyrics}
@@ -1378,10 +1584,40 @@ export const App: React.FC = () => {
               />
             </div>
           )}
+
+          {/* Right Queue (Antrian) Panel */}
+          {(showQueue || mobileView === 'queue') && (
+            <div className={`h-full flex-shrink-0 ${
+              mobileView === 'queue'
+                ? 'w-full block lg:w-[330px] xl:w-[375px]'
+                : 'hidden lg:block lg:w-[330px] xl:w-[375px]'
+            }`}>
+              <QueuePanel
+                activeTrack={activeTrack}
+                isPlaying={isPlaying}
+                manualQueue={manualQueue}
+                upcomingTracks={upcomingAutoTracks}
+                isShuffle={isShuffle}
+                isTrackCached={isTrackCached}
+                onPlayQueuedTrack={handlePlayQueuedTrack}
+                onRemoveQueuedTrack={handleRemoveQueuedTrack}
+                onMoveQueuedTrack={handleMoveQueuedTrack}
+                onClearQueue={handleClearQueue}
+                onSelectUpcomingTrack={handleSelectTrack}
+              />
+            </div>
+          )}
         </div>
       </main>
 
-      {/* 3. Official Spotify Playback Dock */}
+      {/* Subtle Matte Queue Toast */}
+      {queueToast && (
+        <div className="fixed bottom-32 md:bottom-24 left-1/2 -translate-x-1/2 z-[60] px-3.5 py-2 rounded-lg bg-[#19191B] border border-[#CE7F20]/50 text-xs text-[#EEDFC7] max-w-[90vw] truncate pointer-events-none">
+          {queueToast}
+        </div>
+      )}
+
+      {/* 3. Studio Playback Console */}
       <PlayerBar
         trackTitle={activeTrack.title}
         artistName={activeTrack.artist}
@@ -1406,9 +1642,17 @@ export const App: React.FC = () => {
         beatPulse={visualizerData.beatPulse}
         showLyrics={showLyrics}
         onToggleLyrics={() => {
-          setShowLyrics((prev) => !prev);
+          setRightPanelMode((prev) => (prev === 'lyrics' ? null : 'lyrics'));
           if (window.innerWidth < 1024) {
             setMobileView((prev) => (prev === 'lyrics' ? 'player' : 'lyrics'));
+          }
+        }}
+        showQueue={showQueue}
+        queueCount={manualQueue.length}
+        onToggleQueue={() => {
+          setRightPanelMode((prev) => (prev === 'queue' ? null : 'queue'));
+          if (window.innerWidth < 1024) {
+            setMobileView((prev) => (prev === 'queue' ? 'player' : 'queue'));
           }
         }}
         onOpenPlayer={() => setMobileView('player')}
@@ -1416,8 +1660,8 @@ export const App: React.FC = () => {
         onToggleLike={() => toggleLike(activeTrack)}
       />
 
-      {/* 3.5 Dedicated Mobile Bottom Navigation Bar (Flat Clean Dark Matte) */}
-      <nav className="md:hidden w-full bg-[#0B0B0C] border-t border-white/[0.07] px-3 pt-1.5 pb-[max(0.45rem,env(safe-area-inset-bottom))] grid grid-cols-3 gap-1 flex-shrink-0 z-40">
+      {/* 3.5 Dedicated Mobile Bottom Navigation Bar (4 Clean Tabs: Lagu, Lirik, Antrian, Koleksi) */}
+      <nav className="md:hidden w-full bg-[#0B0B0C] border-t border-white/[0.07] px-2 pt-1.5 pb-[max(0.45rem,env(safe-area-inset-bottom))] grid grid-cols-4 gap-1 flex-shrink-0 z-40">
         <button
           onClick={() => setMobileView('player')}
           className={`flex flex-col items-center justify-center gap-0.5 py-1.5 rounded-lg ${
@@ -1436,6 +1680,23 @@ export const App: React.FC = () => {
         >
           <Mic2 className={`w-5 h-5 ${mobileView === 'lyrics' ? 'text-[#CE7F20]' : ''}`} />
           <span className="text-[10px] font-medium">Lirik</span>
+        </button>
+
+        <button
+          onClick={() => setMobileView('queue')}
+          className={`relative flex flex-col items-center justify-center gap-0.5 py-1.5 rounded-lg ${
+            mobileView === 'queue' ? 'text-[#EEDFC7]' : 'text-[#68625B]'
+          }`}
+        >
+          <div className="relative">
+            <ListMusic className={`w-5 h-5 ${mobileView === 'queue' ? 'text-[#CE7F20]' : ''}`} />
+            {manualQueue.length > 0 && (
+              <span className="absolute -top-1 -right-2.5 min-w-[14px] h-[14px] px-1 rounded-full bg-[#CE7F20] text-[#0B0B0C] text-[9px] font-bold flex items-center justify-center leading-none">
+                {manualQueue.length > 9 ? '9+' : manualQueue.length}
+              </span>
+            )}
+          </div>
+          <span className="text-[10px] font-medium">Antrian</span>
         </button>
 
         <button

@@ -8,6 +8,13 @@
  */
 
 import { useState, useEffect, useRef, useCallback } from 'react';
+import {
+  getSyncCachedAudioUrl,
+  getCachedAudioUrl,
+  prefetchAudioTrack,
+  getCachedYtFallback,
+  setCachedYtFallback,
+} from '../utils/mediaCache';
 
 let ytApiPromise: Promise<any> | null = null;
 function loadYouTubeIframeApi(): Promise<any> {
@@ -108,6 +115,8 @@ export function useAudioVisualizer(
   const ytQueueIdxRef = useRef<number>(0);
   const loadTokenRef = useRef<number>(0);
   const desiredAutoPlayRef = useRef<boolean>(false);
+  const startYtFallbackRef = useRef<((videoIds: string[], shouldPlay: boolean, seekSec: number, token: number) => Promise<void>) | null>(null);
+  const activeOriginalUrlRef = useRef<string>('');
 
   const onEndedRef = useRef(options?.onEnded);
   useEffect(() => {
@@ -306,14 +315,20 @@ export function useAudioVisualizer(
         isPlayingRef.current = false;
       }
     };
+    startYtFallbackRef.current = startYtFallback;
 
     const handleError = async () => {
       const tokenAtError = loadTokenRef.current;
-      const src = audio.src;
+      const src = activeOriginalUrlRef.current || audio.src;
       setIsPlaying(false);
       isPlayingRef.current = false;
 
       if (src && src.includes('/api/stream')) {
+        const cachedIds = getCachedYtFallback(src);
+        if (cachedIds && cachedIds.length > 0) {
+          await startYtFallback(cachedIds, desiredAutoPlayRef.current, pendingSeekRef.current || 0, tokenAtError);
+          return;
+        }
         try {
           const probe = await fetch(src, { headers: { Range: 'bytes=0-63' } });
           if (loadTokenRef.current !== tokenAtError) return;
@@ -325,6 +340,7 @@ export function useAudioVisualizer(
               ? [payload.videoId]
               : [];
             if (ids.length > 0) {
+              setCachedYtFallback(src, ids);
               await startYtFallback(ids, desiredAutoPlayRef.current, pendingSeekRef.current || 0, tokenAtError);
               return;
             }
@@ -414,12 +430,14 @@ export function useAudioVisualizer(
     return () => clearInterval(interval);
   }, [isPlaying]);
 
-  // Clean Track Switcher: Direct native audio playback with instant unmuted output
+  // Clean Track Switcher: Instant playback from RAM/Cache Storage when available, with automatic background caching
   const loadTrack = useCallback((url: string, newBpm: number, durationSec: number, autoPlay: boolean = true, initialTimeSec: number = 0) => {
     const audio = audioRef.current;
     if (!audio) return;
 
-    loadTokenRef.current += 1;
+    const token = loadTokenRef.current + 1;
+    loadTokenRef.current = token;
+    activeOriginalUrlRef.current = url || '';
     desiredAutoPlayRef.current = autoPlay;
     isYtFallbackRef.current = false;
     try {
@@ -440,17 +458,20 @@ export function useAudioVisualizer(
     audio.muted = false;
     audio.volume = volumeRef.current;
 
-    if (url) {
-      audio.src = url;
+    const startAudioElement = (playableSrc: string) => {
+      if (loadTokenRef.current !== token) return;
+      audio.src = playableSrc;
       audio.load();
 
       if (autoPlay) {
         audio.play().then(() => {
+          if (loadTokenRef.current !== token) return;
           audio.muted = false;
           audio.volume = volumeRef.current;
           setIsPlaying(true);
           isPlayingRef.current = true;
         }).catch(() => {
+          if (loadTokenRef.current !== token) return;
           setIsPlaying(false);
           isPlayingRef.current = false;
         });
@@ -458,11 +479,50 @@ export function useAudioVisualizer(
         setIsPlaying(false);
         isPlayingRef.current = false;
       }
-    } else {
+    };
+
+    if (!url) {
       audio.src = '';
       setIsPlaying(false);
       isPlayingRef.current = false;
+      return;
     }
+
+    // 1. Instant 0ms RAM Blob URL Cache hit
+    const ramHit = getSyncCachedAudioUrl(url);
+    if (ramHit) {
+      startAudioElement(ramHit);
+      return;
+    }
+
+    // 2. Instant cached YouTube fallback hit (avoids waiting on 404 /api/stream probe)
+    if (url.includes('/api/stream')) {
+      const ytIds = getCachedYtFallback(url);
+      if (ytIds && ytIds.length > 0 && startYtFallbackRef.current) {
+        startYtFallbackRef.current(ytIds, autoPlay, safeInitial, token);
+        return;
+      }
+    }
+
+    // 3. Check persistent Cache Storage (~3-5ms) before falling back to live streaming
+    getCachedAudioUrl(url).then((diskHit) => {
+      if (loadTokenRef.current !== token) return;
+      if (diskHit) {
+        startAudioElement(diskHit);
+      } else {
+        startAudioElement(url);
+        // Warm full track into RAM + Cache Storage in background so future/random switches are instant
+        setTimeout(() => {
+          if (activeOriginalUrlRef.current === url) {
+            prefetchAudioTrack(url).catch(() => {});
+          }
+        }, 1200);
+      }
+    }).catch(() => {
+      if (loadTokenRef.current === token) {
+        startAudioElement(url);
+      }
+    });
   }, []);
 
   const setVolume = useCallback((newVol: number) => {

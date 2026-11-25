@@ -14,6 +14,7 @@ import {
   Pencil,
   Shuffle,
   Check,
+  ListPlus,
 } from 'lucide-react';
 import type { BackendRadioheadTrack } from '../api/backend';
 import type { AlbumColors } from '../hooks/useAlbumColor';
@@ -42,6 +43,7 @@ interface AlbumShowcaseProps {
   onOpenEditModal?: () => void;
   isLikedTrack?: (trackId: string) => boolean;
   onToggleLikeTrack?: (track: BackendRadioheadTrack) => void;
+  onAddToQueue?: (track: BackendRadioheadTrack) => void;
   onToggleShuffle?: () => void;
   isShuffle?: boolean;
 }
@@ -61,6 +63,7 @@ export const AlbumShowcase: React.FC<AlbumShowcaseProps> = ({
   onOpenEditModal,
   isLikedTrack,
   onToggleLikeTrack,
+  onAddToQueue,
   onToggleShuffle,
   isShuffle = false,
 }) => {
@@ -339,7 +342,7 @@ export const AlbumShowcase: React.FC<AlbumShowcaseProps> = ({
                       onSelectTrack(t);
                     }
                   }}
-                  className={`grid grid-cols-[24px_1fr_auto_auto] md:grid-cols-[28px_5fr_2.5fr_34px_auto] gap-2.5 sm:gap-4 px-2 sm:px-3 py-2.5 rounded-lg text-sm items-center cursor-pointer ${
+                  className={`grid grid-cols-[22px_1fr_auto_auto_auto] md:grid-cols-[28px_5fr_2.5fr_34px_34px_auto] gap-2 sm:gap-3.5 px-2 sm:px-3 py-2.5 rounded-lg text-sm items-center cursor-pointer ${
                     isActive
                       ? 'bg-[#53341A]/35 text-[#EEDFC7]'
                       : 'text-[#9A9288]'
@@ -359,7 +362,7 @@ export const AlbumShowcase: React.FC<AlbumShowcaseProps> = ({
                     )}
                   </div>
 
-                  <div className="flex items-center gap-3 min-w-0">
+                  <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
                     <div className="w-10 h-10 rounded overflow-hidden flex-shrink-0 bg-[#19191B] border border-white/[0.06]">
                       <img
                         src={t.coverUrl}
@@ -390,6 +393,22 @@ export const AlbumShowcase: React.FC<AlbumShowcaseProps> = ({
                   </div>
 
                   <div className="flex items-center justify-center">
+                    {onAddToQueue && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onAddToQueue(t);
+                        }}
+                        className="p-1.5 rounded text-[#68625B]"
+                        title="Tambah ke antrian"
+                        aria-label="Tambah ke antrian"
+                      >
+                        <ListPlus className="w-4 h-4" />
+                      </button>
+                    )}
+                  </div>
+
+                  <div className="flex items-center justify-center">
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
@@ -405,7 +424,7 @@ export const AlbumShowcase: React.FC<AlbumShowcaseProps> = ({
                     </button>
                   </div>
 
-                  <span className="text-xs font-mono text-[#68625B] text-right min-w-[36px]">
+                  <span className="text-xs font-mono text-[#68625B] text-right min-w-[34px]">
                     {formatDuration(t.durationMs)}
                   </span>
                 </div>
