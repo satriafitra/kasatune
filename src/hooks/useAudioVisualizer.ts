@@ -15,6 +15,7 @@ import {
   getCachedYtFallback,
   setCachedYtFallback,
 } from '../utils/mediaCache';
+import { scopedStorageKey } from '../utils/authStore';
 
 let ytApiPromise: Promise<any> | null = null;
 function loadYouTubeIframeApi(): Promise<any> {
@@ -75,6 +76,7 @@ interface UseAudioVisualizerOptions {
   onEnded?: () => void;
   onAudioError?: () => void;
   defaultDurationSec?: number;
+  accountEmail?: string | null;
 }
 
 export function useAudioVisualizer(
@@ -85,10 +87,13 @@ export function useAudioVisualizer(
 ): AudioVisualizerControls {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const pendingSeekRef = useRef<number | null>(null);
+  const playtimeStorageKey = scopedStorageKey(options?.accountEmail, 'kasatune_saved_playtime');
+  const playtimeKeyRef = useRef<string>(playtimeStorageKey);
+  playtimeKeyRef.current = playtimeStorageKey;
 
   const getSavedPlaytime = (): number => {
     try {
-      const saved = localStorage.getItem('kasatune_saved_playtime');
+      const saved = localStorage.getItem(playtimeStorageKey);
       if (saved) {
         const parsed = parseFloat(saved);
         if (!isNaN(parsed) && parsed > 0) return parsed;
@@ -161,7 +166,7 @@ export function useAudioVisualizer(
       isPlayingRef.current = false;
       if (audio && !isNaN(audio.currentTime) && audio.currentTime > 0) {
         try {
-          localStorage.setItem('kasatune_saved_playtime', String(audio.currentTime));
+          localStorage.setItem(playtimeKeyRef.current, String(audio.currentTime));
         } catch {}
       }
     };
@@ -205,7 +210,7 @@ export function useAudioVisualizer(
       }
       if (audio.currentTime > 0 && !audio.paused) {
         try {
-          localStorage.setItem('kasatune_saved_playtime', String(audio.currentTime));
+          localStorage.setItem(playtimeKeyRef.current, String(audio.currentTime));
         } catch {}
       }
     };
@@ -364,7 +369,7 @@ export function useAudioVisualizer(
     const handleBeforeUnload = () => {
       if (currentTimeRef.current > 0) {
         try {
-          localStorage.setItem('kasatune_saved_playtime', String(currentTimeRef.current));
+          localStorage.setItem(playtimeKeyRef.current, String(currentTimeRef.current));
         } catch {}
       }
     };
@@ -422,7 +427,7 @@ export function useAudioVisualizer(
 
       if (Math.round(currentTimeRef.current * 10) % 10 === 0 && currentTimeRef.current > 0) {
         try {
-          localStorage.setItem('kasatune_saved_playtime', String(currentTimeRef.current));
+          localStorage.setItem(playtimeKeyRef.current, String(currentTimeRef.current));
         } catch {}
       }
     }, 50);
@@ -578,7 +583,7 @@ export function useAudioVisualizer(
       setIsPlaying(false);
       isPlayingRef.current = false;
       try {
-        localStorage.setItem('kasatune_saved_playtime', String(currentTimeRef.current));
+        localStorage.setItem(playtimeKeyRef.current, String(currentTimeRef.current));
       } catch {}
       return;
     }
@@ -587,7 +592,7 @@ export function useAudioVisualizer(
       setIsPlaying(false);
       isPlayingRef.current = false;
       try {
-        localStorage.setItem('kasatune_saved_playtime', String(currentTimeRef.current));
+        localStorage.setItem(playtimeKeyRef.current, String(currentTimeRef.current));
       } catch {}
     }
   }, []);
@@ -606,7 +611,7 @@ export function useAudioVisualizer(
     currentTimeRef.current = clampedSec;
     setCurrentTime(clampedSec);
     try {
-      localStorage.setItem('kasatune_saved_playtime', String(clampedSec));
+      localStorage.setItem(playtimeKeyRef.current, String(clampedSec));
     } catch {}
 
     if (isYtFallbackRef.current && ytPlayerRef.current?.seekTo) {

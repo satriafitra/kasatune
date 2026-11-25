@@ -15,10 +15,12 @@ import { AuthScreen } from './components/AuthScreen';
 import {
   getSavedSessionUser,
   restoreAuthSession,
-  loginWithGoogleAccessToken,
+  hasPendingGoogleCallback,
+  consumeGoogleOAuthCallback,
   logoutAccount,
   loadAccountDataSnapshot,
   saveAccountDataSnapshot,
+  scopedStorageKey,
   type AuthUser,
 } from './utils/authStore';
 import { DiscordServerRail, type AlbumFilterType } from './components/DiscordServerRail';
@@ -62,6 +64,17 @@ const AuthenticatedApp: React.FC<{
   authUser: AuthUser;
   onAccountLogout: () => void;
 }> = ({ authUser, onAccountLogout }) => {
+  // Strictly account-scoped storage keys (each account starts clean and keeps its own data)
+  const kPinned = scopedStorageKey(authUser.email, 'kasatune_pinned_artists_v4');
+  const kQueue = scopedStorageKey(authUser.email, 'kasatune_queue_v1');
+  const kActiveAlbum = scopedStorageKey(authUser.email, 'kasatune_active_album');
+  const kActiveEntity = scopedStorageKey(authUser.email, 'kasatune_active_entity');
+  const kFriendConn = scopedStorageKey(authUser.email, 'kasatune_is_friend_connected');
+  const kSavedTrack = scopedStorageKey(authUser.email, 'kasatune_saved_track');
+  const kSavedTrackId = scopedStorageKey(authUser.email, 'kasatune_saved_track_id');
+  const kSavedPlaytime = scopedStorageKey(authUser.email, 'kasatune_saved_playtime');
+  const kDiscordId = scopedStorageKey(authUser.email, 'kasatune_discord_user_id');
+
   const [rightPanelMode, setRightPanelMode] = useState<'lyrics' | 'queue' | null>('lyrics');
   const showLyrics = rightPanelMode === 'lyrics';
   const showQueue = rightPanelMode === 'queue';
@@ -75,7 +88,7 @@ const AuthenticatedApp: React.FC<{
     try {
       const snap = loadAccountDataSnapshot(authUser.email);
       if (snap && Array.isArray(snap.manualQueue)) return snap.manualQueue;
-      const saved = localStorage.getItem('kasatune_queue_v1');
+      const saved = localStorage.getItem(kQueue);
       if (saved) {
         const parsed = JSON.parse(saved);
         if (Array.isArray(parsed)) return parsed;
@@ -90,7 +103,7 @@ const AuthenticatedApp: React.FC<{
     try {
       const snap = loadAccountDataSnapshot(authUser.email);
       if (snap && Array.isArray(snap.pinnedServers)) return snap.pinnedServers;
-      const saved = localStorage.getItem('kasatune_pinned_artists_v4');
+      const saved = localStorage.getItem(kPinned);
       if (saved) {
         const parsed = JSON.parse(saved);
         if (Array.isArray(parsed)) {
@@ -108,7 +121,6 @@ const AuthenticatedApp: React.FC<{
                 }
               );
             }
-            // Repair broken Genius/empty-silhouette artist image URLs from earlier sessions
             if (item?.id === 'sheilaon7' && !isValidImageUrl(item.imageUrl)) {
               return {
                 ...item,
@@ -128,7 +140,7 @@ const AuthenticatedApp: React.FC<{
       const exists = prev.some((s) => s.id === server.id);
       const next = exists ? prev.filter((s) => s.id !== server.id) : [...prev, server];
       try {
-        localStorage.setItem('kasatune_pinned_artists_v4', JSON.stringify(next));
+        localStorage.setItem(kPinned, JSON.stringify(next));
       } catch {}
       return next;
     });
@@ -147,7 +159,7 @@ const AuthenticatedApp: React.FC<{
       });
       if (changed) {
         try {
-          localStorage.setItem('kasatune_pinned_artists_v4', JSON.stringify(next));
+          localStorage.setItem(kPinned, JSON.stringify(next));
         } catch {}
       }
       return changed ? next : prev;
@@ -156,7 +168,7 @@ const AuthenticatedApp: React.FC<{
       if (prev && prev.id === serverId && !isValidImageUrl(prev.imageUrl)) {
         const updated = { ...prev, imageUrl: newImageUrl };
         try {
-          localStorage.setItem('kasatune_active_entity', JSON.stringify(updated));
+          localStorage.setItem(kActiveEntity, JSON.stringify(updated));
         } catch {}
         return updated;
       }
@@ -242,10 +254,10 @@ const AuthenticatedApp: React.FC<{
   // Session & Condition Persistence: Restore the exact last condition on refresh
   const [activeAlbum, setActiveAlbum] = useState<AlbumFilterType>(() => {
     try {
-      const saved = localStorage.getItem('kasatune_active_album');
+      const saved = localStorage.getItem(kActiveAlbum);
       if (saved && saved !== 'all') return saved as AlbumFilterType;
 
-      const savedPinned = localStorage.getItem('kasatune_pinned_artists_v4');
+      const savedPinned = localStorage.getItem(kPinned);
       if (savedPinned) {
         const list = JSON.parse(savedPinned);
         if (Array.isArray(list) && list.length > 0 && list[0].id) {
@@ -258,8 +270,8 @@ const AuthenticatedApp: React.FC<{
 
   const [isFriendSyncConnected, setIsFriendSyncConnected] = useState<boolean>(() => {
     try {
-      const savedConnected = localStorage.getItem('kasatune_is_friend_connected');
-      const savedAlbum = localStorage.getItem('kasatune_active_album');
+      const savedConnected = localStorage.getItem(kFriendConn);
+      const savedAlbum = localStorage.getItem(kActiveAlbum);
       if (savedConnected !== null) {
         return savedConnected === 'true';
       }
@@ -271,11 +283,11 @@ const AuthenticatedApp: React.FC<{
   // Current active Album / Artist Entity showcased on the main stage
   const [currentAlbumEntity, setCurrentAlbumEntity] = useState<PinnedServerItem | null>(() => {
     try {
-      const saved = localStorage.getItem('kasatune_active_entity');
+      const saved = localStorage.getItem(kActiveEntity);
       if (saved) return JSON.parse(saved);
 
-      const savedAlbum = localStorage.getItem('kasatune_active_album');
-      const savedPinned = localStorage.getItem('kasatune_pinned_artists_v4');
+      const savedAlbum = localStorage.getItem(kActiveAlbum);
+      const savedPinned = localStorage.getItem(kPinned);
       if (savedPinned) {
         const list: PinnedServerItem[] = JSON.parse(savedPinned);
         if (Array.isArray(list) && list.length > 0) {
@@ -296,7 +308,7 @@ const AuthenticatedApp: React.FC<{
     logout,
   } = useSpotifyAuth();
 
-  // 2. Radiohead Discography & Music Sync
+  // 2. Discography & Music Sync (scoped per logged-in account)
   const {
     tracks,
     activeTrack,
@@ -312,7 +324,7 @@ const AuthenticatedApp: React.FC<{
     toggleShuffle,
     toggleRepeat,
     refetchTracks,
-  } = useMusicSync();
+  } = useMusicSync(authUser.email);
 
   // 2.1 User Custom Playlist & Liked Songs Hub (scoped per logged-in account)
   const {
@@ -360,6 +372,7 @@ const AuthenticatedApp: React.FC<{
     activeTrack.bpm,
     activeTrack.durationMs > 0 ? activeTrack.durationMs / 1000 : 266,
     {
+      accountEmail: authUser.email,
       onEnded: () => {
         if (activeAlbum === 'friend' || isFriendSyncConnected) {
           return;
@@ -415,7 +428,7 @@ const AuthenticatedApp: React.FC<{
           return;
         }
 
-        const savedTrackStr = localStorage.getItem('kasatune_saved_track');
+        const savedTrackStr = localStorage.getItem(kSavedTrack);
         let savedTrack: BackendRadioheadTrack | null = null;
         if (savedTrackStr) {
           try {
@@ -423,8 +436,8 @@ const AuthenticatedApp: React.FC<{
           } catch {}
         }
 
-        const savedTrackId = localStorage.getItem('kasatune_saved_track_id');
-        const savedTimeStr = localStorage.getItem('kasatune_saved_playtime');
+        const savedTrackId = localStorage.getItem(kSavedTrackId);
+        const savedTimeStr = localStorage.getItem(kSavedPlaytime);
         const savedTime = savedTimeStr ? parseFloat(savedTimeStr) : 0;
 
         const onlineTracksForActive = activeAlbum ? onlineAlbumTracks[activeAlbum] : undefined;
@@ -624,7 +637,7 @@ const AuthenticatedApp: React.FC<{
       }
       if (!entity) {
         try {
-          const savedPinned = localStorage.getItem('kasatune_pinned_artists_v4');
+          const savedPinned = localStorage.getItem(kPinned);
           if (savedPinned) {
             const list: PinnedServerItem[] = JSON.parse(savedPinned);
             entity = list.find((s) => s.id === activeAlbum) || null;
@@ -681,7 +694,7 @@ const AuthenticatedApp: React.FC<{
     async (album: AlbumFilterType | string, serverItem?: PinnedServerItem) => {
       setActiveAlbum(album as AlbumFilterType);
       try {
-        localStorage.setItem('kasatune_active_album', album);
+        localStorage.setItem(kActiveAlbum, album);
       } catch {}
 
       // Resolve and showcase the Artist / Album Entity
@@ -745,9 +758,9 @@ const AuthenticatedApp: React.FC<{
       setCurrentAlbumEntity(resolvedEntity);
       try {
         if (resolvedEntity) {
-          localStorage.setItem('kasatune_active_entity', JSON.stringify(resolvedEntity));
+          localStorage.setItem(kActiveEntity, JSON.stringify(resolvedEntity));
         } else {
-          localStorage.removeItem('kasatune_active_entity');
+          localStorage.removeItem(kActiveEntity);
         }
       } catch {}
 
@@ -756,8 +769,8 @@ const AuthenticatedApp: React.FC<{
           const firstLiked = likedTracks[0];
           selectTrack(firstLiked);
           try {
-            localStorage.setItem('kasatune_saved_track_id', firstLiked.id);
-            localStorage.setItem('kasatune_saved_track', JSON.stringify(firstLiked));
+            localStorage.setItem(kSavedTrackId, firstLiked.id);
+            localStorage.setItem(kSavedTrack, JSON.stringify(firstLiked));
           } catch {}
           loadTrack(
             resolvePlayableUrl(firstLiked),
@@ -770,7 +783,7 @@ const AuthenticatedApp: React.FC<{
       } else if (album === 'friend') {
         setIsFriendSyncConnected(true);
         try {
-          localStorage.setItem('kasatune_is_friend_connected', 'true');
+          localStorage.setItem(kFriendConn, 'true');
         } catch {}
 
         if (friendPlayback?.track) {
@@ -819,8 +832,8 @@ const AuthenticatedApp: React.FC<{
           const first = fetchedSongs[0];
           selectTrack(first);
           try {
-            localStorage.setItem('kasatune_saved_track_id', first.id);
-            localStorage.setItem('kasatune_saved_track', JSON.stringify(first));
+            localStorage.setItem(kSavedTrackId, first.id);
+            localStorage.setItem(kSavedTrack, JSON.stringify(first));
           } catch {}
           loadTrack(
             resolvePlayableUrl(first),
@@ -836,8 +849,8 @@ const AuthenticatedApp: React.FC<{
         if (matchedTrack) {
           selectTrack(matchedTrack);
           try {
-            localStorage.setItem('kasatune_saved_track_id', matchedTrack.id);
-            localStorage.setItem('kasatune_saved_track', JSON.stringify(matchedTrack));
+            localStorage.setItem(kSavedTrackId, matchedTrack.id);
+            localStorage.setItem(kSavedTrack, JSON.stringify(matchedTrack));
           } catch {}
           loadTrack(
             resolvePlayableUrl(matchedTrack),
@@ -856,13 +869,13 @@ const AuthenticatedApp: React.FC<{
     setIsFriendSyncConnected((prev) => {
       const next = !prev;
       try {
-        localStorage.setItem('kasatune_is_friend_connected', String(next));
+        localStorage.setItem(kFriendConn, String(next));
       } catch {}
 
       if (next) {
         setActiveAlbum('friend');
         try {
-          localStorage.setItem('kasatune_active_album', 'friend');
+          localStorage.setItem(kActiveAlbum, 'friend');
         } catch {}
 
         if (friendPlayback?.track) {
@@ -887,11 +900,11 @@ const AuthenticatedApp: React.FC<{
       } else {
         let targetAlbum = 'favorites';
         try {
-          const savedAlbum = localStorage.getItem('kasatune_active_album');
+          const savedAlbum = localStorage.getItem(kActiveAlbum);
           if (savedAlbum && savedAlbum !== 'friend') {
             targetAlbum = savedAlbum;
           } else {
-            const savedPinned = localStorage.getItem('kasatune_pinned_artists_v4');
+            const savedPinned = localStorage.getItem(kPinned);
             if (savedPinned) {
               const list = JSON.parse(savedPinned);
               if (Array.isArray(list) && list.length > 0) {
@@ -902,7 +915,7 @@ const AuthenticatedApp: React.FC<{
         } catch {}
         setActiveAlbum(targetAlbum as AlbumFilterType);
         try {
-          localStorage.setItem('kasatune_active_album', targetAlbum);
+          localStorage.setItem(kActiveAlbum, targetAlbum);
         } catch {}
       }
 
@@ -915,8 +928,8 @@ const AuthenticatedApp: React.FC<{
     setIsFriendSyncConnected(true);
     setActiveAlbum('friend');
     try {
-      localStorage.setItem('kasatune_is_friend_connected', 'true');
-      localStorage.setItem('kasatune_active_album', 'friend');
+      localStorage.setItem(kFriendConn, 'true');
+      localStorage.setItem(kActiveAlbum, 'friend');
     } catch {}
 
     if (friendPlayback?.track) {
@@ -950,13 +963,13 @@ const AuthenticatedApp: React.FC<{
 
     setDiscordUserId(id);
     try {
-      localStorage.setItem('kasatune_discord_user_id', id);
+      localStorage.setItem(kDiscordId, id);
     } catch {}
     setIsFriendSyncConnected(true);
     setActiveAlbum('friend');
     try {
-      localStorage.setItem('kasatune_is_friend_connected', 'true');
-      localStorage.setItem('kasatune_active_album', 'friend');
+      localStorage.setItem(kFriendConn, 'true');
+      localStorage.setItem(kActiveAlbum, 'friend');
     } catch {}
   }, [setDiscordUserId]);
 
@@ -964,21 +977,21 @@ const AuthenticatedApp: React.FC<{
   const handleSwitchToMyMusic = useCallback(() => {
     setIsFriendSyncConnected(false);
     try {
-      localStorage.setItem('kasatune_is_friend_connected', 'false');
+      localStorage.setItem(kFriendConn, 'false');
     } catch {}
 
     let targetAlbum = 'favorites';
     let targetEntity: PinnedServerItem | null = null;
     try {
-      const savedAlbum = localStorage.getItem('kasatune_active_album');
-      const savedEntityStr = localStorage.getItem('kasatune_active_entity');
+      const savedAlbum = localStorage.getItem(kActiveAlbum);
+      const savedEntityStr = localStorage.getItem(kActiveEntity);
       if (savedEntityStr) {
         targetEntity = JSON.parse(savedEntityStr);
       }
       if (savedAlbum && savedAlbum !== 'friend') {
         targetAlbum = savedAlbum;
       } else {
-        const savedPinned = localStorage.getItem('kasatune_pinned_artists_v4');
+        const savedPinned = localStorage.getItem(kPinned);
         if (savedPinned) {
           const list = JSON.parse(savedPinned);
           if (Array.isArray(list) && list.length > 0) {
@@ -994,11 +1007,11 @@ const AuthenticatedApp: React.FC<{
       setCurrentAlbumEntity(targetEntity);
     }
     try {
-      localStorage.setItem('kasatune_active_album', targetAlbum);
+      localStorage.setItem(kActiveAlbum, targetAlbum);
     } catch {}
 
     // Restore saved track or first available track
-    const savedTrackStr = localStorage.getItem('kasatune_saved_track');
+    const savedTrackStr = localStorage.getItem(kSavedTrack);
     let targetTrack: BackendRadioheadTrack | null = null;
     if (savedTrackStr) {
       try {
@@ -1034,7 +1047,7 @@ const AuthenticatedApp: React.FC<{
       if (matchedTrack) {
         selectTrack(matchedTrack);
         try {
-          localStorage.setItem('kasatune_saved_track_id', matchedTrack.id);
+          localStorage.setItem(kSavedTrackId, matchedTrack.id);
         } catch {}
         loadTrack(
           resolvePlayableUrl(matchedTrack),
@@ -1057,9 +1070,9 @@ const AuthenticatedApp: React.FC<{
     }
 
     try {
-      localStorage.setItem('kasatune_saved_track_id', track.id);
-      localStorage.setItem('kasatune_saved_track', JSON.stringify(track));
-      localStorage.setItem('kasatune_active_album', activeAlbum);
+      localStorage.setItem(kSavedTrackId, track.id);
+      localStorage.setItem(kSavedTrack, JSON.stringify(track));
+      localStorage.setItem(kActiveAlbum, activeAlbum);
     } catch {}
 
     // On mobile, auto-navigate to player stage upon selecting a track
@@ -1084,7 +1097,7 @@ const AuthenticatedApp: React.FC<{
       setManualQueue((prev) => {
         const next = updater(prev);
         try {
-          localStorage.setItem('kasatune_queue_v1', JSON.stringify(next.slice(0, 100)));
+          localStorage.setItem(kQueue, JSON.stringify(next.slice(0, 100)));
         } catch {}
         return next;
       });
@@ -1395,7 +1408,7 @@ const AuthenticatedApp: React.FC<{
                 if (!prev.some((s) => s.id === srv.id)) {
                   const next = [...prev, srv];
                   try {
-                    localStorage.setItem('kasatune_pinned_artists_v4', JSON.stringify(next));
+                    localStorage.setItem(kPinned, JSON.stringify(next));
                   } catch {}
                   return next;
                 }
@@ -1787,7 +1800,7 @@ const AuthenticatedApp: React.FC<{
             if (!prev.some((s) => s.id === srv.id)) {
               const next = [...prev, srv];
               try {
-                localStorage.setItem('kasatune_pinned_artists_v4', JSON.stringify(next));
+                localStorage.setItem(kPinned, JSON.stringify(next));
               } catch {}
               return next;
             }
@@ -1819,71 +1832,27 @@ export const App: React.FC = () => {
   const [authUser, setAuthUser] = useState<AuthUser | null>(() => getSavedSessionUser());
   const [authError, setAuthError] = useState<string | null>(null);
   const [isCheckingSession, setIsCheckingSession] = useState<boolean>(() => {
-    const hash = typeof window !== 'undefined' ? window.location.hash : '';
-    return hash.includes('access_token=') || !getSavedSessionUser();
+    return hasPendingGoogleCallback() || !getSavedSessionUser();
   });
 
   useEffect(() => {
     let active = true;
     (async () => {
-      // 1. Handle Google OAuth redirect callback (#access_token=... or #error=...)
-      try {
-        const rawHash = window.location.hash ? window.location.hash.slice(1) : '';
-        if (rawHash) {
-          const hashParams = new URLSearchParams(rawHash);
-          const googleAccessToken = hashParams.get('access_token');
-          const googleErr = hashParams.get('error');
-          const returnedState = hashParams.get('state');
-
-          if (googleAccessToken || googleErr) {
-            // Immediately strip sensitive token from address bar
-            window.history.replaceState(
-              {},
-              document.title,
-              window.location.pathname + window.location.search
-            );
-
-            if (googleErr) {
-              if (active) {
-                setAuthError(
-                  googleErr === 'access_denied'
-                    ? 'Login Google dibatalkan.'
-                    : `Login Google gagal (${googleErr}).`
-                );
-                setIsCheckingSession(false);
-              }
-              return;
-            }
-
-            if (googleAccessToken) {
-              const expectedState = sessionStorage.getItem('kasatune_google_oauth_state');
-              try {
-                sessionStorage.removeItem('kasatune_google_oauth_state');
-              } catch {}
-              if (expectedState && returnedState && expectedState !== returnedState) {
-                if (active) {
-                  setAuthError('Sesi login Google tidak valid. Silakan coba lagi.');
-                  setIsCheckingSession(false);
-                }
-                return;
-              }
-
-              const result = await loginWithGoogleAccessToken(googleAccessToken);
-              if (!active) return;
-              if (result.user) {
-                setAuthUser(result.user);
-                setAuthError(null);
-              } else {
-                setAuthError(result.error || 'Gagal memverifikasi akun Google.');
-              }
-              setIsCheckingSession(false);
-              return;
-            }
-          }
+      // 1. Process Google OAuth redirect callback via module-level singleton (safe under React StrictMode!)
+      if (hasPendingGoogleCallback()) {
+        const result = await consumeGoogleOAuthCallback();
+        if (!active) return;
+        if (result?.user) {
+          setAuthUser(result.user);
+          setAuthError(null);
+        } else if (result?.error) {
+          setAuthError(result.error);
         }
-      } catch {}
+        setIsCheckingSession(false);
+        return;
+      }
 
-      // 2. Otherwise restore existing session from local storage or server cookie
+      // 2. Restore existing session from local storage or HttpOnly server cookie
       try {
         const user = await restoreAuthSession();
         if (active && user) {
@@ -1894,8 +1863,25 @@ export const App: React.FC = () => {
       }
     })();
 
+    const onHashChange = async () => {
+      if (!hasPendingGoogleCallback()) return;
+      setIsCheckingSession(true);
+      const result = await consumeGoogleOAuthCallback();
+      if (!active) return;
+      if (result?.user) {
+        setAuthUser(result.user);
+        setAuthError(null);
+      } else if (result?.error) {
+        setAuthError(result.error);
+      }
+      setIsCheckingSession(false);
+    };
+
+    window.addEventListener('hashchange', onHashChange);
+
     return () => {
       active = false;
+      window.removeEventListener('hashchange', onHashChange);
     };
   }, []);
 

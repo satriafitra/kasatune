@@ -328,6 +328,90 @@ export async function logoutAccount(): Promise<void> {
   } catch {}
 }
 
+export function scopedStorageKey(accountEmail: string | null | undefined, baseKey: string): string {
+  const email = normalizeEmail(accountEmail || '');
+  return email ? `${baseKey}::${email}` : baseKey;
+}
+
+// Capture Google OAuth redirect hash ONCE at module load (immune to React 19 StrictMode double-mount!)
+interface PendingGoogleHash {
+  accessToken: string | null;
+  error: string | null;
+  state: string | null;
+}
+
+let capturedGoogleHash: PendingGoogleHash | null = null;
+let googleCallbackPromise: Promise<{ user?: AuthUser; error?: string } | null> | null = null;
+
+function readAndStripGoogleHash(): PendingGoogleHash | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    const rawHash = window.location.hash ? window.location.hash.slice(1) : '';
+    if (!rawHash) return null;
+    const params = new URLSearchParams(rawHash);
+    const accessToken = params.get('access_token');
+    const error = params.get('error');
+    const state = params.get('state');
+    if (accessToken || error) {
+      window.history.replaceState(
+        {},
+        document.title,
+        window.location.pathname + window.location.search
+      );
+      return { accessToken, error, state };
+    }
+  } catch {}
+  return null;
+}
+
+// Capture immediately at module load (immune to React 19 StrictMode double-mount!)
+capturedGoogleHash = readAndStripGoogleHash();
+
+export function hasPendingGoogleCallback(): boolean {
+  if (!capturedGoogleHash) {
+    const fresh = readAndStripGoogleHash();
+    if (fresh) {
+      capturedGoogleHash = fresh;
+      googleCallbackPromise = null;
+    }
+  }
+  return Boolean(capturedGoogleHash);
+}
+
+/**
+ * Deduplicated singleton processor for Google OAuth redirect callback.
+ * Safe under React StrictMode double-effects because every mount awaits the same promise.
+ */
+export function consumeGoogleOAuthCallback(): Promise<{ user?: AuthUser; error?: string } | null> {
+  if (!hasPendingGoogleCallback() || !capturedGoogleHash) return Promise.resolve(null);
+  if (googleCallbackPromise) return googleCallbackPromise;
+
+  const payload = capturedGoogleHash;
+  googleCallbackPromise = (async () => {
+    const { accessToken, error } = payload;
+    try {
+      sessionStorage.removeItem('kasatune_google_oauth_state');
+    } catch {}
+
+    if (error) {
+      return {
+        error:
+          error === 'access_denied'
+            ? 'Login Google dibatalkan.'
+            : `Login Google gagal (${error}).`,
+      };
+    }
+    if (!accessToken) {
+      return { error: 'Token akses Google tidak ditemukan.' };
+    }
+    return await loginWithGoogleAccessToken(accessToken);
+  })().finally(() => {
+    capturedGoogleHash = null;
+  });
+
+  return googleCallbackPromise;
+}
+
 // Per-account saved data isolation (Pinned Artists, Queue, Custom Playlist)
 function accountDataKey(email: string): string {
   return `${USER_DATA_PREFIX}${normalizeEmail(email)}`;

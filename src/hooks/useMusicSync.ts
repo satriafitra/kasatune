@@ -8,6 +8,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { parseLrc, type LyricLine } from '../utils/lrcParser';
 import { getCachedLyrics, prefetchTrackLyrics } from '../utils/mediaCache';
+import { scopedStorageKey } from '../utils/authStore';
 import {
   checkBackendHealth,
   fetchRadioheadTracksFromBackend,
@@ -493,24 +494,28 @@ export interface SyncedMusicState {
   scrapeBackend: () => Promise<void>;
 }
 
-export function useMusicSync(): SyncedMusicState {
+export function useMusicSync(accountEmail?: string | null): SyncedMusicState {
+  const savedTrackKey = scopedStorageKey(accountEmail, 'kasatune_saved_track');
+  const savedTrackIdKey = scopedStorageKey(accountEmail, 'kasatune_saved_track_id');
+  const activeAlbumKey = scopedStorageKey(accountEmail, 'kasatune_active_album');
+
   const [tracks, setTracks] = useState<BackendRadioheadTrack[]>(DEFAULT_RADIOHEAD_TRACKS);
   const [currentTrackIndex, setCurrentTrackIndex] = useState<number>(0);
   const [activeTrack, setActiveTrack] = useState<BackendRadioheadTrack>(() => {
     try {
-      const savedStr = localStorage.getItem('kasatune_saved_track');
+      const savedStr = localStorage.getItem(savedTrackKey);
       if (savedStr) {
         const parsed = JSON.parse(savedStr);
         if (parsed && parsed.title && parsed.previewUrl) {
           return ensureFullAudioUrl(parsed);
         }
       }
-      const savedId = localStorage.getItem('kasatune_saved_track_id');
+      const savedId = localStorage.getItem(savedTrackIdKey);
       if (savedId) {
         const found = DEFAULT_RADIOHEAD_TRACKS.find((t) => t.id === savedId);
         if (found) return found;
       }
-      const savedAlbum = localStorage.getItem('kasatune_active_album');
+      const savedAlbum = localStorage.getItem(activeAlbumKey);
       if (savedAlbum && savedAlbum !== 'radiohead' && savedAlbum !== 'friend' && savedAlbum !== 'favorites') {
         const foundAlbumTrack = DEFAULT_RADIOHEAD_TRACKS.find(
           (t) =>
@@ -521,8 +526,6 @@ export function useMusicSync(): SyncedMusicState {
         );
         if (foundAlbumTrack) return foundAlbumTrack;
       }
-      const defaultVander = DEFAULT_RADIOHEAD_TRACKS.find((t) => t.id === 'vander-kingmokondo');
-      if (defaultVander) return defaultVander;
     } catch {}
     return DEFAULT_RADIOHEAD_TRACKS[0];
   });
@@ -532,7 +535,7 @@ export function useMusicSync(): SyncedMusicState {
 
   const [lyrics, setLyrics] = useState<LyricLine[]>(() => {
     try {
-      const savedStr = localStorage.getItem('kasatune_saved_track');
+      const savedStr = localStorage.getItem(savedTrackKey);
       if (savedStr) {
         const parsed = JSON.parse(savedStr);
         if (parsed && parsed.syncedLyrics && parsed.syncedLyrics.length > 20) {
@@ -623,10 +626,10 @@ export function useMusicSync(): SyncedMusicState {
     setActiveTrack(track);
     loadTrackLyrics(track);
     try {
-      localStorage.setItem('kasatune_saved_track_id', track.id);
-      localStorage.setItem('kasatune_saved_track', JSON.stringify(track));
+      localStorage.setItem(savedTrackIdKey, track.id);
+      localStorage.setItem(savedTrackKey, JSON.stringify(track));
     } catch {}
-  }, [tracks, loadTrackLyrics]);
+  }, [tracks, loadTrackLyrics, savedTrackIdKey, savedTrackKey]);
 
   const selectTrackByIndex = useCallback((index: number) => {
     if (tracks.length === 0) return;
@@ -636,10 +639,10 @@ export function useMusicSync(): SyncedMusicState {
     setActiveTrack(track);
     loadTrackLyrics(track);
     try {
-      localStorage.setItem('kasatune_saved_track_id', track.id);
-      localStorage.setItem('kasatune_saved_track', JSON.stringify(track));
+      localStorage.setItem(savedTrackIdKey, track.id);
+      localStorage.setItem(savedTrackKey, JSON.stringify(track));
     } catch {}
-  }, [tracks, loadTrackLyrics]);
+  }, [tracks, loadTrackLyrics, savedTrackIdKey, savedTrackKey]);
 
   const nextTrack = useCallback(() => {
     if (tracks.length === 0) return;

@@ -324,23 +324,11 @@ export default async function handler(req: any, res: any) {
         avatarUrl = String(info.picture || '');
         sub = String(info.sub || '');
       } else if (accessToken) {
-        // Verify audience via tokeninfo first
-        const tInfoRes = await fetch(
-          `https://www.googleapis.com/oauth2/v3/tokeninfo?access_token=${encodeURIComponent(accessToken)}`
-        );
-        if (!tInfoRes.ok) {
-          return sendJson(res, 401, { error: 'Sesi Google tidak valid atau kedaluwarsa.' });
-        }
-        const tInfo: any = await tInfoRes.json();
-        if (tInfo.aud && tInfo.aud !== getGoogleClientId() && tInfo.azp !== getGoogleClientId()) {
-          return sendJson(res, 401, { error: 'Client ID Google tidak sesuai.' });
-        }
-
         const profileRes = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
           headers: { Authorization: `Bearer ${accessToken}` },
         });
         if (!profileRes.ok) {
-          return sendJson(res, 401, { error: 'Gagal mengambil profil akun Google.' });
+          return sendJson(res, 401, { error: 'Gagal memverifikasi akun Google. Silakan coba lagi.' });
         }
         const profile: any = await profileRes.json();
         email = String(profile.email || '').toLowerCase();

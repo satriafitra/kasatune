@@ -36,12 +36,13 @@ const DEFAULT_PLAYLIST: CustomPlaylistData = {
 
 export function useCustomPlaylist(allLibraryTracks: BackendRadioheadTrack[], accountKey?: string | null) {
   const storageKey = accountKey
-    ? `${STORAGE_KEY}_${accountKey.trim().toLowerCase()}`
+    ? `${STORAGE_KEY}::${accountKey.trim().toLowerCase()}`
     : STORAGE_KEY;
 
   const readPlaylistForKey = useCallback((key: string): CustomPlaylistData => {
     try {
-      const saved = localStorage.getItem(key) || (key !== STORAGE_KEY ? localStorage.getItem(STORAGE_KEY) : null);
+      // Strictly isolated per account: NEVER inherit legacy/other-account global playlist!
+      const saved = localStorage.getItem(key);
       if (saved) {
         const parsed = JSON.parse(saved);
         return {
@@ -54,7 +55,7 @@ export function useCustomPlaylist(allLibraryTracks: BackendRadioheadTrack[], acc
     } catch (e) {
       console.warn('Failed to parse saved custom playlist:', e);
     }
-    return DEFAULT_PLAYLIST;
+    return { ...DEFAULT_PLAYLIST, updatedAt: Date.now() };
   }, []);
 
   const [playlist, setPlaylist] = useState<CustomPlaylistData>(() => readPlaylistForKey(storageKey));
