@@ -650,20 +650,39 @@ async function resolveViaBilibili(
 
       for (const top of candidates.slice(0, 3)) {
         try {
-          const pl: any = await fetch(`https://api.bilibili.com/x/player/pagelist?bvid=${top.bvid}`, {
-            headers: { 'User-Agent': WEB_USER_AGENT, Referer: 'https://www.bilibili.com/', ...(cookie ? { Cookie: cookie } : {}) },
+          // Do NOT pass synthetic/incomplete Cookie to pagelist/playurl — it triggers Bilibili WAF HTML (-412)
+          let cid: string | number | undefined;
+          const plText = await fetch(`https://api.bilibili.com/x/player/pagelist?bvid=${top.bvid}`, {
             signal: AbortSignal.timeout(3500),
-          }).then((r) => r.json());
-          const cid = pl?.data?.[0]?.cid;
+          }).then((r) => r.text());
+          if (plText.startsWith('{')) {
+            cid = JSON.parse(plText)?.data?.[0]?.cid;
+          }
+          if (!cid) {
+            const vHtml = await fetch(`https://m.bilibili.com/video/${top.bvid}`, {
+              headers: { 'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1' },
+              signal: AbortSignal.timeout(3500),
+            }).then((r) => r.text()).catch(() => '');
+            cid = /"cid":(\d+)/.exec(vHtml)?.[1];
+          }
           if (!cid) { diag?.push(`bili_nocid(${top.bvid})`); continue; }
 
-          const play: any = await fetch(
-            `https://api.bilibili.com/x/player/playurl?bvid=${top.bvid}&cid=${cid}&qn=16&fnval=1&platform=html5`,
-            {
-              headers: { 'User-Agent': WEB_USER_AGENT, Referer: 'https://www.bilibili.com/', ...(cookie ? { Cookie: cookie } : {}) },
+          let play: any = null;
+          const playUrl = `https://api.bilibili.com/x/player/playurl?bvid=${top.bvid}&cid=${cid}&qn=16&fnval=1&platform=html5`;
+          const playText = await fetch(playUrl, {
+            signal: AbortSignal.timeout(3500),
+          }).then((r) => r.text());
+          if (playText.startsWith('{')) {
+            play = JSON.parse(playText);
+          } else {
+            const retryText = await fetch(playUrl, {
+              headers: { 'User-Agent': WEB_USER_AGENT, Referer: 'https://www.bilibili.com/' },
               signal: AbortSignal.timeout(3500),
-            }
-          ).then((r) => r.json());
+            }).then((r) => r.text()).catch(() => '');
+            if (retryText.startsWith('{')) play = JSON.parse(retryText);
+            else diag?.push(`bili_play_html(${top.bvid}:${playText.slice(0, 40)})`);
+          }
+
           const d0 = play?.data?.durl?.[0];
           if (!d0?.url) { diag?.push(`bili_nodurl(${top.bvid},code=${play?.code})`); continue; }
 
