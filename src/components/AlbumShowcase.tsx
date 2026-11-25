@@ -159,45 +159,45 @@ export const AlbumShowcase: React.FC<AlbumShowcaseProps> = ({
 
       {/* 1. Compact & Clean Header Section */}
       {isArtistView ? (
-        <div className="relative w-full min-h-[190px] sm:min-h-[230px] flex flex-col justify-end p-5 sm:p-7 overflow-hidden flex-shrink-0">
+        <div className="relative w-full min-h-[168px] sm:min-h-[230px] flex flex-col justify-end p-4 sm:p-7 overflow-hidden flex-shrink-0">
           <div className="absolute inset-0 z-0">
             <img
               src={coverImage}
               alt={artistName}
-              className="w-full h-full object-cover object-center filter brightness-[0.65]"
+              className="w-full h-full object-cover object-center filter brightness-[0.62]"
               onError={(e) => {
                 (e.currentTarget as HTMLElement).style.display = 'none';
               }}
             />
-            <div className="absolute inset-0 bg-gradient-to-t from-[#121212] via-[#121212]/60 to-black/30" />
+            <div className="absolute inset-0 bg-gradient-to-t from-[#121212] via-[#121212]/65 to-black/25" />
           </div>
 
-          <div className="relative z-10 flex flex-col gap-1.5 max-w-4xl">
-            <div className="flex items-center gap-1.5 text-xs font-semibold text-white/90">
+          <div className="relative z-10 flex flex-col gap-1 max-w-4xl min-w-0">
+            <div className="flex items-center gap-1.5 text-[11px] sm:text-xs font-semibold text-white/90">
               <span className="w-4 h-4 rounded-full bg-[#3D91F4] flex items-center justify-center text-white flex-shrink-0">
                 <Check className="w-2.5 h-2.5 stroke-[3.5]" />
               </span>
               <span>Artis Terverifikasi</span>
             </div>
 
-            <h1 className="text-3xl sm:text-5xl md:text-6xl font-black text-white tracking-tight leading-none drop-shadow-md select-text">
+            <h1 className="text-2xl sm:text-5xl md:text-6xl font-black text-white tracking-tight leading-tight drop-shadow-md select-text break-words">
               {artistName}
             </h1>
 
-            <p className="text-xs sm:text-sm font-medium text-white/80 mt-0.5">
+            <p className="text-xs sm:text-sm font-medium text-white/80">
               {monthlyListeners} &bull; {tracks.length} Lagu
             </p>
           </div>
         </div>
       ) : isFavorites ? (
         <div
-          className="w-full p-5 sm:p-7 flex flex-col justify-end relative overflow-hidden flex-shrink-0 border-b border-[#1E2025]"
+          className="w-full p-4 sm:p-7 flex flex-col justify-end relative overflow-hidden flex-shrink-0 border-b border-white/[0.06]"
           style={{
-            background: `linear-gradient(180deg, rgba(255, 75, 114, 0.25) 0%, #121212 100%)`,
+            background: `linear-gradient(180deg, rgba(255, 75, 114, 0.28) 0%, #121212 100%)`,
           }}
         >
-          <div className="flex flex-col sm:flex-row items-center sm:items-end gap-5 z-10">
-            <div className="w-28 h-28 sm:w-36 sm:h-36 rounded-lg shadow-xl overflow-hidden bg-[#0B0C0E] border border-white/10 flex-shrink-0">
+          <div className="flex flex-row items-center sm:items-end gap-4 sm:gap-5 z-10">
+            <div className="w-20 h-20 sm:w-36 sm:h-36 rounded-xl shadow-xl overflow-hidden bg-[#0B0C0E] border border-white/10 flex-shrink-0">
               <img
                 src={
                   customPlaylist?.coverUrl ||
@@ -208,14 +208,14 @@ export const AlbumShowcase: React.FC<AlbumShowcaseProps> = ({
               />
             </div>
 
-            <div className="flex flex-col gap-1.5 text-center sm:text-left min-w-0">
-              <span className="text-[11px] font-semibold uppercase tracking-wider text-[#FF4B72]">
+            <div className="flex flex-col gap-1 text-left min-w-0 flex-1">
+              <span className="text-[10px] sm:text-[11px] font-semibold uppercase tracking-wider text-[#FF4B72]">
                 Playlist Favorit
               </span>
-              <h1 className="text-2xl sm:text-4xl font-black text-white tracking-tight leading-tight truncate">
+              <h1 className="text-xl sm:text-4xl font-black text-white tracking-tight leading-tight truncate">
                 {customPlaylist?.name || 'KASONGS'}
               </h1>
-              <p className="text-xs text-[#A0A5AD]">
+              <p className="text-xs text-[#A0A5AD] truncate">
                 {customPlaylist?.description || 'Koleksi lagu tersimpan'} &bull;{' '}
                 <span className="text-white font-semibold">{tracks.length} lagu</span>
               </p>
@@ -224,13 +224,13 @@ export const AlbumShowcase: React.FC<AlbumShowcaseProps> = ({
         </div>
       ) : (
         <div
-          className="w-full p-5 sm:p-7 flex flex-col justify-end relative overflow-hidden flex-shrink-0 border-b border-[#1E2025]"
+          className="w-full p-4 sm:p-7 flex flex-col justify-end relative overflow-hidden flex-shrink-0 border-b border-white/[0.06]"
           style={{
-            background: `linear-gradient(180deg, rgba(${r}, ${g}, ${b}, 0.25) 0%, #121212 100%)`,
+            background: `linear-gradient(180deg, rgba(${r}, ${g}, ${b}, 0.28) 0%, #121212 100%)`,
           }}
         >
           {activeAlbum === 'friend' && friendStandbyInfo?.isStandby && (
-            <div className="mb-4 p-2.5 rounded-lg bg-[#0E1013]/80 border border-[#E89B5B]/40 flex items-center justify-between gap-3 z-20">
+            <div className="mb-3 p-2.5 rounded-lg bg-[#0E1013]/80 border border-[#E89B5B]/40 flex items-center justify-between gap-3 z-20">
               <div className="flex items-center gap-2.5 min-w-0">
                 <span className="w-2 h-2 rounded-full bg-[#E89B5B] flex-shrink-0" />
                 <p className="text-xs font-medium text-white truncate">
@@ -240,8 +240,8 @@ export const AlbumShowcase: React.FC<AlbumShowcaseProps> = ({
             </div>
           )}
 
-          <div className="flex flex-col sm:flex-row items-center sm:items-end gap-5 z-10">
-            <div className="w-28 h-28 sm:w-36 sm:h-36 rounded-lg shadow-xl overflow-hidden bg-[#0B0C0E] border border-[#282B32] flex-shrink-0">
+          <div className="flex flex-row items-center sm:items-end gap-4 sm:gap-5 z-10">
+            <div className="w-20 h-20 sm:w-36 sm:h-36 rounded-xl shadow-xl overflow-hidden bg-[#0B0C0E] border border-white/10 flex-shrink-0">
               <img
                 src={coverImage}
                 alt={albumTitle}
@@ -252,15 +252,15 @@ export const AlbumShowcase: React.FC<AlbumShowcaseProps> = ({
               />
             </div>
 
-            <div className="flex flex-col gap-1 min-w-0 text-center sm:text-left">
-              <span className="text-[11px] font-semibold uppercase tracking-wider text-[#BFE7EA]">
+            <div className="flex flex-col gap-1 min-w-0 flex-1 text-left">
+              <span className="text-[10px] sm:text-[11px] font-semibold uppercase tracking-wider text-[#BFE7EA]">
                 {isFriend ? 'Friend Live' : 'Album'}
               </span>
-              <h1 className="text-2xl sm:text-4xl font-black text-white tracking-tight leading-tight truncate">
+              <h1 className="text-xl sm:text-4xl font-black text-white tracking-tight leading-tight truncate">
                 {albumTitle}
               </h1>
-              <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2 text-xs text-[#A0A5AD]">
-                <span className="font-semibold text-white">{artistName}</span>
+              <div className="flex flex-wrap items-center gap-1.5 text-xs text-[#A0A5AD]">
+                <span className="font-semibold text-white truncate">{artistName}</span>
                 <span>&bull;</span>
                 <span>{releaseYear}</span>
                 <span>&bull;</span>
@@ -272,10 +272,10 @@ export const AlbumShowcase: React.FC<AlbumShowcaseProps> = ({
       )}
 
       {/* 2. Clean Action Bar */}
-      <div className="px-5 sm:px-7 py-3.5 flex items-center gap-4 z-20 flex-shrink-0 bg-[#121212]">
+      <div className="px-4 sm:px-7 py-3 sm:py-3.5 flex items-center gap-3.5 sm:gap-4 z-20 flex-shrink-0 bg-[#121212]">
         <button
           onClick={handleMasterPlayToggle}
-          className="w-12 h-12 rounded-full bg-[#1DB954] hover:bg-[#1ed760] hover:scale-105 active:scale-95 text-black flex items-center justify-center shadow-lg transition-all cursor-pointer flex-shrink-0"
+          className="w-11 h-11 sm:w-12 sm:h-12 rounded-full bg-[#1DB954] hover:bg-[#1ed760] hover:scale-105 active:scale-95 text-black flex items-center justify-center shadow-lg transition-all cursor-pointer flex-shrink-0"
           title={isStagePlaying ? 'Jeda Musik' : 'Putar Semua'}
         >
           {isStagePlaying ? (
@@ -323,8 +323,8 @@ export const AlbumShowcase: React.FC<AlbumShowcaseProps> = ({
       </div>
 
       {/* 3. Clean Tracklist Table */}
-      <div className="px-4 sm:px-7 pb-8 flex-1 flex flex-col bg-[#121212]">
-        <h2 className="text-lg font-bold text-white tracking-tight mb-2.5 px-2">
+      <div className="px-2.5 sm:px-7 pb-6 sm:pb-8 flex-1 flex flex-col bg-[#121212]">
+        <h2 className="text-base sm:text-lg font-bold text-white tracking-tight mb-2 px-2">
           {isArtistView ? 'Populer' : 'Daftar Lagu'}
         </h2>
 
@@ -360,13 +360,13 @@ export const AlbumShowcase: React.FC<AlbumShowcaseProps> = ({
                       onSelectTrack(t);
                     }
                   }}
-                  className={`grid grid-cols-[28px_1fr_auto] md:grid-cols-[32px_5fr_3fr_36px_auto] gap-3 sm:gap-4 px-3 py-2 rounded-lg text-sm items-center cursor-pointer transition-colors group ${
+                  className={`grid grid-cols-[24px_1fr_auto_auto] md:grid-cols-[32px_5fr_3fr_36px_auto] gap-2.5 sm:gap-4 px-2 sm:px-3 py-2 rounded-lg text-sm items-center cursor-pointer transition-colors group ${
                     isActive
                       ? 'bg-[#2A2A2A]/75 text-[#1DB954]'
                       : 'hover:bg-[#2A2A2A]/35 text-[#B3B3B3]'
                   }`}
                 >
-                  <div className="w-7 h-7 flex items-center justify-center flex-shrink-0">
+                  <div className="w-6 sm:w-7 h-7 flex items-center justify-center flex-shrink-0">
                     {isActive ? (
                       isPlaying ? (
                         isHovered ? (
@@ -423,7 +423,7 @@ export const AlbumShowcase: React.FC<AlbumShowcaseProps> = ({
                       className={`p-1.5 rounded-full transition-colors ${
                         isLiked
                           ? 'text-[#FF4B72]'
-                          : 'text-[#656A74] opacity-0 group-hover:opacity-100 hover:text-white'
+                          : 'text-[#656A74] md:opacity-0 md:group-hover:opacity-100 hover:text-white'
                       }`}
                       title={isLiked ? 'Hapus dari favorit' : 'Simpan ke favorit'}
                     >

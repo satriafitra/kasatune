@@ -403,14 +403,16 @@ export const DiscordServerRail: React.FC<DiscordServerRailProps> = ({
         </div>
       </nav>
 
-      {/* Add Album Modal */}
-      <AddAlbumModal
-        isOpen={isAddModalOpen}
-        onClose={() => setIsAddModalOpen(false)}
-        pinnedServers={pinnedServers}
-        onTogglePin={handleTogglePin}
-        onSelectAndPin={handleSelectAndPin}
-      />
+      {/* Add Album Modal (Only rendered internally if parent does not control it externally) */}
+      {isAddModalOpenExternal === undefined && (
+        <AddAlbumModal
+          isOpen={isAddModalOpen}
+          onClose={() => setIsAddModalOpen(false)}
+          pinnedServers={pinnedServers}
+          onTogglePin={handleTogglePin}
+          onSelectAndPin={handleSelectAndPin}
+        />
+      )}
     </>
   );
 };

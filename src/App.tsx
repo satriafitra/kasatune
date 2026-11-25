@@ -9,7 +9,7 @@
  */
 
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import { Plus, Heart, Radio, X } from 'lucide-react';
+import { Plus, Heart, Radio, X, Disc3, Mic2, Library } from 'lucide-react';
 import { Navbar } from './components/Navbar';
 import { DiscordServerRail, type AlbumFilterType } from './components/DiscordServerRail';
 import { matchesAlbumFilter } from './components/TrackListSidebar';
@@ -26,7 +26,7 @@ import { useCustomPlaylist } from './hooks/useCustomPlaylist';
 import { EditPlaylistModal } from './components/EditPlaylistModal';
 import type { BackendRadioheadTrack } from './api/backend';
 import { searchLiveMusic, fetchAlbumTracks, fetchArtistTracks, buildStreamUrl, searchLiveArtists, isValidImageUrl, isSameTrack } from './api/liveSearch';
-import { CATALOG_ALBUMS, type PinnedServerItem } from './components/AddAlbumModal';
+import { AddAlbumModal, CATALOG_ALBUMS, type PinnedServerItem } from './components/AddAlbumModal';
 
 function resolvePlayableUrl(track: BackendRadioheadTrack): string {
   const url = (track.previewUrl || '').trim();
@@ -1107,7 +1107,7 @@ export const App: React.FC = () => {
     : (activeTrack.durationMs > 0 ? activeTrack.durationMs : (audioDurationSec > 0 ? audioDurationSec * 1000 : 238000));
 
   return (
-    <div className="h-screen w-full bg-[#0B0C0E] text-white flex flex-col overflow-hidden font-sans select-none">
+    <div className="h-[100dvh] w-full bg-[#0B0C0E] text-white flex flex-col overflow-hidden font-sans select-none">
       {/* 1. Discord x Spotify Top Navigation Header with Search Dropdown */}
       <Navbar
         isBackendOnline={isBackendOnline}
@@ -1173,99 +1173,138 @@ export const App: React.FC = () => {
           />
         </div>
 
-        {/* Mobile Collections Drawer (Visible only on < md when 'sidebar' tab selected) */}
+        {/* Mobile Collections View (Dedicated clean mobile Koleksi tab) */}
         {mobileView === 'sidebar' && (
-          <div className="flex-1 md:hidden h-full overflow-y-auto bg-[#111215] p-4 space-y-4">
-            <div className="flex items-center justify-between">
-              <h2 className="text-base font-bold text-white">Koleksi Artis</h2>
+          <div className="flex-1 md:hidden h-full overflow-y-auto overflow-x-hidden bg-[#0E1014] px-4 py-4 space-y-5 custom-scrollbar">
+            <div className="flex items-center justify-between gap-2">
+              <div>
+                <h2 className="text-lg font-bold text-white tracking-tight">Koleksi</h2>
+                <p className="text-xs text-[#8C929C]">Artis tersimpan &amp; playlist kamu</p>
+              </div>
               <button
                 onClick={() => setIsAddArtistModalOpen(true)}
-                className="px-3 py-1.5 rounded-full bg-[#1DB954] text-black text-xs font-bold flex items-center gap-1"
+                className="h-8 px-3.5 rounded-full bg-white text-black text-xs font-semibold flex items-center gap-1.5 active:scale-95 transition-transform flex-shrink-0"
               >
-                <Plus className="w-3.5 h-3.5" />
+                <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
                 <span>Tambah Artis</span>
               </button>
             </div>
 
-            <div className="space-y-2">
+            {/* Quick Shortcut Cards: Favorit & Live Sync */}
+            <div className="grid grid-cols-2 gap-2.5">
               <div
                 onClick={() => {
                   handleSelectAlbum('favorites');
                   setMobileView('player');
                 }}
-                className={`p-3 rounded-xl border flex items-center gap-3 cursor-pointer ${
+                className={`p-3 rounded-xl border flex items-center gap-2.5 cursor-pointer active:scale-[0.98] transition-all ${
                   activeAlbum === 'favorites'
-                    ? 'bg-[#1C1E22] border-[#FF4B72]/50'
-                    : 'bg-[#141619] border-[#282B32]'
+                    ? 'bg-[#1B1D24] border-[#FF4B72]/50'
+                    : 'bg-[#15171C] border-white/[0.06]'
                 }`}
               >
-                <div className="w-11 h-11 rounded-lg bg-[#FF4B72]/20 flex items-center justify-center flex-shrink-0">
-                  <Heart className="w-5 h-5 text-[#FF4B72] fill-[#FF4B72]" />
+                <div className="w-10 h-10 rounded-lg bg-[#FF4B72]/15 flex items-center justify-center flex-shrink-0">
+                  <Heart className="w-4 h-4 text-[#FF4B72] fill-[#FF4B72]" />
                 </div>
                 <div className="min-w-0 flex-1">
-                  <p className="text-sm font-bold text-white truncate">{customPlaylist.name || 'Playlist Favorit Saya'}</p>
-                  <p className="text-xs text-[#8C929C]">{likedTrackIds.length} lagu</p>
+                  <p className="text-xs font-semibold text-white truncate">
+                    {!customPlaylist.name || customPlaylist.name === 'Lagu Favorit Saya'
+                      ? 'Favorit'
+                      : customPlaylist.name}
+                  </p>
+                  <p className="text-[11px] text-[#8C929C]">{likedTrackIds.length} lagu</p>
                 </div>
               </div>
-
-              {pinnedServers.map((srv) => (
-                <div
-                  key={srv.id}
-                  onClick={() => {
-                    handleSelectAlbum(srv.id, srv);
-                    setMobileView('player');
-                  }}
-                  className={`p-3 rounded-xl border flex items-center justify-between gap-3 cursor-pointer ${
-                    activeAlbum === srv.id
-                      ? 'bg-[#1C1E22] border-[#1DB954]/50'
-                      : 'bg-[#141619] border-[#282B32]'
-                  }`}
-                >
-                  <div className="flex items-center gap-3 min-w-0">
-                    <img
-                      src={srv.imageUrl}
-                      alt={srv.name}
-                      className="w-11 h-11 rounded-full object-cover bg-[#0B0C0E] flex-shrink-0"
-                    />
-                    <div className="min-w-0">
-                      <p className="text-sm font-bold text-white truncate">{srv.name}</p>
-                      <p className="text-xs text-[#8C929C]">Artis</p>
-                    </div>
-                  </div>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleTogglePinServer(srv);
-                    }}
-                    className="p-1.5 text-[#656A74] hover:text-rose-400"
-                    title="Hapus artis"
-                  >
-                    <X className="w-4 h-4" />
-                  </button>
-                </div>
-              ))}
 
               <div
                 onClick={() => {
                   handleSelectAlbum('friend');
                   setMobileView('player');
                 }}
-                className={`p-3 rounded-xl border flex items-center gap-3 cursor-pointer ${
+                className={`p-3 rounded-xl border flex items-center gap-2.5 cursor-pointer active:scale-[0.98] transition-all ${
                   activeAlbum === 'friend'
-                    ? 'bg-[#1C1E22] border-[#1DB954]/50'
-                    : 'bg-[#141619] border-[#282B32]'
+                    ? 'bg-[#1B1D24] border-[#1DB954]/50'
+                    : 'bg-[#15171C] border-white/[0.06]'
                 }`}
               >
-                <div className="w-11 h-11 rounded-full bg-[#1DB954]/15 flex items-center justify-center flex-shrink-0">
-                  <Radio className="w-5 h-5 text-[#1DB954]" />
+                <div className="w-10 h-10 rounded-lg bg-[#1DB954]/15 flex items-center justify-center flex-shrink-0">
+                  <Radio className="w-4 h-4 text-[#1DB954]" />
                 </div>
                 <div className="min-w-0 flex-1">
-                  <p className="text-sm font-bold text-white">Live Sync Teman</p>
-                  <p className="text-xs text-[#8C929C]">
+                  <p className="text-xs font-semibold text-white truncate">Live Sync</p>
+                  <p className="text-[11px] text-[#8C929C] truncate">
                     {isFriendSyncConnected ? 'Terhubung' : 'Mode Mandiri'}
                   </p>
                 </div>
               </div>
+            </div>
+
+            {/* Pinned Artists Section */}
+            <div className="space-y-2">
+              <p className="text-[11px] font-semibold uppercase tracking-wider text-[#7A8089] px-0.5">
+                Artis Tersimpan ({pinnedServers.length})
+              </p>
+
+              {pinnedServers.length === 0 ? (
+                <div className="p-6 rounded-xl bg-[#15171C] border border-white/[0.06] text-center space-y-2.5">
+                  <p className="text-xs text-[#949BA4]">Belum ada artis yang disematkan.</p>
+                  <button
+                    onClick={() => setIsAddArtistModalOpen(true)}
+                    className="h-8 px-4 rounded-full border border-white/15 text-xs font-medium text-white active:bg-white/10"
+                  >
+                    Cari Artis Sekarang
+                  </button>
+                </div>
+              ) : (
+                <div className="space-y-1.5">
+                  {pinnedServers.map((srv) => (
+                    <div
+                      key={srv.id}
+                      onClick={() => {
+                        handleSelectAlbum(srv.id, srv);
+                        setMobileView('player');
+                      }}
+                      className={`px-3 py-2.5 rounded-xl border flex items-center justify-between gap-3 cursor-pointer active:scale-[0.99] transition-all ${
+                        activeAlbum === srv.id
+                          ? 'bg-[#1B1E24] border-[#1DB954]/45'
+                          : 'bg-[#15171C] border-white/[0.06]'
+                      }`}
+                    >
+                      <div className="flex items-center gap-3 min-w-0 flex-1">
+                        <div className="w-11 h-11 rounded-full overflow-hidden bg-[#1D2027] flex-shrink-0 relative flex items-center justify-center">
+                          <span className="text-xs font-bold text-white/75 uppercase select-none">
+                            {srv.name.replace(/[^a-zA-Z0-9]/g, '').slice(0, 3) || '♪'}
+                          </span>
+                          {isValidImageUrl(srv.imageUrl) && (
+                            <img
+                              src={srv.imageUrl}
+                              alt={srv.name}
+                              className="w-full h-full object-cover absolute inset-0"
+                              onError={(e) => {
+                                (e.currentTarget as HTMLElement).style.display = 'none';
+                              }}
+                            />
+                          )}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm font-semibold text-white truncate">{srv.name}</p>
+                          <p className="text-xs text-[#8C929C]">Artis</p>
+                        </div>
+                      </div>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleTogglePinServer(srv);
+                        }}
+                        className="p-2 rounded-full text-[#7A8089] active:text-rose-400 active:bg-white/5 flex-shrink-0"
+                        aria-label="Hapus artis"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -1375,7 +1414,63 @@ export const App: React.FC = () => {
         onToggleLike={() => toggleLike(activeTrack)}
       />
 
-      {/* 4. Edit Custom Playlist Modal */}
+      {/* 3.5 Dedicated Mobile Bottom Navigation Bar (Clean native app tabs, hidden on desktop) */}
+      <nav className="md:hidden w-full bg-[#0B0C0E]/95 backdrop-blur-xl border-t border-white/[0.08] px-4 pt-1.5 pb-[max(0.45rem,env(safe-area-inset-bottom))] grid grid-cols-3 gap-1 flex-shrink-0 z-40">
+        <button
+          onClick={() => setMobileView('player')}
+          className={`flex flex-col items-center justify-center gap-0.5 py-1 rounded-lg transition-colors ${
+            mobileView === 'player' ? 'text-white' : 'text-[#7A8089]'
+          }`}
+        >
+          <Disc3 className={`w-5 h-5 ${mobileView === 'player' ? 'text-[#1DB954]' : ''}`} />
+          <span className="text-[10px] font-semibold">Lagu</span>
+        </button>
+
+        <button
+          onClick={() => setMobileView('lyrics')}
+          className={`flex flex-col items-center justify-center gap-0.5 py-1 rounded-lg transition-colors ${
+            mobileView === 'lyrics' ? 'text-white' : 'text-[#7A8089]'
+          }`}
+        >
+          <Mic2 className={`w-5 h-5 ${mobileView === 'lyrics' ? 'text-[#1DB954]' : ''}`} />
+          <span className="text-[10px] font-semibold">Lirik</span>
+        </button>
+
+        <button
+          onClick={() => setMobileView('sidebar')}
+          className={`flex flex-col items-center justify-center gap-0.5 py-1 rounded-lg transition-colors ${
+            mobileView === 'sidebar' ? 'text-white' : 'text-[#7A8089]'
+          }`}
+        >
+          <Library className={`w-5 h-5 ${mobileView === 'sidebar' ? 'text-[#1DB954]' : ''}`} />
+          <span className="text-[10px] font-semibold">Koleksi</span>
+        </button>
+      </nav>
+
+      {/* 4. Root-level Add Artist Modal (Works identically on both Mobile & Desktop) */}
+      <AddAlbumModal
+        isOpen={isAddArtistModalOpen}
+        onClose={() => setIsAddArtistModalOpen(false)}
+        pinnedServers={pinnedServers}
+        onTogglePin={handleTogglePinServer}
+        onSelectAndPin={(srv) => {
+          setPinnedServers((prev) => {
+            if (!prev.some((s) => s.id === srv.id)) {
+              const next = [...prev, srv];
+              try {
+                localStorage.setItem('kasatune_pinned_artists_v4', JSON.stringify(next));
+              } catch {}
+              return next;
+            }
+            return prev;
+          });
+          handleSelectAlbum(srv.id as AlbumFilterType, srv);
+          setMobileView('player');
+          setIsAddArtistModalOpen(false);
+        }}
+      />
+
+      {/* 5. Edit Custom Playlist Modal */}
       <EditPlaylistModal
         isOpen={isEditPlaylistModalOpen}
         onClose={() => setIsEditPlaylistModalOpen(false)}

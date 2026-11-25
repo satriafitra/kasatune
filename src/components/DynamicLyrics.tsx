@@ -64,11 +64,16 @@ export const DynamicLyrics: React.FC<DynamicLyricsProps> = ({
   const isIntro = lyrics.length > 0 && activeIndex === -1 && lyrics[0].timeMs > 2500;
 
   return (
-    <div className="w-full h-full bg-[#121212] rounded-xl border border-[#1E2025] flex flex-col overflow-hidden select-none relative">
+    <div
+      className="w-full h-full bg-[#121212] rounded-xl border border-[#1E2025] flex flex-col overflow-hidden select-none relative"
+      style={{
+        backgroundImage: `radial-gradient(ellipse at 50% 0%, rgba(${r}, ${g}, ${b}, 0.24) 0%, transparent 58%)`,
+      }}
+    >
       {/* Clean Minimal Lyrics Header */}
-      <div className="h-12 px-5 flex items-center justify-between border-b border-[#1E2025] z-20 flex-shrink-0 bg-[#141619]/60">
+      <div className="h-11 sm:h-12 px-4 sm:px-5 flex items-center justify-between border-b border-white/[0.06] z-20 flex-shrink-0 bg-black/20 backdrop-blur-md">
         <div className="flex items-center gap-2 min-w-0">
-          <span className="font-bold text-sm text-white tracking-tight">
+          <span className="font-bold text-sm text-white tracking-tight flex-shrink-0">
             Lirik
           </span>
           <span className="text-xs text-[#949BA4] truncate">
@@ -79,10 +84,10 @@ export const DynamicLyrics: React.FC<DynamicLyricsProps> = ({
         {lyrics.length > 0 && (
           <button
             onClick={() => setAutoScroll(!autoScroll)}
-            className={`px-2.5 py-1 rounded-full text-[11px] font-medium flex items-center gap-1.5 transition-colors border ${
+            className={`px-2.5 py-1 rounded-full text-[11px] font-medium flex items-center gap-1.5 transition-colors border flex-shrink-0 ${
               autoScroll
-                ? 'bg-[#1C1E22] text-[#BFE7EA] border-[#282B32]'
-                : 'bg-transparent text-[#656A74] border-transparent hover:bg-[#1C1E22] hover:text-white'
+                ? 'bg-white/10 text-white border-white/15'
+                : 'bg-transparent text-[#656A74] border-transparent hover:bg-white/10 hover:text-white'
             }`}
           >
             <Compass className="w-3 h-3" />
@@ -94,10 +99,10 @@ export const DynamicLyrics: React.FC<DynamicLyricsProps> = ({
       {/* Main Lyrics Viewport with Top & Bottom Fade Mask */}
       <div
         ref={containerRef}
-        className="flex-1 overflow-y-auto px-6 sm:px-8 py-16 space-y-6 scroll-smooth relative custom-scrollbar"
+        className="flex-1 overflow-y-auto overflow-x-hidden px-5 sm:px-8 py-10 sm:py-16 space-y-5 sm:space-y-6 scroll-smooth relative custom-scrollbar"
         style={{
-          maskImage: 'linear-gradient(to bottom, transparent 0%, black 8%, black 92%, transparent 100%)',
-          WebkitMaskImage: 'linear-gradient(to bottom, transparent 0%, black 8%, black 92%, transparent 100%)',
+          maskImage: 'linear-gradient(to bottom, transparent 0%, black 7%, black 93%, transparent 100%)',
+          WebkitMaskImage: 'linear-gradient(to bottom, transparent 0%, black 7%, black 93%, transparent 100%)',
         }}
       >
         {isLoading && lyrics.length > 0 && (
@@ -139,12 +144,12 @@ export const DynamicLyrics: React.FC<DynamicLyricsProps> = ({
                   }`}
                 >
                   <p
-                    className={`leading-snug transition-colors duration-150 ${
+                    className={`leading-snug transition-colors duration-150 break-words max-w-full ${
                       isActive
-                        ? 'text-white font-bold text-2xl sm:text-3xl'
+                        ? 'text-white font-bold text-xl sm:text-3xl'
                         : isPast
-                        ? 'text-[#4E5058] font-medium text-lg sm:text-xl hover:text-[#949BA4]'
-                        : 'text-[#949BA4] font-medium text-lg sm:text-xl hover:text-white'
+                        ? 'text-[#555861] font-medium text-base sm:text-xl hover:text-[#949BA4]'
+                        : 'text-[#9BA1AB] font-medium text-base sm:text-xl hover:text-white'
                     }`}
                   >
                     {isMusicalBreak ? (

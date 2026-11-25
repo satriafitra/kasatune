@@ -172,57 +172,43 @@ export const Navbar: React.FC<NavbarProps> = ({
   const currentRedirectUri = window.location.origin + window.location.pathname;
 
   return (
-    <header className="h-14 w-full bg-[#0B0C0E] border-b border-[#1E2025] px-3 sm:px-5 flex items-center justify-between gap-3 select-none z-30">
+    <header className="h-[52px] sm:h-14 w-full bg-[#0B0C0E] border-b border-white/[0.06] px-3.5 sm:px-5 flex items-center justify-between gap-3 select-none z-30 flex-shrink-0">
       {/* Left: Clean Kasatune Brand */}
       <div className="flex items-center gap-2.5 flex-shrink-0 cursor-pointer">
-        <KasatuneLogoIcon size={28} />
-        <span className="font-bold text-sm text-white tracking-tight">
+        <KasatuneLogoIcon size={26} />
+        <span className="font-bold text-[15px] sm:text-sm text-white tracking-tight">
           Kasatune
         </span>
       </div>
 
-      {/* Mobile View Switcher & Search Button (Visible on < md) */}
-      <div className="flex md:hidden items-center gap-1.5">
-        <div className="flex items-center p-0.5 rounded-lg bg-[#141619] border border-[#282B32] text-xs">
-          <button
-            onClick={() => onSelectMobileView('player')}
-            className={`px-2.5 py-1 rounded-md font-semibold text-xs transition-colors ${
-              mobileView === 'player' ? 'bg-[#282B32] text-white shadow-sm' : 'text-[#949BA4]'
-            }`}
-          >
-            Lagu
-          </button>
-          <button
-            onClick={() => onSelectMobileView('lyrics')}
-            className={`px-2.5 py-1 rounded-md font-semibold text-xs transition-colors ${
-              mobileView === 'lyrics' ? 'bg-[#282B32] text-white shadow-sm' : 'text-[#949BA4]'
-            }`}
-          >
-            Lirik
-          </button>
-          <button
-            onClick={() => onSelectMobileView('sidebar')}
-            className={`px-2.5 py-1 rounded-md font-semibold text-xs transition-colors ${
-              mobileView === 'sidebar' ? 'bg-[#282B32] text-white shadow-sm' : 'text-[#949BA4]'
-            }`}
-          >
-            Koleksi
-          </button>
-        </div>
-
+      {/* Mobile Right Controls: Clean Search & Settings ONLY (Navigation lives in native Bottom Tab Bar) */}
+      <div className="flex md:hidden items-center gap-2">
         <button
           onClick={() => {
             setIsMobileSearchOpen((prev) => !prev);
             setTimeout(() => mobileInputRef.current?.focus(), 100);
           }}
-          className={`p-1.5 rounded-lg border transition-colors ${
+          className={`w-9 h-9 rounded-full border flex items-center justify-center transition-colors ${
             isMobileSearchOpen
-              ? 'bg-[#1C1E22] text-[#BFE7EA] border-[#BFE7EA]'
-              : 'bg-[#141619] text-[#949BA4] border-[#282B32] hover:text-white'
+              ? 'bg-white/10 text-white border-white/25'
+              : 'bg-[#141619] text-[#A0A5AD] border-white/[0.08] active:bg-white/10'
           }`}
-          title="Buka Pencarian"
+          aria-label="Cari lagu"
         >
-          <Search className="w-4 h-4" />
+          {isMobileSearchOpen ? <X className="w-4 h-4" /> : <Search className="w-4 h-4" />}
+        </button>
+
+        <button
+          onClick={() => setIsSettingsOpen(true)}
+          className="w-9 h-9 rounded-full bg-[#141619] active:bg-white/10 border border-white/[0.08] flex items-center justify-center text-[#A0A5AD] relative"
+          aria-label="Pengaturan"
+        >
+          <Settings className="w-4 h-4" />
+          <span
+            className={`absolute top-2 right-2 w-1.5 h-1.5 rounded-full ${
+              isBackendOnline ? 'bg-[#1DB954]' : 'bg-[#FEE75C]'
+            }`}
+          />
         </button>
       </div>
 
@@ -483,94 +469,87 @@ export const Navbar: React.FC<NavbarProps> = ({
       {isMobileSearchOpen && (
         <div
           ref={mobileSearchRef}
-          className="md:hidden fixed top-14 left-0 right-0 bg-[#0A0C0E]/95 backdrop-blur-2xl border-b border-[#383C45] p-3 z-50 shadow-[0_20px_50px_rgba(0,0,0,0.9)] animate-in slide-in-from-top-2 duration-150"
+          className="md:hidden fixed top-[52px] left-0 right-0 bg-[#101216]/98 backdrop-blur-2xl border-b border-white/10 p-3.5 z-50 shadow-[0_24px_60px_rgba(0,0,0,0.92)] animate-in slide-in-from-top-2 duration-150"
         >
-            <div className="relative flex items-center">
-              <Search className="w-4 h-4 absolute left-3 text-[#949BA4]" />
-              <input
-                ref={mobileInputRef}
-                type="text"
-                value={searchQuery}
-                onChange={(e) => onSearchChange(e.target.value)}
-                placeholder="Cari lagu, artis, atau album..."
-                className="w-full h-9 pl-9 pr-8 rounded-lg bg-[#141619] border border-[#383C45] text-xs text-white placeholder-[#656A74] focus:outline-none focus:border-[#BFE7EA]"
-              />
-              {searchQuery && (
-                <button
-                  onClick={() => onSearchChange('')}
-                  className="absolute right-2.5 text-[#949BA4] hover:text-white p-1"
-                >
-                  <X className="w-3.5 h-3.5" />
-                </button>
-              )}
-            </div>
-
-            {searchQuery.trim().length >= 1 && (
-              <div className="mt-2 bg-[#0E1013] border border-[#383C45] rounded-xl overflow-hidden max-h-[320px] overflow-y-auto custom-scrollbar p-1.5 space-y-1 shadow-2xl">
-                {/* Local Matches */}
-                {localMatches.map((t) => (
-                  <div
-                    key={t.id}
-                    onClick={() => handleSelectSong(t)}
-                    className="flex items-center justify-between gap-2.5 p-2 rounded-lg bg-[#141619] hover:bg-[#1C1E22] text-white cursor-pointer border border-[#23262E]"
-                  >
-                    <div className="flex items-center gap-2 min-w-0">
-                      <img
-                        src={t.coverUrl}
-                        alt=""
-                        className="w-8 h-8 rounded object-cover flex-shrink-0"
-                      />
-                      <div className="min-w-0">
-                        <p className="text-xs font-bold truncate leading-tight">{t.title}</p>
-                        <p className="text-[10px] text-[#A0A5AD] truncate">{t.artist}</p>
-                      </div>
-                    </div>
-                    <span className="text-[10px] font-mono text-[#8C929C] flex-shrink-0">
-                      {formatDuration(t.durationMs)}
-                    </span>
-                  </div>
-                ))}
-
-                {/* Online Matches */}
-                {deduplicatedLiveMatches.map((t) => (
-                  <div
-                    key={t.id}
-                    onClick={() => handleSelectSong(t)}
-                    className="flex items-center justify-between gap-2.5 p-2 rounded-lg bg-[#141619] hover:bg-[#1C1E22] text-white cursor-pointer border border-[#23262E]"
-                  >
-                    <div className="flex items-center gap-2 min-w-0">
-                      <img
-                        src={t.coverUrl}
-                        alt=""
-                        className="w-8 h-8 rounded object-cover flex-shrink-0"
-                      />
-                      <div className="min-w-0">
-                        <div className="flex items-center gap-1">
-                          <p className="text-xs font-bold truncate leading-tight">{t.title}</p>
-                          <span className="text-[8px] font-mono px-1 py-0.2 rounded bg-[#1DB954]/20 text-[#1DB954] flex-shrink-0">
-                            LIVE
-                          </span>
-                        </div>
-                        <p className="text-[10px] text-[#A0A5AD] truncate">{t.artist}</p>
-                      </div>
-                    </div>
-                    <span className="text-[10px] font-mono text-[#8C929C] flex-shrink-0">
-                      {formatDuration(t.durationMs)}
-                    </span>
-                  </div>
-                ))}
-
-                {totalMatches === 0 && (
-                  <div className="py-6 text-center text-xs text-[#71757E]">
-                    {isLoadingLive ? 'Mencari online...' : 'Tidak ada lagu ditemukan.'}
-                  </div>
-                )}
-              </div>
+          <div className="relative flex items-center">
+            <Search className="w-4 h-4 absolute left-3 text-[#7A8089] pointer-events-none" />
+            <input
+              ref={mobileInputRef}
+              type="text"
+              value={searchQuery}
+              onChange={(e) => onSearchChange(e.target.value)}
+              placeholder="Cari judul lagu atau artis..."
+              className="w-full h-10 pl-9 pr-9 rounded-xl bg-[#191B20] border border-white/10 text-sm text-white placeholder-[#6B717B] focus:outline-none focus:border-white/25"
+            />
+            {searchQuery && (
+              <button
+                onClick={() => onSearchChange('')}
+                className="absolute right-2.5 text-[#949BA4] hover:text-white p-1"
+              >
+                <X className="w-4 h-4" />
+              </button>
             )}
           </div>
+
+          {searchQuery.trim().length >= 1 && (
+            <div className="mt-2.5 bg-[#121418] border border-white/[0.08] rounded-xl overflow-hidden max-h-[55dvh] overflow-y-auto custom-scrollbar p-1.5 space-y-1 shadow-2xl">
+              {localMatches.map((t) => (
+                <div
+                  key={t.id}
+                  onClick={() => handleSelectSong(t)}
+                  className="flex items-center justify-between gap-2.5 p-2 rounded-lg active:bg-white/[0.08] text-white cursor-pointer"
+                >
+                  <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                    <img
+                      src={t.coverUrl}
+                      alt=""
+                      className="w-10 h-10 rounded-md object-cover flex-shrink-0 bg-[#181A1F]"
+                    />
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xs font-semibold truncate leading-tight">{t.title}</p>
+                      <p className="text-[11px] text-[#949BA4] truncate mt-0.5">{t.artist}</p>
+                    </div>
+                  </div>
+                  <span className="text-[11px] font-mono text-[#7A8089] flex-shrink-0">
+                    {formatDuration(t.durationMs)}
+                  </span>
+                </div>
+              ))}
+
+              {deduplicatedLiveMatches.map((t) => (
+                <div
+                  key={t.id}
+                  onClick={() => handleSelectSong(t)}
+                  className="flex items-center justify-between gap-2.5 p-2 rounded-lg active:bg-white/[0.08] text-white cursor-pointer"
+                >
+                  <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                    <img
+                      src={t.coverUrl}
+                      alt=""
+                      className="w-10 h-10 rounded-md object-cover flex-shrink-0 bg-[#181A1F]"
+                    />
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xs font-semibold truncate leading-tight">{t.title}</p>
+                      <p className="text-[11px] text-[#949BA4] truncate mt-0.5">{t.artist}</p>
+                    </div>
+                  </div>
+                  <span className="text-[11px] font-mono text-[#7A8089] flex-shrink-0">
+                    {formatDuration(t.durationMs)}
+                  </span>
+                </div>
+              ))}
+
+              {totalMatches === 0 && (
+                <div className="py-6 text-center text-xs text-[#7A8089]">
+                  {isLoadingLive ? 'Mencari...' : 'Tidak ada lagu ditemukan.'}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
       )}
 
-      {/* Right Controls: Simplified Friend Sync & Settings */}
+      {/* Right Controls: Simplified Friend Sync & Settings (Desktop only) */}
       <div className="hidden md:flex items-center gap-2">
         <button
           onClick={onConnectFriendSpotify}
@@ -607,22 +586,6 @@ export const Navbar: React.FC<NavbarProps> = ({
             <Settings className="w-4 h-4" />
           </button>
         )}
-      </div>
-
-      {/* Mobile Right: Single Sleek Status & Settings Icon Button */}
-      <div className="flex md:hidden items-center flex-shrink-0">
-        <button
-          onClick={() => setIsSettingsOpen(true)}
-          className="w-8 h-8 rounded-lg bg-[#141619] hover:bg-[#1C1E22] border border-[#282B32] flex items-center justify-center text-[#A0A5AD] hover:text-white transition-colors relative"
-          title="Kasatune Settings & Connection"
-        >
-          <Settings className="w-4 h-4" />
-          <span
-            className={`absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full ${
-              isBackendOnline ? 'bg-[#23A55A]' : 'bg-[#FEE75C]'
-            }`}
-          />
-        </button>
       </div>
 
       {/* Settings Modal (Deep Obsidian Style) */}
