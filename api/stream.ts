@@ -3,6 +3,8 @@ import { parseScript } from 'meriyah';
 import vm from 'node:vm';
 import { Readable } from 'stream';
 
+const ANDROID_USER_AGENT =
+  'com.google.android.youtube/20.10.38 (Linux; U; Android 11) gzip';
 const IOS_USER_AGENT =
   'com.google.ios.youtube/20.10.4 (iPhone16,2; U; CPU iOS 18_3_2 like Mac OS X;)';
 const WEB_USER_AGENT =
@@ -10,12 +12,13 @@ const WEB_USER_AGENT =
 const EMBED_HOST = 'https://www.reddit.com/';
 
 // Vercel Serverless Functions have a 4.5MB buffered limit; bounded Range chunks stream cleanly & never overflow
-const DEFAULT_MAX_CHUNK_BYTES = 1572864; // 1.5MB for VisionOS / WebEmbedded
-const IOS_MAX_CHUNK_BYTES = 524288; // 512KB cap required by YouTube iOS CDN endpoints
+const DEFAULT_MAX_CHUNK_BYTES = 1572864; // 1.5MB for VisionOS / Archive / SoundCloud Buffer
+const MOBILE_MAX_CHUNK_BYTES = 524288; // 512KB cap required by YouTube Android/iOS CDN endpoints
 
-// In-memory cache for resolved format URLs to make Range scrubbing & repeated plays instant
+// In-memory cache for resolved format URLs / assembled buffers to make Range scrubbing & repeated plays instant
 interface CachedFormat {
-  url: string;
+  url?: string;
+  buffer?: Buffer;
   mimeType: string;
   contentLength?: string;
   userAgent?: string;
@@ -23,6 +26,267 @@ interface CachedFormat {
   expires: number;
 }
 const urlCache = new Map<string, CachedFormat>();
+
+let cachedScClientId: { id: string; expires: number } | null = null;
+async function getSoundCloudClientId(): Promise<string | null> {
+  const now = Date.now();
+  if (cachedScClientId && cachedScClientId.expires > now) {
+    return cachedScClientId.id;
+  }
+  try {
+    const scPage = await fetch('https://soundcloud.com', {
+      headers: { 'User-Agent': WEB_USER_AGENT },
+    }).then((r) => r.text());
+    const scripts = [
+      ...scPage.matchAll(/https:\/\/a-v2\.sndcdn\.com\/assets\/[^"']+\.js/g),
+    ].map((m) => m[0]);
+    for (const sUrl of scripts.slice(-6)) {
+      const js = await fetch(sUrl).then((r) => r.text());
+      const m = js.match(/client_id:"([a-zA-Z0-9]{20,40})"/);
+      if (m) {
+        cachedScClientId = { id: m[1], expires: now + 60 * 60 * 1000 };
+        return m[1];
+      }
+    }
+  } catch {}
+  return null;
+}
+
+async function resolveViaAndroidInnerTube(videoId: string): Promise<Omit<CachedFormat, 'expires'> | null> {
+  try {
+    const visitorData = await fetchVisitorData();
+    const res = await fetch('https://www.youtube.com/youtubei/v1/player?prettyPrint=false', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'User-Agent': ANDROID_USER_AGENT,
+      },
+      body: JSON.stringify({
+        videoId,
+        context: {
+          client: {
+            clientName: 'ANDROID',
+            clientVersion: '20.10.38',
+            androidSdkVersion: 30,
+            visitorData,
+            hl: 'en',
+            gl: 'US',
+          },
+        },
+        contentCheckOk: true,
+        racyCheckOk: true,
+      }),
+    });
+
+    if (!res.ok) return null;
+    const data: any = await res.json();
+    if (data?.playabilityStatus?.status !== 'OK') return null;
+
+    const adaptive: any[] = data?.streamingData?.adaptiveFormats || [];
+    const audioOnly = adaptive.filter((f) => f.mimeType?.startsWith('audio/') && f.url);
+    const mp4Audio = audioOnly
+      .filter((f) => f.mimeType.includes('audio/mp4'))
+      .sort((a, b) => (b.bitrate || 0) - (a.bitrate || 0));
+    const picked = mp4Audio[0] || audioOnly.sort((a, b) => (b.bitrate || 0) - (a.bitrate || 0))[0];
+
+    if (!picked?.url) return null;
+    return {
+      url: picked.url,
+      mimeType: picked.mimeType || 'audio/mp4; codecs="mp4a.40.2"',
+      contentLength: picked.contentLength ? String(picked.contentLength) : undefined,
+      maxChunkBytes: MOBILE_MAX_CHUNK_BYTES,
+    };
+  } catch {
+    return null;
+  }
+}
+
+async function resolveViaSoundCloud(
+  artist: string,
+  title: string,
+  rawQuery: string,
+  durationSec: number
+): Promise<Omit<CachedFormat, 'expires'> | null> {
+  try {
+    const cid = await getSoundCloudClientId();
+    if (!cid) return null;
+
+    const cleanTitleStr = (title || rawQuery)
+      .replace(/\(.*?\)|\[.*?\]/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+    const cleanArtistStr = artist.trim();
+    const searchTerm = cleanArtistStr ? `${cleanArtistStr} ${cleanTitleStr}` : rawQuery;
+
+    const sr = await fetch(
+      `https://api-v2.soundcloud.com/search/tracks?q=${encodeURIComponent(searchTerm)}&limit=15&client_id=${cid}`,
+      { headers: { 'User-Agent': WEB_USER_AGENT } }
+    ).then((r) => r.json());
+
+    const qLower = rawQuery.toLowerCase();
+    const allowLive = qLower.includes('live') || qLower.includes('acoustic');
+    const forbidden = [
+      'cover', 'remix', 'flip', 'slowed', 'reverb', 'karaoke',
+      'instrumental', 'nightcore', 'sped up', 'speed up', 'dj ',
+      'mashup', 'edit', 'gym', 'motivation', 'podcast', 'tutorial',
+    ];
+    const titleWords = cleanTitleStr
+      .toLowerCase()
+      .replace(/[^\p{L}\p{N}\s]/gu, ' ')
+      .split(/\s+/)
+      .filter((w) => w.length >= 2);
+
+    const candidates = (sr?.collection || []).filter((t: any) => {
+      if (!t?.duration || t.duration < 45000 || t.duration > 660000) return false;
+      const hasAac = t.media?.transcodings?.some((x: any) => x.format?.mime_type?.includes('audio/mp4'));
+      if (!hasAac) return false;
+
+      const tLower = `${t.title || ''}`.toLowerCase();
+      if (forbidden.some((f) => tLower.includes(f))) return false;
+      if (!allowLive && tLower.includes('live')) return false;
+      if (titleWords.length > 0 && !titleWords.every((w) => tLower.includes(w))) return false;
+
+      if (durationSec > 30) {
+        const diff = Math.abs(t.duration / 1000 - durationSec);
+        if (diff > 25) return false;
+      }
+      return true;
+    });
+
+    if (candidates.length === 0) return null;
+
+    candidates.sort((a: any, b: any) => {
+      if (durationSec > 30) {
+        return Math.abs(a.duration / 1000 - durationSec) - Math.abs(b.duration / 1000 - durationSec);
+      }
+      return (b.playback_count || 0) - (a.playback_count || 0);
+    });
+
+    const best = candidates[0];
+    const aacTr = best.media.transcodings.find((x: any) => x.format?.mime_type?.includes('audio/mp4'));
+    const trInfo: any = await fetch(`${aacTr.url}?client_id=${cid}`, {
+      headers: { Origin: 'https://soundcloud.com', Referer: 'https://soundcloud.com/' },
+    }).then((r) => r.json());
+
+    if (!trInfo?.url) return null;
+    const m3u8 = await fetch(trInfo.url).then((r) => r.text());
+    const initMatch = /#EXT-X-MAP:URI="([^"]+)"/.exec(m3u8);
+    const segUrls = m3u8
+      .split('\n')
+      .map((l) => l.trim())
+      .filter((l) => l.startsWith('http'));
+    const allUrls = [initMatch?.[1], ...segUrls].filter(Boolean) as string[];
+    if (allUrls.length === 0) return null;
+
+    const bufs = await Promise.all(allUrls.map((u) => fetch(u).then((r) => r.arrayBuffer())));
+    const assembled = Buffer.concat(bufs.map((b) => Buffer.from(b)));
+
+    return {
+      buffer: assembled,
+      mimeType: 'audio/mp4',
+      contentLength: String(assembled.length),
+      maxChunkBytes: DEFAULT_MAX_CHUNK_BYTES,
+    };
+  } catch {
+    return null;
+  }
+}
+
+async function resolveViaArchiveOrg(
+  artist: string,
+  title: string,
+  rawQuery: string
+): Promise<Omit<CachedFormat, 'expires'> | null> {
+  try {
+    const cleanTitleStr = (title || rawQuery)
+      .replace(/\(.*?\)|\[.*?\]/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+    const cleanArtistStr = artist.trim();
+    if (!cleanArtistStr || !cleanTitleStr) return null;
+
+    const titleWords = cleanTitleStr
+      .toLowerCase()
+      .replace(/[^\p{L}\p{N}\s]/gu, ' ')
+      .split(/\s+/)
+      .filter((w) => w.length >= 2);
+    if (titleWords.length === 0) return null;
+
+    const queries = [
+      `title:("${cleanTitleStr}") AND creator:("${cleanArtistStr}") AND mediatype:(audio)`,
+      `creator:("${cleanArtistStr}") AND mediatype:(audio)`,
+    ];
+
+    const seenIds = new Set<string>();
+    const candidateIds: string[] = [];
+
+    for (const aq of queries) {
+      const res: any = await fetch(
+        `https://archive.org/advancedsearch.php?q=${encodeURIComponent(aq)}&fl[]=identifier,title&rows=8&output=json`,
+        { signal: AbortSignal.timeout(4000) }
+      ).then((r) => r.json()).catch(() => null);
+
+      for (const doc of res?.response?.docs || []) {
+        if (!doc?.identifier || seenIds.has(doc.identifier)) continue;
+        const s = `${doc.identifier} ${doc.title || ''}`.toLowerCase();
+        if (
+          s.includes('cover') ||
+          s.includes('tribute') ||
+          s.includes('karaoke') ||
+          s.includes('interview') ||
+          s.includes('podcast')
+        ) {
+          continue;
+        }
+        seenIds.add(doc.identifier);
+        candidateIds.push(doc.identifier);
+      }
+      if (candidateIds.length >= 4) break;
+    }
+
+    if (candidateIds.length === 0) return null;
+
+    const fileLists = await Promise.all(
+      candidateIds.slice(0, 4).map(async (ident) => {
+        try {
+          const m: any = await fetch(`https://archive.org/metadata/${ident}/files`, {
+            signal: AbortSignal.timeout(4000),
+          }).then((r) => r.json());
+          return { ident, files: (m?.result || []) as any[] };
+        } catch {
+          return { ident, files: [] as any[] };
+        }
+      })
+    );
+
+    for (const { ident, files } of fileLists) {
+      const matched = files.find((f) => {
+        const name = (f.name || '').toLowerCase();
+        if (!name.endsWith('.mp3') && !name.endsWith('.m4a') && !name.endsWith('.ogg')) return false;
+        if (name.includes('64kb') || name.includes('cover') || name.includes('demo')) return false;
+        if (Number(f.size || 0) < 400000) return false;
+        return titleWords.every((w) => name.includes(w));
+      });
+
+      if (matched) {
+        const fileUrl = `https://archive.org/download/${ident}/${encodeURIComponent(matched.name)}`;
+        const mimeType = matched.name.toLowerCase().endsWith('.m4a')
+          ? 'audio/mp4'
+          : matched.name.toLowerCase().endsWith('.ogg')
+          ? 'audio/ogg'
+          : 'audio/mpeg';
+
+        return {
+          url: fileUrl,
+          mimeType,
+          contentLength: matched.size ? String(matched.size) : undefined,
+          maxChunkBytes: DEFAULT_MAX_CHUNK_BYTES,
+        };
+      }
+    }
+  } catch {}
+  return null;
+}
 
 async function fetchVisitorData(): Promise<string | undefined> {
   try {
@@ -88,7 +352,7 @@ async function resolveViaIosInnerTube(videoId: string): Promise<Omit<CachedForma
       url: picked.url,
       mimeType: picked.mimeType || 'audio/mp4; codecs="mp4a.40.2"',
       contentLength: picked.contentLength ? String(picked.contentLength) : undefined,
-      maxChunkBytes: IOS_MAX_CHUNK_BYTES,
+      maxChunkBytes: MOBILE_MAX_CHUNK_BYTES,
     };
   } catch {
     return null;
@@ -296,42 +560,71 @@ async function resolveViaEmbeddedInProcess(videoId: string): Promise<Omit<Cached
   }
 }
 
+async function isStreamUrlPlayable(url: string, userAgent?: string): Promise<boolean> {
+  try {
+    const headers: Record<string, string> = { Range: 'bytes=0-1024' };
+    if (userAgent) headers['User-Agent'] = userAgent;
+    const check = await fetch(url, { headers, signal: AbortSignal.timeout(4000) });
+    return check.status === 200 || check.status === 206;
+  } catch {
+    return false;
+  }
+}
+
 async function resolveAudioFormat(
   videoId: string,
-  visionYtdl: Ytdl
+  visionYtdl: Ytdl,
+  artist: string,
+  title: string,
+  rawQuery: string,
+  durationSec: number
 ): Promise<Omit<CachedFormat, 'expires'> | null> {
-  // Tier 1: VisionOS via Ytdl (needsPlayer: false -> zero worker thread, supports full & 1.5MB chunks)
-  try {
-    const info = await visionYtdl.getInfo(videoId);
-    const mp4AudioFormats = (info.formats || [])
-      .filter((f: any) => f.hasAudio && !f.hasVideo && f.mimeType?.includes('audio/mp4') && f.url)
-      .sort((a: any, b: any) => (b.audioBitrate || 0) - (a.audioBitrate || 0));
+  if (videoId) {
+    // Tier 1: VisionOS via Ytdl (needsPlayer: false -> zero worker thread, supports full & 1.5MB chunks)
+    try {
+      const info = await visionYtdl.getInfo(videoId);
+      const mp4AudioFormats = (info.formats || [])
+        .filter((f: any) => f.hasAudio && !f.hasVideo && f.mimeType?.includes('audio/mp4') && f.url)
+        .sort((a: any, b: any) => (b.audioBitrate || 0) - (a.audioBitrate || 0));
 
-    const format =
-      mp4AudioFormats[0] ||
-      chooseFormat(info.formats, {
-        quality: 'highestaudio',
-        filter: (f: any) => f.hasAudio && !f.hasVideo,
-      });
+      const format =
+        mp4AudioFormats[0] ||
+        chooseFormat(info.formats, {
+          quality: 'highestaudio',
+          filter: (f: any) => f.hasAudio && !f.hasVideo,
+        });
 
-    if (format?.url) {
-      return {
-        url: format.url,
-        mimeType: format.mimeType || 'audio/mp4; codecs="mp4a.40.2"',
-        contentLength: format.contentLength ? String(format.contentLength) : undefined,
-        maxChunkBytes: DEFAULT_MAX_CHUNK_BYTES,
-      };
+      if (format?.url && (await isStreamUrlPlayable(format.url))) {
+        return {
+          url: format.url,
+          mimeType: format.mimeType || 'audio/mp4; codecs="mp4a.40.2"',
+          contentLength: format.contentLength ? String(format.contentLength) : undefined,
+          maxChunkBytes: DEFAULT_MAX_CHUNK_BYTES,
+        };
+      }
+    } catch {
+      // Continue to Tier 2
     }
-  } catch {
-    // Continue to Tier 2
+
+    // Tier 2: Direct YouTube ANDROID InnerTube (zero worker thread, 512KB chunk)
+    const androidResult = await resolveViaAndroidInnerTube(videoId);
+    if (androidResult?.url && (await isStreamUrlPlayable(androidResult.url, androidResult.userAgent))) {
+      return androidResult;
+    }
+
+    // Tier 3: Direct YouTube IOS InnerTube (zero worker thread, 512KB chunk)
+    const iosResult = await resolveViaIosInnerTube(videoId);
+    if (iosResult?.url && (await isStreamUrlPlayable(iosResult.url, iosResult.userAgent))) {
+      return iosResult;
+    }
   }
 
-  // Tier 2: In-process VM player solver with WEB_EMBEDDED_PLAYER (zero worker_threads)
-  const embeddedResult = await resolveViaEmbeddedInProcess(videoId);
-  if (embeddedResult) return embeddedResult;
+  // Tier 4: SoundCloud fMP4 HLS Assembly (Vercel AWS IP safe, full original studio songs)
+  const scResult = await resolveViaSoundCloud(artist, title, rawQuery, durationSec);
+  if (scResult) return scResult;
 
-  // Tier 3: Direct YouTube IOS InnerTube (uses 512KB chunks, zero worker thread)
-  return await resolveViaIosInnerTube(videoId);
+  // Tier 5: Archive.org Audio MP3/M4A Fallback (Vercel AWS IP safe)
+  return await resolveViaArchiveOrg(artist, title, rawQuery);
 }
 
 export default async function handler(req: any, res: any) {
@@ -364,8 +657,8 @@ export default async function handler(req: any, res: any) {
   }
 
   const cacheKey = id
-    ? `v2:id:${id}`
-    : `v2:q:${rawQuery.toLowerCase()}|${artistParam.toLowerCase()}|${titleParam.toLowerCase()}`;
+    ? `v3:id:${id}`
+    : `v3:q:${rawQuery.toLowerCase()}|${artistParam.toLowerCase()}|${titleParam.toLowerCase()}`;
 
   try {
     const now = Date.now();
@@ -567,21 +860,21 @@ export default async function handler(req: any, res: any) {
           (a: any, b: any) => scoreCandidate(b) - scoreCandidate(a)
         );
         const match = sortedMatches[0] || validMatches[0] || searchResults[0];
-
-        if (!match) {
-          res.statusCode = 404;
-          res.setHeader('Content-Type', 'application/json');
-          res.end(JSON.stringify({ error: 'No matching track found' }));
-          return;
-        }
-        videoId = match.id;
+        videoId = match?.id || '';
       }
 
-      const resolved = await resolveAudioFormat(videoId, y);
-      if (!resolved || !resolved.url) {
+      const resolved = await resolveAudioFormat(
+        videoId || '',
+        y,
+        artistParam,
+        titleParam,
+        rawQuery,
+        durationParam
+      );
+      if (!resolved || (!resolved.url && !resolved.buffer)) {
         res.statusCode = 404;
         res.setHeader('Content-Type', 'application/json');
-        res.end(JSON.stringify({ error: 'No audio stream format found for ' + videoId }));
+        res.end(JSON.stringify({ error: 'No audio stream format found for ' + (videoId || rawQuery) }));
         return;
       }
 
@@ -592,10 +885,38 @@ export default async function handler(req: any, res: any) {
       urlCache.set(cacheKey, formatInfo);
     }
 
-    // Handle Client Range Requests with bounded chunks for seamless Vercel streaming & seeking
     const clientRange = req.headers ? (req.headers.range || req.headers['range']) : undefined;
-    const totalLen = formatInfo.contentLength ? Number(formatInfo.contentLength) : 0;
     const chunkCap = formatInfo.maxChunkBytes || DEFAULT_MAX_CHUNK_BYTES;
+
+    // Serve assembled in-memory Buffer (e.g. SoundCloud fMP4) with standard 206 Range slicing
+    if (formatInfo.buffer) {
+      const buf = formatInfo.buffer;
+      const total = buf.length;
+      let start = 0;
+      let end = Math.min(total - 1, chunkCap - 1);
+
+      if (clientRange) {
+        const m = /bytes=(\d+)-(\d*)/.exec(String(clientRange));
+        if (m) {
+          start = Math.min(total - 1, parseInt(m[1], 10));
+          const reqEnd = m[2] ? parseInt(m[2], 10) : NaN;
+          const maxEnd = Math.min(total - 1, start + chunkCap - 1);
+          end = Number.isFinite(reqEnd) ? Math.min(reqEnd, maxEnd) : maxEnd;
+        }
+      }
+
+      const slice = buf.subarray(start, end + 1);
+      res.statusCode = 206;
+      res.setHeader('Content-Type', formatInfo.mimeType || 'audio/mp4');
+      res.setHeader('Accept-Ranges', 'bytes');
+      res.setHeader('Content-Range', `bytes ${start}-${end}/${total}`);
+      res.setHeader('Content-Length', String(slice.length));
+      res.end(slice);
+      return;
+    }
+
+    // Handle Client Range Requests for URL-based streams (VisionOS / Android / iOS / Archive.org)
+    const totalLen = formatInfo.contentLength ? Number(formatInfo.contentLength) : 0;
 
     let reqRangeHeader: string | undefined;
     if (clientRange) {
@@ -620,7 +941,7 @@ export default async function handler(req: any, res: any) {
     if (reqRangeHeader) fetchHeaders['Range'] = reqRangeHeader;
     if (formatInfo.userAgent) fetchHeaders['User-Agent'] = formatInfo.userAgent;
 
-    let mediaRes = await fetch(formatInfo.url, { headers: fetchHeaders });
+    let mediaRes = await fetch(formatInfo.url!, { headers: fetchHeaders });
 
     // If cached stream URL expired or rejected (403/410), clear cache once and re-resolve
     if ((mediaRes.status === 403 || mediaRes.status === 410) && !id) {
