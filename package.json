@@ -9,7 +9,6 @@
     "preview": "vite preview"
   },
   "devDependencies": {
-    "@distube/ytdl-core": "^5.2.1",
     "@types/colorthief": "^2.6.1",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
@@ -24,6 +23,7 @@
     "vite": "^8.3.6"
   },
   "dependencies": {
+    "@distube/ytdl-core": "^5.2.1",
     "audio-decode": "^4.3.1",
     "colorthief": "^3.5.0",
     "framer-motion": "^14.14.0",
