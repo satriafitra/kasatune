@@ -11,6 +11,7 @@
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import type { BackendRadioheadTrack } from '../api/backend';
+import { safeLocalSet } from '../utils/authStore';
 
 export interface CustomPlaylistData {
   id: string;
@@ -65,14 +66,21 @@ export function useCustomPlaylist(allLibraryTracks: BackendRadioheadTrack[], acc
     setPlaylist(readPlaylistForKey(storageKey));
   }, [storageKey, readPlaylistForKey]);
 
-  // Save to localStorage whenever playlist state changes
-  useEffect(() => {
-    try {
-      localStorage.setItem(storageKey, JSON.stringify(playlist));
-    } catch (e) {
-      console.warn('Failed to save custom playlist to localStorage:', e);
-    }
-  }, [playlist, storageKey]);
+  const hydratePlaylist = useCallback(
+    (incoming: Partial<CustomPlaylistData> | null | undefined) => {
+      if (!incoming || typeof incoming !== 'object') return;
+      const merged: CustomPlaylistData = {
+        ...DEFAULT_PLAYLIST,
+        ...incoming,
+        likedTrackIds: Array.isArray(incoming.likedTrackIds) ? incoming.likedTrackIds : [],
+        savedOnlineTracks: incoming.savedOnlineTracks || {},
+        updatedAt: Number(incoming.updatedAt) || Date.now(),
+      };
+      setPlaylist(merged);
+      safeLocalSet(storageKey, JSON.stringify(merged));
+    },
+    [storageKey]
+  );
 
   // Check if a track is liked
   const isLiked = useCallback(
@@ -82,48 +90,51 @@ export function useCustomPlaylist(allLibraryTracks: BackendRadioheadTrack[], acc
     [playlist.likedTrackIds]
   );
 
-  // Toggle like status on a track
+  // Toggle like status on a track (persists synchronously via quota-safe safeLocalSet!)
   const toggleLike = useCallback((track: BackendRadioheadTrack) => {
     if (!track || !track.id) return;
 
     setPlaylist((prev) => {
       const alreadyLiked = prev.likedTrackIds.includes(track.id);
       let updatedIds: string[];
-      let updatedSavedOnline = { ...prev.savedOnlineTracks };
+      const updatedSavedOnline = { ...prev.savedOnlineTracks };
 
       if (alreadyLiked) {
-        // Remove from liked
         updatedIds = prev.likedTrackIds.filter((id) => id !== track.id);
       } else {
-        // Add to liked (at the top of the list)
         updatedIds = [track.id, ...prev.likedTrackIds];
-        // If it's a live/scraped track not in static local DB, cache the full object
         if (track.category === 'online' || track.category === 'scraped' || !allLibraryTracks.some((t) => t.id === track.id)) {
           updatedSavedOnline[track.id] = track;
         }
       }
 
-      return {
+      const next: CustomPlaylistData = {
         ...prev,
         likedTrackIds: updatedIds,
         savedOnlineTracks: updatedSavedOnline,
         updatedAt: Date.now(),
       };
+      safeLocalSet(storageKey, JSON.stringify(next));
+      return next;
     });
-  }, [allLibraryTracks]);
+  }, [allLibraryTracks, storageKey]);
 
   // Update custom playlist metadata (name, description, coverUrl)
   const updatePlaylist = useCallback(
     (updates: { name: string; description?: string; coverUrl?: string }) => {
-      setPlaylist((prev) => ({
-        ...prev,
-        name: updates.name.trim() || prev.name,
-        description: updates.description !== undefined ? updates.description.trim() : prev.description,
-        coverUrl: updates.coverUrl?.trim() || prev.coverUrl,
-        updatedAt: Date.now(),
-      }));
+      setPlaylist((prev) => {
+        const next: CustomPlaylistData = {
+          ...prev,
+          name: updates.name.trim() || prev.name,
+          description: updates.description !== undefined ? updates.description.trim() : prev.description,
+          coverUrl: updates.coverUrl?.trim() || prev.coverUrl,
+          updatedAt: Date.now(),
+        };
+        safeLocalSet(storageKey, JSON.stringify(next));
+        return next;
+      });
     },
-    []
+    [storageKey]
   );
 
   // Map of all available tracks (static + saved online tracks)
@@ -148,6 +159,7 @@ export function useCustomPlaylist(allLibraryTracks: BackendRadioheadTrack[], acc
     isLiked,
     toggleLike,
     updatePlaylist,
+    hydratePlaylist,
     allTracksMap,
   };
 }

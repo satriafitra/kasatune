@@ -31,12 +31,86 @@ export interface UserAccountDataSnapshot {
   pinnedServers: PinnedServerItem[];
   manualQueue: BackendRadioheadTrack[];
   customPlaylist?: any;
+  activeAlbum?: string;
+  currentAlbumEntity?: PinnedServerItem | null;
   updatedAt: number;
 }
 
 const ACCOUNTS_KEY = 'kasatune_accounts_v1';
 const ACTIVE_SESSION_KEY = 'kasatune_auth_session_v1';
+const SESSION_COOKIE_MIRROR = 'kasatune_uid_v1';
 const USER_DATA_PREFIX = 'kasatune_account_data_v1_';
+const EVICTABLE_CACHE_KEYS = [
+  'kasatune_online_tracks_cache_v3',
+  'kasatune_lyrics_cache_v1',
+  'kasatune_yt_fallback_cache_v1',
+];
+
+export function safeLocalSet(key: string, value: string): boolean {
+  try {
+    localStorage.setItem(key, value);
+    return true;
+  } catch {
+    // QuotaExceededError recovery: evict large non-essential media/lyrics caches and retry
+    try {
+      for (const cacheKey of EVICTABLE_CACHE_KEYS) {
+        localStorage.removeItem(cacheKey);
+      }
+      localStorage.setItem(key, value);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+}
+
+function encodeCookiePayload(obj: AuthUser): string {
+  const json = JSON.stringify(obj);
+  const bytes = new TextEncoder().encode(json);
+  let binary = '';
+  for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+  return encodeURIComponent(btoa(binary));
+}
+
+function decodeCookiePayload(encoded: string): AuthUser | null {
+  try {
+    const binary = atob(decodeURIComponent(encoded));
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+    const parsed = JSON.parse(new TextDecoder().decode(bytes));
+    if (parsed && parsed.email && parsed.id) return parsed as AuthUser;
+  } catch {}
+  return null;
+}
+
+function writeSessionCookieMirror(user: AuthUser | null) {
+  if (typeof document === 'undefined') return;
+  try {
+    const secure = typeof window !== 'undefined' && window.location.protocol === 'https:' ? '; Secure' : '';
+    if (user) {
+      const val = encodeCookiePayload(user);
+      document.cookie = `${SESSION_COOKIE_MIRROR}=${val}; Path=/; Max-Age=2592000; SameSite=Lax${secure}`;
+    } else {
+      document.cookie = `${SESSION_COOKIE_MIRROR}=; Path=/; Max-Age=0; SameSite=Lax${secure}`;
+    }
+  } catch {}
+}
+
+function readSessionCookieMirror(): AuthUser | null {
+  if (typeof document === 'undefined' || !document.cookie) return null;
+  try {
+    const parts = document.cookie.split(';');
+    for (const part of parts) {
+      const idx = part.indexOf('=');
+      if (idx === -1) continue;
+      const k = part.slice(0, idx).trim();
+      if (k === SESSION_COOKIE_MIRROR) {
+        return decodeCookiePayload(part.slice(idx + 1).trim());
+      }
+    }
+  } catch {}
+  return null;
+}
 
 function normalizeEmail(email: string): string {
   return (email || '').trim().toLowerCase();
@@ -79,29 +153,62 @@ function readLocalAccounts(): Record<string, StoredLocalAccount> {
 }
 
 function writeLocalAccounts(accounts: Record<string, StoredLocalAccount>) {
-  try {
-    localStorage.setItem(ACCOUNTS_KEY, JSON.stringify(accounts));
-  } catch {}
+  safeLocalSet(ACCOUNTS_KEY, JSON.stringify(accounts));
 }
 
 export function getSavedSessionUser(): AuthUser | null {
+  // 1. Primary: localStorage
   try {
     const raw = localStorage.getItem(ACTIVE_SESSION_KEY);
-    if (!raw) return null;
-    const parsed = JSON.parse(raw);
-    if (parsed && parsed.email && parsed.id) return parsed;
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (parsed && parsed.email && parsed.id) return parsed;
+    }
   } catch {}
+
+  // 2. Fallback: sessionStorage mirror
+  try {
+    const raw = sessionStorage.getItem(ACTIVE_SESSION_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (parsed && parsed.email && parsed.id) {
+        safeLocalSet(ACTIVE_SESSION_KEY, raw);
+        return parsed;
+      }
+    }
+  } catch {}
+
+  // 3. Fallback: 30-day browser cookie mirror (immune to localStorage quota eviction)
+  const fromCookie = readSessionCookieMirror();
+  if (fromCookie) {
+    const serialized = JSON.stringify(fromCookie);
+    safeLocalSet(ACTIVE_SESSION_KEY, serialized);
+    try {
+      sessionStorage.setItem(ACTIVE_SESSION_KEY, serialized);
+    } catch {}
+    return fromCookie;
+  }
+
   return null;
 }
 
 export function saveSessionUser(user: AuthUser | null) {
-  try {
-    if (user) {
-      localStorage.setItem(ACTIVE_SESSION_KEY, JSON.stringify(user));
-    } else {
+  if (user) {
+    const serialized = JSON.stringify(user);
+    safeLocalSet(ACTIVE_SESSION_KEY, serialized);
+    try {
+      sessionStorage.setItem(ACTIVE_SESSION_KEY, serialized);
+    } catch {}
+    writeSessionCookieMirror(user);
+  } else {
+    try {
       localStorage.removeItem(ACTIVE_SESSION_KEY);
-    }
-  } catch {}
+    } catch {}
+    try {
+      sessionStorage.removeItem(ACTIVE_SESSION_KEY);
+    } catch {}
+    writeSessionCookieMirror(null);
+  }
 }
 
 export function upsertLocalAccountRecord(user: AuthUser, passwordHash?: string, salt?: string) {
@@ -128,7 +235,8 @@ export async function restoreAuthSession(): Promise<AuthUser | null> {
   const localUser = getSavedSessionUser();
   try {
     const res = await fetch('/api/auth?action=me', { credentials: 'include' });
-    if (res.ok) {
+    const contentType = res.headers.get('content-type') || '';
+    if (res.ok && contentType.includes('application/json')) {
       const data = await res.json();
       if (data?.user?.email) {
         const serverUser: AuthUser = data.user;
@@ -138,6 +246,11 @@ export async function restoreAuthSession(): Promise<AuthUser | null> {
       }
     }
   } catch {}
+
+  if (localUser) {
+    // Re-mirror across localStorage, sessionStorage & cookie so refresh stays rock-solid
+    saveSessionUser(localUser);
+  }
   return localUser;
 }
 
@@ -413,8 +526,88 @@ export function consumeGoogleOAuthCallback(): Promise<{ user?: AuthUser; error?:
 }
 
 // Per-account saved data isolation (Pinned Artists, Queue, Custom Playlist)
+// Triple-layer durability: Quota-safe localStorage + IndexedDB Vault + /api/auth?action=user-data
+const VAULT_DB_NAME = 'kasatune_user_vault_v1';
+const VAULT_STORE_NAME = 'account_data';
+
 function accountDataKey(email: string): string {
   return `${USER_DATA_PREFIX}${normalizeEmail(email)}`;
+}
+
+function openVaultDb(): Promise<IDBDatabase | null> {
+  if (typeof indexedDB === 'undefined') return Promise.resolve(null);
+  return new Promise((resolve) => {
+    try {
+      const req = indexedDB.open(VAULT_DB_NAME, 1);
+      req.onupgradeneeded = () => {
+        const db = req.result;
+        if (!db.objectStoreNames.contains(VAULT_STORE_NAME)) {
+          db.createObjectStore(VAULT_STORE_NAME);
+        }
+      };
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => resolve(null);
+    } catch {
+      resolve(null);
+    }
+  });
+}
+
+async function readVaultIdb(email: string): Promise<UserAccountDataSnapshot | null> {
+  const norm = normalizeEmail(email);
+  if (!norm) return null;
+  const db = await openVaultDb();
+  if (!db) return null;
+  return new Promise((resolve) => {
+    try {
+      const tx = db.transaction(VAULT_STORE_NAME, 'readonly');
+      const store = tx.objectStore(VAULT_STORE_NAME);
+      const req = store.get(norm);
+      req.onsuccess = () => {
+        const val = req.result;
+        if (val && typeof val === 'object') {
+          resolve({
+            pinnedServers: Array.isArray(val.pinnedServers) ? val.pinnedServers : [],
+            manualQueue: Array.isArray(val.manualQueue) ? val.manualQueue : [],
+            customPlaylist: val.customPlaylist,
+            activeAlbum: val.activeAlbum,
+            currentAlbumEntity: val.currentAlbumEntity,
+            updatedAt: Number(val.updatedAt) || 0,
+          });
+        } else {
+          resolve(null);
+        }
+      };
+      req.onerror = () => resolve(null);
+    } catch {
+      resolve(null);
+    }
+  });
+}
+
+async function writeVaultIdb(email: string, snapshot: UserAccountDataSnapshot): Promise<void> {
+  const norm = normalizeEmail(email);
+  if (!norm) return;
+  const db = await openVaultDb();
+  if (!db) return;
+  return new Promise((resolve) => {
+    try {
+      const tx = db.transaction(VAULT_STORE_NAME, 'readwrite');
+      tx.objectStore(VAULT_STORE_NAME).put(snapshot, norm);
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => resolve();
+    } catch {
+      resolve();
+    }
+  });
+}
+
+function snapshotHasData(snap: UserAccountDataSnapshot | null | undefined): boolean {
+  if (!snap) return false;
+  const likedCount = Array.isArray(snap.customPlaylist?.likedTrackIds)
+    ? snap.customPlaylist.likedTrackIds.length
+    : 0;
+  return snap.pinnedServers.length > 0 || snap.manualQueue.length > 0 || likedCount > 0;
 }
 
 export function loadAccountDataSnapshot(email: string): UserAccountDataSnapshot | null {
@@ -427,7 +620,9 @@ export function loadAccountDataSnapshot(email: string): UserAccountDataSnapshot 
         pinnedServers: Array.isArray(parsed.pinnedServers) ? parsed.pinnedServers : [],
         manualQueue: Array.isArray(parsed.manualQueue) ? parsed.manualQueue : [],
         customPlaylist: parsed.customPlaylist,
-        updatedAt: parsed.updatedAt || Date.now(),
+        activeAlbum: parsed.activeAlbum,
+        currentAlbumEntity: parsed.currentAlbumEntity,
+        updatedAt: Number(parsed.updatedAt) || 0,
       };
     }
   } catch {}
@@ -435,8 +630,95 @@ export function loadAccountDataSnapshot(email: string): UserAccountDataSnapshot 
 }
 
 export function saveAccountDataSnapshot(email: string, snapshot: UserAccountDataSnapshot) {
-  if (!email) return;
+  const norm = normalizeEmail(email);
+  if (!norm) return;
+  const normalized: UserAccountDataSnapshot = {
+    pinnedServers: Array.isArray(snapshot.pinnedServers) ? snapshot.pinnedServers : [],
+    manualQueue: Array.isArray(snapshot.manualQueue) ? snapshot.manualQueue.slice(0, 100) : [],
+    customPlaylist: snapshot.customPlaylist,
+    activeAlbum: snapshot.activeAlbum,
+    currentAlbumEntity: snapshot.currentAlbumEntity,
+    updatedAt: Number(snapshot.updatedAt) || Date.now(),
+  };
+
+  // 1. Synchronous quota-safe localStorage
+  safeLocalSet(accountDataKey(norm), JSON.stringify(normalized));
+
+  // 2. Durable IndexedDB Vault (hundreds of MB, immune to 5MB localStorage limit)
+  writeVaultIdb(norm, normalized).catch(() => {});
+
+  // 3. Server-side per-account vault (survives browser cache clear / relogin)
   try {
-    localStorage.setItem(accountDataKey(email), JSON.stringify(snapshot));
+    fetch('/api/auth?action=user-data', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      keepalive: true,
+      body: JSON.stringify({ email: norm, snapshot: normalized }),
+    }).catch(() => {});
   } catch {}
+}
+
+export async function hydrateAccountDataSnapshot(
+  email: string
+): Promise<UserAccountDataSnapshot | null> {
+  const norm = normalizeEmail(email);
+  if (!norm) return null;
+
+  const localSnap = loadAccountDataSnapshot(norm);
+
+  const [idbSnap, serverSnap] = await Promise.all([
+    readVaultIdb(norm).catch(() => null),
+    (async (): Promise<UserAccountDataSnapshot | null> => {
+      try {
+        const res = await fetch(
+          `/api/auth?action=user-data&email=${encodeURIComponent(norm)}`,
+          { credentials: 'include' }
+        );
+        const ct = res.headers.get('content-type') || '';
+        if (res.ok && ct.includes('application/json')) {
+          const json = await res.json();
+          const d = json?.data;
+          if (d && typeof d === 'object') {
+            return {
+              pinnedServers: Array.isArray(d.pinnedServers) ? d.pinnedServers : [],
+              manualQueue: Array.isArray(d.manualQueue) ? d.manualQueue : [],
+              customPlaylist: d.customPlaylist,
+              activeAlbum: d.activeAlbum,
+              currentAlbumEntity: d.currentAlbumEntity,
+              updatedAt: Number(d.updatedAt) || 0,
+            };
+          }
+        }
+      } catch {}
+      return null;
+    })(),
+  ]);
+
+  const candidates = [localSnap, idbSnap, serverSnap].filter(
+    (s): s is UserAccountDataSnapshot => Boolean(s)
+  );
+  if (candidates.length === 0) return null;
+
+  // Prefer the newest snapshot; if timestamps tie or one is empty fallback, prefer populated one
+  candidates.sort((a, b) => {
+    const diff = (b.updatedAt || 0) - (a.updatedAt || 0);
+    if (diff !== 0) return diff;
+    return Number(snapshotHasData(b)) - Number(snapshotHasData(a));
+  });
+
+  let best = candidates[0];
+  // Never lose data to a freshly-created empty default snapshot if an older vault has saved data
+  if (!snapshotHasData(best)) {
+    const populated = candidates.find((c) => snapshotHasData(c));
+    if (populated && (!best.updatedAt || best.updatedAt <= populated.updatedAt)) {
+      best = populated;
+    }
+  }
+
+  // Heal localStorage & IndexedDB with the winning snapshot
+  safeLocalSet(accountDataKey(norm), JSON.stringify(best));
+  writeVaultIdb(norm, best).catch(() => {});
+
+  return best;
 }

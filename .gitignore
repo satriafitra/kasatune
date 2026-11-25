@@ -15,6 +15,9 @@ dist-ssr
 .env
 *.exe
 
+# Local dev auth/user-data store
+.kasatune-dev-store.json
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

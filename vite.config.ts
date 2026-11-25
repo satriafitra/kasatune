@@ -1,10 +1,11 @@
 import { defineConfig, type Plugin } from 'vite';
 import react from '@vitejs/plugin-react';
 import streamHandler from './api/stream.ts';
+import authHandler from './api/auth.ts';
 
-function streamApiPlugin(): Plugin {
+function localApiPlugin(): Plugin {
   return {
-    name: 'vite-plugin-stream-api',
+    name: 'vite-plugin-local-api',
     configureServer(server) {
       server.middlewares.use(async (req, res, next) => {
         if (req.url?.startsWith('/api/stream')) {
@@ -12,6 +13,16 @@ function streamApiPlugin(): Plugin {
             await streamHandler(req, res);
           } catch (e: any) {
             console.error('Vite dev stream error:', e.message);
+            if (!res.headersSent) {
+              res.statusCode = 500;
+              res.end(JSON.stringify({ error: e.message }));
+            }
+          }
+        } else if (req.url?.startsWith('/api/auth')) {
+          try {
+            await authHandler(req, res);
+          } catch (e: any) {
+            console.error('Vite dev auth error:', e.message);
             if (!res.headersSent) {
               res.statusCode = 500;
               res.end(JSON.stringify({ error: e.message }));
@@ -27,7 +38,7 @@ function streamApiPlugin(): Plugin {
 
 // https://vitejs.dev/config/
 export default defineConfig({
-  plugins: [react(), streamApiPlugin()],
+  plugins: [react(), localApiPlugin()],
   server: {
     port: 5173,
     host: true,

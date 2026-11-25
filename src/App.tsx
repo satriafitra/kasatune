@@ -15,12 +15,15 @@ import { AuthScreen } from './components/AuthScreen';
 import { HomeFeed, type HomeDiscoveryData } from './components/HomeFeed';
 import {
   getSavedSessionUser,
+  saveSessionUser,
   restoreAuthSession,
   hasPendingGoogleCallback,
   consumeGoogleOAuthCallback,
   logoutAccount,
   loadAccountDataSnapshot,
   saveAccountDataSnapshot,
+  hydrateAccountDataSnapshot,
+  safeLocalSet,
   scopedStorageKey,
   type AuthUser,
 } from './utils/authStore';
@@ -91,64 +94,87 @@ const AuthenticatedApp: React.FC<{
   const [manualQueue, setManualQueue] = useState<BackendRadioheadTrack[]>(() => {
     try {
       const snap = loadAccountDataSnapshot(authUser.email);
-      if (snap && Array.isArray(snap.manualQueue)) return snap.manualQueue;
+      if (snap && Array.isArray(snap.manualQueue) && snap.manualQueue.length > 0) {
+        return snap.manualQueue;
+      }
       const saved = localStorage.getItem(kQueue);
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed)) return parsed;
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
       }
+      if (snap && Array.isArray(snap.manualQueue)) return snap.manualQueue;
     } catch {}
     return [];
   });
   const [shuffleOrder, setShuffleOrder] = useState<BackendRadioheadTrack[]>([]);
   const [isEditPlaylistModalOpen, setIsEditPlaylistModalOpen] = useState(false);
   const [isAddArtistModalOpen, setIsAddArtistModalOpen] = useState(false);
+  const normalizePinnedList = (list: any[]): PinnedServerItem[] =>
+    list.map((item) => {
+      if (typeof item === 'string') {
+        const found = CATALOG_ALBUMS.find((c) => c.id === item);
+        return (
+          found || {
+            id: item,
+            name: item,
+            artist: item,
+            albumTitle: 'Popular Hits',
+            imageUrl: '/covers/radiohead.jpg',
+            type: 'artist',
+          }
+        );
+      }
+      if (item?.id === 'sheilaon7' && !isValidImageUrl(item.imageUrl)) {
+        return {
+          ...item,
+          imageUrl: 'https://cdn-images.dzcdn.net/images/artist/9e6cc50e80a7dcb4dacc7eb15427335b/1000x1000-000000-80-0-0.jpg',
+        };
+      }
+      return item;
+    });
+
   const [pinnedServers, setPinnedServers] = useState<PinnedServerItem[]>(() => {
     try {
       const snap = loadAccountDataSnapshot(authUser.email);
-      if (snap && Array.isArray(snap.pinnedServers)) return snap.pinnedServers;
-      const saved = localStorage.getItem(kPinned);
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed)) {
-          return parsed.map((item) => {
-            if (typeof item === 'string') {
-              const found = CATALOG_ALBUMS.find((c) => c.id === item);
-              return (
-                found || {
-                  id: item,
-                  name: item,
-                  artist: item,
-                  albumTitle: 'Popular Hits',
-                  imageUrl: '/covers/radiohead.jpg',
-                  type: 'artist',
-                }
-              );
-            }
-            if (item?.id === 'sheilaon7' && !isValidImageUrl(item.imageUrl)) {
-              return {
-                ...item,
-                imageUrl: 'https://cdn-images.dzcdn.net/images/artist/9e6cc50e80a7dcb4dacc7eb15427335b/1000x1000-000000-80-0-0.jpg',
-              };
-            }
-            return item;
-          });
-        }
+      const savedRaw = localStorage.getItem(kPinned);
+      const fromKey = savedRaw ? JSON.parse(savedRaw) : null;
+
+      if (snap && Array.isArray(snap.pinnedServers) && snap.pinnedServers.length > 0) {
+        return normalizePinnedList(snap.pinnedServers);
+      }
+      if (Array.isArray(fromKey) && fromKey.length > 0) {
+        return normalizePinnedList(fromKey);
+      }
+      if (snap && Array.isArray(snap.pinnedServers)) {
+        return normalizePinnedList(snap.pinnedServers);
       }
     } catch {}
     return [];
   });
 
+  // Track whether user has mutated account data and whether async vault hydration finished
+  const isVaultHydratedRef = useRef<boolean>(false);
+  const didUserMutateRef = useRef<boolean>(false);
+
   const handleTogglePinServer = useCallback((server: PinnedServerItem) => {
+    didUserMutateRef.current = true;
     setPinnedServers((prev) => {
       const exists = prev.some((s) => s.id === server.id);
       const next = exists ? prev.filter((s) => s.id !== server.id) : [...prev, server];
-      try {
-        localStorage.setItem(kPinned, JSON.stringify(next));
-      } catch {}
+      safeLocalSet(kPinned, JSON.stringify(next));
       return next;
     });
-  }, []);
+  }, [kPinned]);
+
+  const handlePinServerIfNeeded = useCallback((server: PinnedServerItem) => {
+    didUserMutateRef.current = true;
+    setPinnedServers((prev) => {
+      if (prev.some((s) => s.id === server.id)) return prev;
+      const next = [...prev, server];
+      safeLocalSet(kPinned, JSON.stringify(next));
+      return next;
+    });
+  }, [kPinned]);
 
   const repairServerImage = useCallback((serverId: string, newImageUrl?: string) => {
     if (!newImageUrl || !isValidImageUrl(newImageUrl)) return;
@@ -162,27 +188,29 @@ const AuthenticatedApp: React.FC<{
         return s;
       });
       if (changed) {
-        try {
-          localStorage.setItem(kPinned, JSON.stringify(next));
-        } catch {}
+        didUserMutateRef.current = true;
+        safeLocalSet(kPinned, JSON.stringify(next));
       }
       return changed ? next : prev;
     });
     setCurrentAlbumEntity((prev) => {
       if (prev && prev.id === serverId && !isValidImageUrl(prev.imageUrl)) {
         const updated = { ...prev, imageUrl: newImageUrl };
-        try {
-          localStorage.setItem(kActiveEntity, JSON.stringify(updated));
-        } catch {}
+        safeLocalSet(kActiveEntity, JSON.stringify(updated));
         return updated;
       }
       return prev;
     });
-  }, []);
+  }, [kPinned, kActiveEntity]);
 
+  // Keep heavy artist track cache in sessionStorage (capped at 8 artists) so it NEVER fills localStorage's 5MB quota!
   const [onlineAlbumTracks, setOnlineAlbumTracks] = useState<Record<string, BackendRadioheadTrack[]>>(() => {
     try {
-      const saved = localStorage.getItem('kasatune_online_tracks_cache_v3');
+      // Purge any legacy bloated localStorage cache so user account data always has plenty of room
+      localStorage.removeItem('kasatune_online_tracks_cache_v3');
+    } catch {}
+    try {
+      const saved = sessionStorage.getItem('kasatune_online_tracks_cache_v3');
       if (saved) return JSON.parse(saved);
     } catch {}
     return {};
@@ -192,10 +220,16 @@ const AuthenticatedApp: React.FC<{
   const updateOnlineAlbumTracks = useCallback((key: string, songs: BackendRadioheadTrack[]) => {
     setOnlineAlbumTracks((prev) => {
       const next = { ...prev, [key]: songs };
+      // Cap persisted sessionStorage cache to 8 most recent artists
+      const keys = Object.keys(next);
+      const trimmed: Record<string, BackendRadioheadTrack[]> = {};
+      for (const k of keys.slice(-8)) {
+        trimmed[k] = next[k];
+      }
       try {
-        localStorage.setItem('kasatune_online_tracks_cache_v3', JSON.stringify(next));
+        sessionStorage.setItem('kasatune_online_tracks_cache_v3', JSON.stringify(trimmed));
       } catch {}
-      return next;
+      return trimmed;
     });
   }, []);
 
@@ -328,18 +362,98 @@ const AuthenticatedApp: React.FC<{
     likedTracks,
     likedTrackIds,
     isLiked,
-    toggleLike,
-    updatePlaylist,
+    toggleLike: rawToggleLike,
+    updatePlaylist: rawUpdatePlaylist,
+    hydratePlaylist,
   } = useCustomPlaylist(tracks, authUser.email);
 
-  // Persist per-account pinned artists & queue automatically
+  const toggleLike = useCallback(
+    (track: BackendRadioheadTrack) => {
+      didUserMutateRef.current = true;
+      rawToggleLike(track);
+    },
+    [rawToggleLike]
+  );
+
+  const updatePlaylist = useCallback(
+    (updates: { name: string; description?: string; coverUrl?: string }) => {
+      didUserMutateRef.current = true;
+      rawUpdatePlaylist(updates);
+    },
+    [rawUpdatePlaylist]
+  );
+
+  // Hydrate account data from IndexedDB & Server Vault on mount (survives refresh, cache clear & relogin!)
   useEffect(() => {
+    let active = true;
+    hydrateAccountDataSnapshot(authUser.email)
+      .then((vault) => {
+        if (!active) return;
+        if (vault && !didUserMutateRef.current) {
+          if (Array.isArray(vault.pinnedServers) && vault.pinnedServers.length > 0) {
+            setPinnedServers((prev) => {
+              if (prev.length > 0) return prev;
+              const normalized = normalizePinnedList(vault.pinnedServers);
+              safeLocalSet(kPinned, JSON.stringify(normalized));
+              return normalized;
+            });
+          }
+          if (Array.isArray(vault.manualQueue) && vault.manualQueue.length > 0) {
+            setManualQueue((prev) => {
+              if (prev.length > 0) return prev;
+              safeLocalSet(kQueue, JSON.stringify(vault.manualQueue));
+              return vault.manualQueue;
+            });
+          }
+          if (vault.customPlaylist && Array.isArray(vault.customPlaylist.likedTrackIds)) {
+            const localLikedCount = customPlaylist.likedTrackIds.length;
+            const vaultLikedCount = vault.customPlaylist.likedTrackIds.length;
+            if (vaultLikedCount > 0 && localLikedCount === 0) {
+              hydratePlaylist(vault.customPlaylist);
+            }
+          }
+        }
+      })
+      .finally(() => {
+        if (active) {
+          isVaultHydratedRef.current = true;
+        }
+      });
+    return () => {
+      active = false;
+    };
+  }, [authUser.email]);
+
+  // Persist per-account pinned artists, favorites playlist & queue automatically
+  // Guarded so mount never overwrites IndexedDB/server vault before hydration finishes
+  useEffect(() => {
+    if (!isVaultHydratedRef.current && !didUserMutateRef.current) return;
+    safeLocalSet(kPinned, JSON.stringify(pinnedServers));
+    safeLocalSet(kQueue, JSON.stringify(manualQueue.slice(0, 100)));
     saveAccountDataSnapshot(authUser.email, {
       pinnedServers,
       manualQueue: manualQueue.slice(0, 100),
+      customPlaylist,
+      activeAlbum,
+      currentAlbumEntity,
       updatedAt: Date.now(),
     });
-  }, [authUser.email, pinnedServers, manualQueue]);
+  }, [authUser.email, pinnedServers, manualQueue, customPlaylist, activeAlbum, currentAlbumEntity, kPinned, kQueue]);
+
+  // Flush account snapshot right before logging out so relogin always restores everything
+  const flushAndLogout = useCallback(() => {
+    safeLocalSet(kPinned, JSON.stringify(pinnedServers));
+    safeLocalSet(kQueue, JSON.stringify(manualQueue.slice(0, 100)));
+    saveAccountDataSnapshot(authUser.email, {
+      pinnedServers,
+      manualQueue: manualQueue.slice(0, 100),
+      customPlaylist,
+      activeAlbum,
+      currentAlbumEntity,
+      updatedAt: Date.now(),
+    });
+    onAccountLogout();
+  }, [authUser.email, pinnedServers, manualQueue, customPlaylist, activeAlbum, currentAlbumEntity, kPinned, kQueue, onAccountLogout]);
 
   // 3. Dynamic Color Extraction from Album Art via ColorThief
   const albumColors = useAlbumColor(activeTrack.coverUrl);
@@ -718,9 +832,7 @@ const AuthenticatedApp: React.FC<{
   const handleSelectAlbum = useCallback(
     async (album: AlbumFilterType | string, serverItem?: PinnedServerItem) => {
       setActiveAlbum(album as AlbumFilterType);
-      try {
-        localStorage.setItem(kActiveAlbum, album);
-      } catch {}
+      safeLocalSet(kActiveAlbum, album);
 
       // Resolve and showcase the Artist / Album Entity
       let resolvedEntity: PinnedServerItem | null = serverItem || null;
@@ -783,7 +895,7 @@ const AuthenticatedApp: React.FC<{
       setCurrentAlbumEntity(resolvedEntity);
       try {
         if (resolvedEntity) {
-          localStorage.setItem(kActiveEntity, JSON.stringify(resolvedEntity));
+          safeLocalSet(kActiveEntity, JSON.stringify(resolvedEntity));
         } else {
           localStorage.removeItem(kActiveEntity);
         }
@@ -1128,15 +1240,14 @@ const AuthenticatedApp: React.FC<{
   // Persist manual queue & subscribe to RAM audio cache updates
   const updateManualQueue = useCallback(
     (updater: (prev: BackendRadioheadTrack[]) => BackendRadioheadTrack[]) => {
+      didUserMutateRef.current = true;
       setManualQueue((prev) => {
         const next = updater(prev);
-        try {
-          localStorage.setItem(kQueue, JSON.stringify(next.slice(0, 100)));
-        } catch {}
+        safeLocalSet(kQueue, JSON.stringify(next.slice(0, 100)));
         return next;
       });
     },
-    []
+    [kQueue]
   );
 
   useEffect(() => {
@@ -1417,7 +1528,7 @@ const AuthenticatedApp: React.FC<{
         authUser={authUser}
         onAccountLogout={() => {
           pause();
-          onAccountLogout();
+          flushAndLogout();
         }}
         onGoHome={() => {
           handleSelectAlbum('home');
@@ -1442,16 +1553,7 @@ const AuthenticatedApp: React.FC<{
             pinnedServers={pinnedServers}
             onTogglePin={handleTogglePinServer}
             onSelectAndPin={(srv) => {
-              setPinnedServers((prev) => {
-                if (!prev.some((s) => s.id === srv.id)) {
-                  const next = [...prev, srv];
-                  try {
-                    localStorage.setItem(kPinned, JSON.stringify(next));
-                  } catch {}
-                  return next;
-                }
-                return prev;
-              });
+              handlePinServerIfNeeded(srv);
               handleSelectAlbum(srv.id as AlbumFilterType, srv);
               setMobileView('player');
             }}
@@ -1489,7 +1591,7 @@ const AuthenticatedApp: React.FC<{
                 type="button"
                 onClick={() => {
                   pause();
-                  onAccountLogout();
+                  flushAndLogout();
                 }}
                 className="h-8 px-2.5 rounded-lg border border-white/[0.09] text-xs font-medium text-[#EEDFC7] flex items-center gap-1.5 flex-shrink-0"
               >
@@ -1859,16 +1961,7 @@ const AuthenticatedApp: React.FC<{
         pinnedServers={pinnedServers}
         onTogglePin={handleTogglePinServer}
         onSelectAndPin={(srv) => {
-          setPinnedServers((prev) => {
-            if (!prev.some((s) => s.id === srv.id)) {
-              const next = [...prev, srv];
-              try {
-                localStorage.setItem(kPinned, JSON.stringify(next));
-              } catch {}
-              return next;
-            }
-            return prev;
-          });
+          handlePinServerIfNeeded(srv);
           handleSelectAlbum(srv.id as AlbumFilterType, srv);
           setMobileView('player');
           setIsAddArtistModalOpen(false);
@@ -1948,6 +2041,12 @@ export const App: React.FC = () => {
     };
   }, []);
 
+  useEffect(() => {
+    if (authUser) {
+      saveSessionUser(authUser);
+    }
+  }, [authUser]);
+
   const handleAccountLogout = useCallback(async () => {
     await logoutAccount();
     setAuthUser(null);
@@ -1966,6 +2065,7 @@ export const App: React.FC = () => {
       <AuthScreen
         initialError={authError}
         onAuthenticated={(u) => {
+          saveSessionUser(u);
           setAuthError(null);
           setAuthUser(u);
         }}

@@ -1,10 +1,15 @@
 import crypto from 'node:crypto';
+import fs from 'node:fs';
+import path from 'node:path';
 
 const DEFAULT_GOOGLE_CLIENT_ID =
   '865404190630-312sv3qd1l2vdacj6qijpci25101pn7d.apps.googleusercontent.com';
 
 const SESSION_COOKIE = 'kasatune_session';
 const SESSION_MAX_AGE_SEC = 60 * 60 * 24 * 30; // 30 days
+const STORE_FILE_PATH = process.env.VERCEL
+  ? '/tmp/kasatune-auth-store.json'
+  : path.join(process.cwd(), '.kasatune-dev-store.json');
 
 export interface AuthUserPayload {
   id: string;
@@ -27,8 +32,39 @@ interface StoredServerAccount {
   lastLoginAt: number;
 }
 
-// Warm in-memory account store (paired with signed HttpOnly cookie & optional KV/DB)
+// Warm in-memory account + per-user data store (backed by disk JSON in local dev / /tmp on Vercel)
 const warmAccounts = new Map<string, StoredServerAccount>();
+const warmUserData = new Map<string, any>();
+
+function loadDiskStore() {
+  try {
+    if (!fs.existsSync(STORE_FILE_PATH)) return;
+    const raw = fs.readFileSync(STORE_FILE_PATH, 'utf8');
+    const parsed = JSON.parse(raw);
+    if (parsed?.accounts && typeof parsed.accounts === 'object') {
+      for (const [k, v] of Object.entries(parsed.accounts)) {
+        if (v && typeof v === 'object') warmAccounts.set(k, v as StoredServerAccount);
+      }
+    }
+    if (parsed?.userData && typeof parsed.userData === 'object') {
+      for (const [k, v] of Object.entries(parsed.userData)) {
+        if (v && typeof v === 'object') warmUserData.set(k, v);
+      }
+    }
+  } catch {}
+}
+
+function persistDiskStore() {
+  try {
+    const payload = {
+      accounts: Object.fromEntries(warmAccounts.entries()),
+      userData: Object.fromEntries(warmUserData.entries()),
+    };
+    fs.writeFileSync(STORE_FILE_PATH, JSON.stringify(payload), 'utf8');
+  } catch {}
+}
+
+loadDiskStore();
 
 function getGoogleClientId(): string {
   return (process.env.GOOGLE_CLIENT_ID || DEFAULT_GOOGLE_CLIENT_ID).trim();
@@ -219,6 +255,7 @@ export default async function handler(req: any, res: any) {
         lastLoginAt: now,
       };
       warmAccounts.set(email, account);
+      persistDiskStore();
 
       const user: AuthUserPayload = {
         id: account.id,
@@ -283,6 +320,8 @@ export default async function handler(req: any, res: any) {
           lastLoginAt: now,
         };
         warmAccounts.set(email, account);
+        persistDiskStore();
+      persistDiskStore();
         const user: AuthUserPayload = {
           id: account.id,
           email: account.email,
@@ -357,6 +396,7 @@ export default async function handler(req: any, res: any) {
         ...user,
         lastLoginAt: now,
       });
+      persistDiskStore();
 
       setSessionCookie(req, res, user);
       return sendJson(res, 200, { user });
@@ -451,6 +491,48 @@ export default async function handler(req: any, res: any) {
       res.setHeader('Location', `${origin}/`);
       res.end();
       return;
+    }
+
+    // 8. Per-Account Saved Data Vault (Pinned Artists, Favorites Playlist, Queue)
+    if (action === 'user-data') {
+      const cookies = parseCookies(req.headers?.cookie);
+      const sessionUser = verifySessionToken(cookies[SESSION_COOKIE]);
+
+      if (req.method === 'GET') {
+        const queryEmail = String(urlObj.searchParams.get('email') || '').trim().toLowerCase();
+        const email = sessionUser?.email || queryEmail;
+        if (!email) return sendJson(res, 401, { error: 'Belum masuk.' });
+        const data = warmUserData.get(email) || null;
+        return sendJson(res, 200, { data });
+      }
+
+      if (req.method === 'POST') {
+        const body = await readJsonBody(req);
+        const bodyEmail = String(body?.email || '').trim().toLowerCase();
+        const email = sessionUser?.email || bodyEmail;
+        if (!email) return sendJson(res, 401, { error: 'Belum masuk.' });
+        const snapshot = body?.snapshot;
+        if (!snapshot || typeof snapshot !== 'object') {
+          return sendJson(res, 400, { error: 'Snapshot tidak valid.' });
+        }
+        const existing = warmUserData.get(email);
+        const incomingTs = Number(snapshot.updatedAt) || Date.now();
+        if (!existing || incomingTs >= (Number(existing.updatedAt) || 0)) {
+          warmUserData.set(email, {
+            pinnedServers: Array.isArray(snapshot.pinnedServers) ? snapshot.pinnedServers : [],
+            manualQueue: Array.isArray(snapshot.manualQueue) ? snapshot.manualQueue.slice(0, 100) : [],
+            customPlaylist: snapshot.customPlaylist || existing?.customPlaylist,
+            activeAlbum: snapshot.activeAlbum || existing?.activeAlbum,
+            currentAlbumEntity:
+              snapshot.currentAlbumEntity !== undefined
+                ? snapshot.currentAlbumEntity
+                : existing?.currentAlbumEntity,
+            updatedAt: incomingTs,
+          });
+          persistDiskStore();
+        }
+        return sendJson(res, 200, { ok: true });
+      }
     }
 
     return sendJson(res, 405, { error: 'Unsupported auth action.' });
