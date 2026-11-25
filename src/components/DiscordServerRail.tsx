@@ -1,8 +1,6 @@
 /**
- * DiscordServerRail Component -> Kasatune Editorial Library Sidebar (Desktop)
- * Clean, calm, rounded-2xl warm-obsidian library card distinct from Spotify/Discord icon rails:
- * - Favorit Saya & Live Sync quick links
- * - Saved Artists list with rounded-xl square thumbnails and inline "+ Tambah" trigger
+ * DiscordServerRail Component -> Simple Modern Dark Library Sidebar (Desktop)
+ * Deep dark matte (#121213) with #CE7F20, #EEDFC7, #607938, #53341A accents.
  */
 
 import React, { useState } from 'react';
@@ -144,37 +142,23 @@ export const DiscordServerRail: React.FC<DiscordServerRailProps> = ({
 
   return (
     <>
-      <nav className="w-[222px] xl:w-[238px] h-full bg-[#131110] border border-white/[0.07] rounded-2xl flex flex-col overflow-hidden select-none z-30">
+      <nav className="w-[216px] xl:w-[232px] h-full bg-[#121213] border border-white/[0.07] rounded-xl flex flex-col overflow-hidden select-none z-30">
         {/* Top Library Shortcuts */}
         <div className="p-2.5 space-y-1 border-b border-white/[0.06] flex-shrink-0">
           <button
             type="button"
             onClick={() => onSelectAlbum('favorites')}
-            className={`w-full px-2.5 py-2 rounded-xl flex items-center justify-between gap-2.5 text-left transition-all border ${
+            className={`w-full px-2.5 py-2 rounded-lg flex items-center justify-between gap-2.5 text-left ${
               activeAlbum === 'favorites'
-                ? 'bg-[#FF6B2B]/15 border-[#FF6B2B]/35 text-[#FAF6F2]'
-                : 'bg-transparent border-transparent hover:bg-white/[0.04] text-[#A8A099] hover:text-[#FAF6F2]'
+                ? 'bg-[#53341A]/45 text-[#EEDFC7]'
+                : 'text-[#9A9288]'
             }`}
           >
             <div className="flex items-center gap-2.5 min-w-0">
-              <div
-                className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${
-                  activeAlbum === 'favorites'
-                    ? 'bg-[#FF6B2B] text-[#0A0908]'
-                    : 'bg-[#1D1A17] text-[#FF8A4C]'
-                }`}
-              >
-                <Heart className="w-4 h-4 fill-current" />
-              </div>
-              <span className="text-xs font-semibold truncate">{playlistName}</span>
+              <Heart className={`w-4 h-4 flex-shrink-0 ${activeAlbum === 'favorites' ? 'text-[#CE7F20] fill-[#CE7F20]' : 'text-[#CE7F20]'}`} />
+              <span className="text-xs font-medium truncate">{playlistName}</span>
             </div>
-            <span
-              className={`text-[10px] font-mono px-1.5 py-0.5 rounded-md flex-shrink-0 ${
-                activeAlbum === 'favorites'
-                  ? 'bg-[#FF6B2B]/20 text-[#FFA14A]'
-                  : 'bg-white/[0.05] text-[#756E68]'
-              }`}
-            >
+            <span className="text-[11px] font-mono text-[#9A9288] flex-shrink-0">
               {likedCount}
             </span>
           </button>
@@ -182,44 +166,33 @@ export const DiscordServerRail: React.FC<DiscordServerRailProps> = ({
           <button
             type="button"
             onClick={() => onSelectAlbum('friend')}
-            className={`w-full px-2.5 py-2 rounded-xl flex items-center justify-between gap-2.5 text-left transition-all border ${
+            className={`w-full px-2.5 py-2 rounded-lg flex items-center justify-between gap-2.5 text-left ${
               activeAlbum === 'friend'
-                ? 'bg-[#FF6B2B]/15 border-[#FF6B2B]/35 text-[#FAF6F2]'
-                : 'bg-transparent border-transparent hover:bg-white/[0.04] text-[#A8A099] hover:text-[#FAF6F2]'
+                ? 'bg-[#53341A]/45 text-[#EEDFC7]'
+                : 'text-[#9A9288]'
             }`}
           >
             <div className="flex items-center gap-2.5 min-w-0">
-              <div
-                className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${
-                  isFriendConnected
-                    ? 'bg-[#FF6B2B]/20 text-[#FF8A4C]'
-                    : 'bg-[#1D1A17] text-[#8A817A]'
-                }`}
-              >
-                <Radio className="w-4 h-4" />
-              </div>
+              <Radio className={`w-4 h-4 flex-shrink-0 ${isFriendConnected ? 'text-[#607938]' : 'text-[#68625B]'}`} />
               <div className="min-w-0">
-                <p className="text-xs font-semibold truncate leading-tight">Live Sync</p>
-                <p className="text-[10px] text-[#756E68] truncate">
+                <p className="text-xs font-medium truncate leading-tight">Live Sync</p>
+                <p className="text-[10px] text-[#68625B] truncate">
                   {isFriendConnected ? 'Terhubung' : 'Mode Mandiri'}
                 </p>
               </div>
             </div>
-            {isFriendConnected && (
-              <span className="w-2 h-2 rounded-full bg-[#FF6B2B] flex-shrink-0 animate-pulse" />
-            )}
           </button>
         </div>
 
         {/* Saved Artists Header */}
         <div className="px-3.5 pt-3 pb-2 flex items-center justify-between flex-shrink-0">
-          <span className="text-[10px] font-bold uppercase tracking-widest text-[#756E68]">
+          <span className="text-[10px] font-semibold uppercase tracking-widest text-[#68625B]">
             Artis ({pinnedServers.length})
           </span>
           <button
             type="button"
             onClick={() => setIsAddModalOpen(true)}
-            className="h-6 px-2 rounded-lg bg-[#FF6B2B]/15 hover:bg-[#FF6B2B]/25 text-[#FF8A4C] border border-[#FF6B2B]/30 text-[11px] font-semibold flex items-center gap-1 transition-colors"
+            className="h-6 px-2 rounded bg-[#CE7F20] text-[#0B0B0C] text-[11px] font-semibold flex items-center gap-1"
             title="Tambah artis ke koleksi"
           >
             <Plus className="w-3 h-3 stroke-[2.5]" />
@@ -230,14 +203,14 @@ export const DiscordServerRail: React.FC<DiscordServerRailProps> = ({
         {/* Saved Artists Scrollable List */}
         <div className="flex-1 overflow-y-auto px-2 pb-3 space-y-1 custom-scrollbar">
           {pinnedServers.length === 0 ? (
-            <div className="mx-1 mt-1 p-4 rounded-xl bg-[#1A1715]/70 border border-dashed border-white/[0.08] text-center space-y-2.5">
-              <p className="text-[11px] text-[#8A817A] leading-relaxed">
-                Simpan artis favorit agar mudah diakses kapan saja.
+            <div className="mx-1 mt-1 p-4 rounded-lg bg-[#18181A] border border-white/[0.06] text-center space-y-2.5">
+              <p className="text-[11px] text-[#9A9288] leading-relaxed">
+                Belum ada artis tersimpan.
               </p>
               <button
                 type="button"
                 onClick={() => setIsAddModalOpen(true)}
-                className="w-full h-8 rounded-lg bg-[#FF6B2B] hover:bg-[#FF7E45] text-[#0A0908] text-xs font-bold transition-colors"
+                className="w-full h-8 rounded-lg bg-[#CE7F20] text-[#0B0B0C] text-xs font-semibold"
               >
                 Cari Artis
               </button>
@@ -249,19 +222,15 @@ export const DiscordServerRail: React.FC<DiscordServerRailProps> = ({
                 <div
                   key={server.id}
                   onClick={() => onSelectAlbum(server.id, server)}
-                  className={`group relative px-2.5 py-2 rounded-xl flex items-center justify-between gap-2.5 cursor-pointer transition-all border ${
+                  className={`px-2.5 py-2 rounded-lg flex items-center justify-between gap-2.5 cursor-pointer ${
                     isActive
-                      ? 'bg-[#FF6B2B]/15 border-[#FF6B2B]/30 text-[#FAF6F2]'
-                      : 'bg-transparent border-transparent hover:bg-white/[0.04] text-[#B8B0A8] hover:text-[#FAF6F2]'
+                      ? 'bg-[#53341A]/45 text-[#EEDFC7]'
+                      : 'text-[#9A9288]'
                   }`}
                 >
-                  {isActive && (
-                    <span className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-5 rounded-r-full bg-[#FF6B2B]" />
-                  )}
-
                   <div className="flex items-center gap-2.5 min-w-0 flex-1">
-                    <div className="w-9 h-9 rounded-lg overflow-hidden bg-[#1D1A17] border border-white/[0.07] flex-shrink-0 relative flex items-center justify-center">
-                      <span className="text-[10px] font-bold text-[#A8A099] uppercase select-none">
+                    <div className="w-8 h-8 rounded overflow-hidden bg-[#19191B] border border-white/[0.07] flex-shrink-0 relative flex items-center justify-center">
+                      <span className="text-[10px] font-semibold text-[#9A9288] uppercase select-none">
                         {server.name.replace(/[^a-zA-Z0-9]/g, '').slice(0, 3) || '♪'}
                       </span>
                       {isValidImageUrl(server.imageUrl) && (
@@ -277,13 +246,13 @@ export const DiscordServerRail: React.FC<DiscordServerRailProps> = ({
                     </div>
                     <div className="min-w-0 flex-1">
                       <p
-                        className={`text-xs font-semibold truncate leading-tight ${
-                          isActive ? 'text-[#FFA14A]' : 'text-[#FAF6F2]'
+                        className={`text-xs font-medium truncate leading-tight ${
+                          isActive ? 'text-[#EEDFC7]' : 'text-[#EEDFC7]/80'
                         }`}
                       >
                         {server.name}
                       </p>
-                      <p className="text-[10px] text-[#756E68] truncate mt-0.5">Artis</p>
+                      <p className="text-[10px] text-[#68625B] truncate mt-0.5">Artis</p>
                     </div>
                   </div>
 
@@ -293,7 +262,7 @@ export const DiscordServerRail: React.FC<DiscordServerRailProps> = ({
                       e.stopPropagation();
                       handleTogglePin(server);
                     }}
-                    className="p-1 rounded-md text-[#756E68] opacity-0 group-hover:opacity-100 hover:text-[#FF6B2B] hover:bg-white/[0.06] transition-all flex-shrink-0"
+                    className="p-1 rounded text-[#68625B] flex-shrink-0"
                     title="Hapus dari koleksi"
                     aria-label="Hapus artis"
                   >
@@ -306,7 +275,6 @@ export const DiscordServerRail: React.FC<DiscordServerRailProps> = ({
         </div>
       </nav>
 
-      {/* Fallback standalone modal when DiscordServerRail is used without root modal control */}
       {isAddModalOpenExternal === undefined && (
         <AddAlbumModal
           isOpen={isAddModalOpen}

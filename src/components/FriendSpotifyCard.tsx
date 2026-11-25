@@ -89,19 +89,19 @@ export const FriendSpotifyCard: React.FC<FriendSpotifyCardProps> = ({
       >
         <div className="flex items-center gap-2 min-w-0">
           <div className="relative flex-shrink-0">
-            <Radio className={`w-3.5 h-3.5 ${isConnected ? 'text-[#FF6B2B]' : 'text-[#8A817A]'}`} />
+            <Radio className={`w-3.5 h-3.5 ${isConnected ? 'text-[#CE7F20]' : 'text-[#8A817A]'}`} />
             {isConnected && (
-              <span className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 rounded-full bg-[#FF6B2B] animate-pulse" />
+              <span className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 rounded-full bg-[#CE7F20] animate-pulse" />
             )}
           </div>
           <div className="flex items-center gap-1.5 min-w-0 truncate">
-            <span className="text-xs font-bold text-[#FAF6F2] truncate group-hover:text-[#FFA14A] transition-colors">
+            <span className="text-xs font-bold text-[#FAF6F2] truncate group-hover:text-[#EEDFC7] transition-colors">
               Pilih Teman (Live Sync)
             </span>
             <span
               className={`text-[9px] font-mono px-1.5 py-0.2 rounded font-bold ${
                 isConnected
-                  ? 'bg-[#FF6B2B]/15 text-[#FF8A4C] border border-[#FF6B2B]/35'
+                  ? 'bg-[#CE7F20]/15 text-[#CE7F20] border border-[#CE7F20]/35'
                   : 'bg-[#1D1A17] text-[#8A817A] border border-white/[0.07]'
               }`}
             >
@@ -169,7 +169,7 @@ export const FriendSpotifyCard: React.FC<FriendSpotifyCardProps> = ({
                 onClick={() => handleSelectPreset(f.id)}
                 className={`p-2 rounded-xl border text-left transition-colors flex flex-col gap-1.5 relative overflow-hidden ${
                   isSelected
-                    ? 'bg-[#FF6B2B]/15 border-[#FF6B2B] ring-1 ring-[#FF6B2B]/40'
+                    ? 'bg-[#CE7F20]/15 border-[#CE7F20] ring-1 ring-[#CE7F20]/40'
                     : 'bg-[#171412] border-white/[0.07] hover:bg-[#1E1A17] hover:border-white/[0.15]'
                 }`}
                 title={`Pilih ${f.name} (@${f.username}) - ${f.tag}`}
@@ -183,7 +183,7 @@ export const FriendSpotifyCard: React.FC<FriendSpotifyCardProps> = ({
                     />
                     <span
                       className={`absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full border border-[#110F0E] ${
-                        isFriendPlaying ? 'bg-[#FF6B2B]' : 'bg-[#756E68]'
+                        isFriendPlaying ? 'bg-[#CE7F20]' : 'bg-[#756E68]'
                       }`}
                     />
                   </div>
@@ -191,9 +191,9 @@ export const FriendSpotifyCard: React.FC<FriendSpotifyCardProps> = ({
                   <span
                     className={`text-[8px] font-mono px-1 py-0.5 rounded font-bold uppercase tracking-wider ${
                       isSelected
-                        ? 'bg-[#FF6B2B] text-[#0A0908]'
+                        ? 'bg-[#CE7F20] text-[#0A0908]'
                         : isFriendPlaying
-                        ? 'bg-[#FF6B2B]/20 text-[#FF8A4C]'
+                        ? 'bg-[#CE7F20]/20 text-[#CE7F20]'
                         : 'bg-[#26221F] text-[#9E958D]'
                     }`}
                   >
@@ -226,14 +226,14 @@ export const FriendSpotifyCard: React.FC<FriendSpotifyCardProps> = ({
           }}
           className={`py-1.5 rounded-lg flex items-center justify-center gap-1.5 transition-colors ${
             isConnected
-              ? 'bg-[#FF6B2B]/15 border border-[#FF6B2B]/35 text-[#FF8A4C] font-semibold'
+              ? 'bg-[#CE7F20]/15 border border-[#CE7F20]/35 text-[#CE7F20] font-semibold'
               : 'text-[#9E958D] hover:text-white border border-transparent'
           }`}
           title="Sinkronkan pemutaran dengan lagu teman secara real-time"
         >
           <span
             className={`w-1.5 h-1.5 rounded-full ${
-              isConnected ? 'bg-[#FF6B2B]' : 'bg-[#756E68]'
+              isConnected ? 'bg-[#CE7F20]' : 'bg-[#756E68]'
             }`}
           />
           <span>Live Sync Teman</span>
@@ -312,7 +312,7 @@ export const FriendSpotifyCard: React.FC<FriendSpotifyCardProps> = ({
 
           <button
             onClick={onToggleConnect}
-            className="w-full h-8 px-3 rounded-xl bg-gradient-to-r from-[#FF6B2B] to-[#FF8A3D] hover:brightness-110 text-[#0A0908] text-xs font-bold flex items-center justify-center gap-2 transition-all active:scale-[0.98]"
+            className="w-full h-8 px-3 rounded-lg bg-[#CE7F20] text-[#0B0B0C] text-xs font-semibold flex items-center justify-center gap-2"
             title="Sambungkan kembali ke Live Sync teman"
           >
             <Radio className="w-3.5 h-3.5" />
@@ -332,7 +332,7 @@ export const FriendSpotifyCard: React.FC<FriendSpotifyCardProps> = ({
                   className="w-7 h-7 rounded-lg object-cover border border-white/[0.08] flex-shrink-0"
                 />
               ) : (
-                <div className="w-7 h-7 rounded-lg bg-[#FF6B2B] flex items-center justify-center text-xs font-bold text-[#0A0908] flex-shrink-0">
+                <div className="w-7 h-7 rounded-lg bg-[#CE7F20] flex items-center justify-center text-xs font-bold text-[#0A0908] flex-shrink-0">
                   {activeName.slice(0, 1)}
                 </div>
               )}
@@ -349,13 +349,13 @@ export const FriendSpotifyCard: React.FC<FriendSpotifyCardProps> = ({
             <span
               className={`text-[8.5px] font-mono px-1.5 py-0.5 rounded font-bold flex items-center gap-1 ${
                 isPlaying
-                  ? 'bg-[#FF6B2B]/15 text-[#FF8A4C] border border-[#FF6B2B]/35'
+                  ? 'bg-[#CE7F20]/15 text-[#CE7F20] border border-[#CE7F20]/35'
                   : 'bg-[#26221F] text-[#9E958D]'
               }`}
             >
               <span
                 className={`w-1.5 h-1.5 rounded-full ${
-                  isPlaying ? 'bg-[#FF6B2B] animate-ping' : 'bg-[#756E68]'
+                  isPlaying ? 'bg-[#CE7F20] animate-ping' : 'bg-[#756E68]'
                 }`}
               />
               <span>{isPlaying ? 'PLAYING' : 'STANDBY'}</span>
@@ -379,7 +379,7 @@ export const FriendSpotifyCard: React.FC<FriendSpotifyCardProps> = ({
                   </div>
                 )}
                 <div className="min-w-0 flex-1">
-                  <p className="text-xs font-bold text-[#FAF6F2] truncate leading-tight hover:text-[#FFA14A]">
+                  <p className="text-xs font-bold text-[#FAF6F2] truncate leading-tight hover:text-[#EEDFC7]">
                     {track.title}
                   </p>
                   <p className="text-[10px] text-[#9E958D] truncate">
@@ -391,7 +391,7 @@ export const FriendSpotifyCard: React.FC<FriendSpotifyCardProps> = ({
                     href={track.spotifyUrl}
                     target="_blank"
                     rel="noreferrer"
-                    className="text-[#756E68] hover:text-[#FF6B2B] p-1 transition-colors flex-shrink-0"
+                    className="text-[#756E68] hover:text-[#CE7F20] p-1 transition-colors flex-shrink-0"
                     title="Open on Spotify"
                   >
                     <ExternalLink className="w-3.5 h-3.5" />
@@ -402,12 +402,12 @@ export const FriendSpotifyCard: React.FC<FriendSpotifyCardProps> = ({
               <div className="space-y-1 pt-0.5">
                 <div className="w-full h-1 bg-white/10 rounded-full overflow-hidden relative">
                   <div
-                    className="h-full bg-gradient-to-r from-[#FF6B2B] to-[#FFA14A] transition-all duration-200"
+                    className="h-full bg-gradient-to-r from-[#CE7F20] to-[#EEDFC7] transition-all duration-200"
                     style={{ width: `${progressRatio * 100}%` }}
                   />
                 </div>
                 <div className="flex items-center justify-between text-[10px] font-mono text-[#756E68]">
-                  <span className="text-[#FFA14A] font-semibold">
+                  <span className="text-[#EEDFC7] font-semibold">
                     {formatTime(liveProgressMs)}
                   </span>
                   <span>{formatTime(durationMs)}</span>
@@ -416,17 +416,17 @@ export const FriendSpotifyCard: React.FC<FriendSpotifyCardProps> = ({
 
               <button
                 onClick={onToggleConnect}
-                className="w-full h-7 px-2 mt-0.5 rounded-lg bg-[#FF6B2B]/15 border border-[#FF6B2B]/35 hover:bg-[#FF6B2B]/25 text-[#FF8A4C] text-[10px] font-bold flex items-center justify-center gap-1.5 transition-all shadow-sm"
+                className="w-full h-7 px-2 mt-0.5 rounded-lg bg-[#CE7F20]/15 border border-[#CE7F20]/35 hover:bg-[#CE7F20]/25 text-[#CE7F20] text-[10px] font-bold flex items-center justify-center gap-1.5 transition-all shadow-sm"
                 title="Klik untuk disconnect & beralih ke musik mandiri"
               >
-                <CheckCircle2 className="w-3 h-3 text-[#FF6B2B]" />
+                <CheckCircle2 className="w-3 h-3 text-[#CE7F20]" />
                 <span>Connected (Live Sync) &bull; Klik Disconnect</span>
               </button>
             </div>
           ) : (
             <div className="pt-2 flex flex-col gap-2 border-t border-white/[0.06]">
               <div className="flex items-start gap-2 text-[#A8A099]">
-                <Moon className="w-4 h-4 text-[#FFA14A] flex-shrink-0 mt-0.5" />
+                <Moon className="w-4 h-4 text-[#EEDFC7] flex-shrink-0 mt-0.5" />
                 <div className="min-w-0 flex-1 text-[10px] leading-snug">
                   <span className="text-[#FAF6F2] font-semibold">{activeName}</span> sedang tidak memutar lagu.
                   <span className="text-[#756E68] block pt-0.5">
@@ -437,10 +437,10 @@ export const FriendSpotifyCard: React.FC<FriendSpotifyCardProps> = ({
 
               <button
                 onClick={onSwitchToMyMusic || onToggleConnect}
-                className="w-full h-8 px-3 rounded-xl bg-[#FF6B2B]/15 hover:bg-[#FF6B2B]/25 border border-[#FF6B2B]/35 text-[#FFA14A] text-xs font-bold flex items-center justify-center gap-2 transition-all active:scale-95"
+                className="w-full h-8 px-3 rounded-xl bg-[#CE7F20]/15 hover:bg-[#CE7F20]/25 border border-[#CE7F20]/35 text-[#EEDFC7] text-xs font-bold flex items-center justify-center gap-2 transition-all active:scale-95"
                 title="Beralih ke mode mandiri dan putar lagu dari koleksi kamu"
               >
-                <Music2 className="w-3.5 h-3.5 text-[#FF6B2B]" />
+                <Music2 className="w-3.5 h-3.5 text-[#CE7F20]" />
                 <span>Putar Musik Sendiri</span>
               </button>
 

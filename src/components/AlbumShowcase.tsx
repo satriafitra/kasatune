@@ -1,8 +1,8 @@
 /**
- * AlbumShowcase Component (Kasatune Editorial Studio Stage)
- * Distinct warm-obsidian + sunset-orange layout (non-Spotify):
- * - Framed square artwork card with soft ambient warm wash & inline orange pill controls
- * - Clean editorial tracklist with orange active surface, crisp typography, and zero clutter
+ * AlbumShowcase Component
+ * Modern dark matte elegance (#0B0B0C / #121213) with #CE7F20, #EEDFC7, #607938, #53341A:
+ * - Seamless artist photo gradient fading cleanly into the dark #121213 main background (desktop & mobile)
+ * - Flat, minimal, zero-glow controls without noisy interactive effects
  */
 
 import React, { useState } from 'react';
@@ -50,7 +50,6 @@ export const AlbumShowcase: React.FC<AlbumShowcaseProps> = ({
   track,
   tracks,
   activeTrackId,
-  colors,
   isPlaying,
   onTogglePlay,
   onSelectTrack,
@@ -65,7 +64,6 @@ export const AlbumShowcase: React.FC<AlbumShowcaseProps> = ({
   onToggleShuffle,
   isShuffle = false,
 }) => {
-  const [hoveredTrackId, setHoveredTrackId] = useState<string | null>(null);
   const [isFollowing, setIsFollowing] = useState(false);
 
   const isFavorites = activeAlbum === 'favorites';
@@ -113,7 +111,6 @@ export const AlbumShowcase: React.FC<AlbumShowcaseProps> = ({
     new Date().getFullYear();
 
   const monthlyListeners = getMonthlyListeners(artistName, tracks.length);
-  const [r, g, b] = colors.dominantColor || [255, 107, 43];
 
   const formatDuration = (ms: number) => {
     if (!ms || ms <= 0) return '3:45';
@@ -138,249 +135,203 @@ export const AlbumShowcase: React.FC<AlbumShowcaseProps> = ({
     }
   };
 
-  const heroArtwork = isFavorites
-    ? customPlaylist?.coverUrl ||
-      'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=600&auto=format&fit=crop&q=80'
-    : coverImage;
-
-  const heroEyebrow = isArtistView
-    ? 'Artis Pilihan'
-    : isFavorites
-    ? 'Koleksi Favorit'
-    : isFriend
-    ? 'Live Sync Teman'
-    : 'Album';
-
-  const heroTitle = isArtistView
-    ? artistName
-    : isFavorites
-    ? customPlaylist?.name || 'Favorit Saya'
-    : albumTitle;
-
   return (
-    <div className="w-full h-full bg-[#131110] rounded-2xl border border-white/[0.07] flex flex-col overflow-y-auto select-none relative custom-scrollbar">
+    <div className="w-full h-full bg-[#121213] rounded-xl border border-white/[0.07] flex flex-col overflow-y-auto select-none relative custom-scrollbar">
       {/* Friend Live Sync Panel ONLY when viewing Friend mode */}
       {isFriend && friendHeaderSlot && (
-        <div className="border-b border-white/[0.06] bg-[#161311]/70 pt-2 flex-shrink-0">
+        <div className="border-b border-white/[0.07] bg-[#101011] pt-2 flex-shrink-0">
           {friendHeaderSlot}
         </div>
       )}
 
-      {/* 1. Editorial Studio Header (Framed Artwork + Inline Orange Capsule Actions) */}
-      <div
-        className="w-full p-4 sm:p-6 md:p-7 relative overflow-hidden flex-shrink-0 border-b border-white/[0.06]"
-        style={{
-          backgroundImage: `radial-gradient(ellipse at 18% 0%, rgba(255, 107, 43, 0.18) 0%, rgba(${r}, ${g}, ${b}, 0.10) 42%, transparent 78%)`,
-        }}
-      >
-        {activeAlbum === 'friend' && friendStandbyInfo?.isStandby && (
-          <div className="mb-3.5 px-3 py-2 rounded-xl bg-[#1A1715]/90 border border-[#FF6B2B]/35 flex items-center gap-2.5 z-20 relative">
-            <span className="w-2 h-2 rounded-full bg-[#FF6B2B] flex-shrink-0" />
-            <p className="text-xs font-medium text-[#FAF6F2] truncate">
-              {friendStandbyInfo.friendName} sedang Standby (Menunggu lagu diputar)
+      {/* 1. Seamless Artist Photo-to-Dark Background Gradient Header (Desktop & Mobile) */}
+      {isArtistView ? (
+        <div className="relative w-full min-h-[190px] sm:min-h-[250px] flex flex-col justify-end p-4 sm:p-7 overflow-hidden flex-shrink-0 bg-[#181512]">
+          <div className="absolute inset-0 z-0">
+            <img
+              src={coverImage}
+              alt={artistName}
+              className="w-full h-full object-cover object-center opacity-75"
+              onError={(e) => {
+                (e.currentTarget as HTMLElement).style.display = 'none';
+              }}
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-[#121213] via-[#121213]/65 to-black/20" />
+          </div>
+
+          <div className="relative z-10 flex flex-col gap-1 max-w-3xl min-w-0">
+            <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[#CE7F20]">
+              Artis
+            </span>
+            <h1 className="text-2xl sm:text-5xl font-bold text-[#EEDFC7] tracking-tight leading-tight break-words">
+              {artistName}
+            </h1>
+            <p className="text-xs sm:text-sm text-[#EEDFC7]/75">
+              {monthlyListeners} &bull; {tracks.length} Lagu
             </p>
           </div>
-        )}
-
-        <div className="relative z-10 flex flex-row items-center sm:items-end gap-4 sm:gap-6">
-          {/* Framed Rounded-2xl Artwork (Consistent across Artist, Favorites, & Album) */}
-          <div className="w-20 h-20 sm:w-32 sm:h-32 md:w-36 md:h-36 rounded-2xl overflow-hidden bg-[#1D1A17] border border-white/10 shadow-[0_18px_40px_rgba(0,0,0,0.55)] flex-shrink-0 relative flex items-center justify-center">
-            <span className="text-lg sm:text-2xl font-bold text-[#A8A099] uppercase">
-              {heroTitle.replace(/[^a-zA-Z0-9]/g, '').slice(0, 3) || '♪'}
-            </span>
-            {heroArtwork && (
+        </div>
+      ) : isFavorites ? (
+        <div className="w-full p-4 sm:p-7 flex flex-col justify-end relative overflow-hidden flex-shrink-0 bg-gradient-to-b from-[#53341A]/55 via-[#1C1612] to-[#121213]">
+          <div className="flex flex-row items-center sm:items-end gap-4 sm:gap-5 z-10">
+            <div className="w-20 h-20 sm:w-32 sm:h-32 rounded-lg overflow-hidden bg-[#0B0B0C] border border-white/10 flex-shrink-0">
               <img
-                src={heroArtwork}
-                alt={heroTitle}
-                className="w-full h-full object-cover absolute inset-0"
+                src={
+                  customPlaylist?.coverUrl ||
+                  'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=600&auto=format&fit=crop&q=80'
+                }
+                alt={customPlaylist?.name || 'Favorit'}
+                className="w-full h-full object-cover"
+              />
+            </div>
+
+            <div className="flex flex-col gap-1 text-left min-w-0 flex-1">
+              <span className="text-[10px] sm:text-[11px] font-semibold uppercase tracking-[0.14em] text-[#CE7F20]">
+                Playlist Favorit
+              </span>
+              <h1 className="text-xl sm:text-4xl font-bold text-[#EEDFC7] tracking-tight leading-tight truncate">
+                {customPlaylist?.name || 'Favorit Saya'}
+              </h1>
+              <p className="text-xs text-[#9A9288] truncate">
+                {customPlaylist?.description || 'Daftar lagu tersimpan'} &bull;{' '}
+                <span className="text-[#EEDFC7]">{tracks.length} lagu</span>
+              </p>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div className="w-full p-4 sm:p-7 flex flex-col justify-end relative overflow-hidden flex-shrink-0 bg-gradient-to-b from-[#53341A]/45 via-[#1A1613] to-[#121213]">
+          {activeAlbum === 'friend' && friendStandbyInfo?.isStandby && (
+            <div className="mb-3 px-3 py-2 rounded-lg bg-[#0B0B0C]/85 border border-white/[0.08] flex items-center gap-2 z-20">
+              <span className="w-2 h-2 rounded-full bg-[#607938] flex-shrink-0" />
+              <p className="text-xs text-[#EEDFC7] truncate">
+                {friendStandbyInfo.friendName} sedang Standby (Menunggu lagu diputar)
+              </p>
+            </div>
+          )}
+
+          <div className="flex flex-row items-center sm:items-end gap-4 sm:gap-5 z-10">
+            <div className="w-20 h-20 sm:w-32 sm:h-32 rounded-lg overflow-hidden bg-[#0B0B0C] border border-white/10 flex-shrink-0">
+              <img
+                src={coverImage}
+                alt={albumTitle}
                 onError={(e) => {
                   (e.currentTarget as HTMLElement).style.display = 'none';
                 }}
+                className="w-full h-full object-cover"
               />
-            )}
-          </div>
+            </div>
 
-          {/* Right Meta + Inline Action Bar */}
-          <div className="flex flex-col gap-1.5 min-w-0 flex-1">
-            <div className="flex items-center gap-1.5">
-              <span className="w-1.5 h-1.5 rounded-full bg-[#FF6B2B] flex-shrink-0" />
-              <span className="text-[10px] sm:text-[11px] font-bold uppercase tracking-[0.14em] text-[#FF8A4C] truncate">
-                {heroEyebrow}
+            <div className="flex flex-col gap-1 min-w-0 flex-1 text-left">
+              <span className="text-[10px] sm:text-[11px] font-semibold uppercase tracking-[0.14em] text-[#607938]">
+                {isFriend ? 'Live Sync' : 'Album'}
               </span>
-            </div>
-
-            <h1 className="text-xl sm:text-3xl md:text-4xl font-extrabold text-[#FAF6F2] tracking-tight leading-tight break-words line-clamp-2">
-              {heroTitle}
-            </h1>
-
-            <p className="text-xs text-[#A8A099] truncate">
-              {isArtistView ? (
-                <>
-                  {monthlyListeners} &bull; <span className="text-[#FAF6F2] font-medium">{tracks.length} Lagu</span>
-                </>
-              ) : isFavorites ? (
-                <>
-                  {customPlaylist?.description || 'Daftar lagu tersimpan'} &bull;{' '}
-                  <span className="text-[#FAF6F2] font-medium">{tracks.length} lagu</span>
-                </>
-              ) : (
-                <>
-                  <span className="text-[#FAF6F2] font-medium">{artistName}</span> &bull; {releaseYear} &bull; {tracks.length} Lagu
-                </>
-              )}
-            </p>
-
-            {/* Desktop Inline Controls (Distinct Rounded-xl Orange Pill — Not Spotify Circle) */}
-            <div className="hidden sm:flex items-center gap-2.5 pt-2.5">
-              <button
-                onClick={handleMasterPlayToggle}
-                className="h-10 px-5 rounded-xl bg-gradient-to-r from-[#FF6B2B] to-[#FF8A3D] hover:brightness-110 active:scale-[0.98] text-[#0A0908] text-xs font-bold flex items-center gap-2 shadow-[0_8px_24px_rgba(255,107,43,0.32)] transition-all cursor-pointer"
-                title={isStagePlaying ? 'Jeda Musik' : 'Putar Semua'}
-              >
-                {isStagePlaying ? (
-                  <Pause className="w-4 h-4 fill-current stroke-current" />
-                ) : (
-                  <Play className="w-4 h-4 fill-current stroke-current translate-x-0.5" />
-                )}
-                <span>{isStagePlaying ? 'Jeda' : 'Putar'}</span>
-              </button>
-
-              {onToggleShuffle && (
-                <button
-                  onClick={onToggleShuffle}
-                  className={`h-10 px-3.5 rounded-xl border text-xs font-semibold flex items-center gap-1.5 transition-all ${
-                    isShuffle
-                      ? 'bg-[#FF6B2B]/15 border-[#FF6B2B]/40 text-[#FF8A4C]'
-                      : 'bg-[#1B1816] border-white/[0.08] text-[#B8B0A8] hover:text-white hover:border-white/20'
-                  }`}
-                  title={isShuffle ? 'Acak Aktif' : 'Acak Pemutaran'}
-                >
-                  <Shuffle className="w-3.5 h-3.5" />
-                  <span>Acak</span>
-                </button>
-              )}
-
-              {isArtistView && (
-                <button
-                  onClick={() => setIsFollowing((v) => !v)}
-                  className={`h-10 px-4 rounded-xl border text-xs font-semibold flex items-center gap-1.5 transition-all ${
-                    isFollowing
-                      ? 'bg-[#FF6B2B]/15 border-[#FF6B2B]/40 text-[#FF8A4C]'
-                      : 'bg-[#1B1816] border-white/[0.08] text-[#FAF6F2] hover:border-white/25'
-                  }`}
-                >
-                  {isFollowing && <Check className="w-3.5 h-3.5" />}
-                  <span>{isFollowing ? 'Mengikuti' : 'Ikuti'}</span>
-                </button>
-              )}
-
-              {isFavorites && onOpenEditModal && (
-                <button
-                  onClick={onOpenEditModal}
-                  className="h-10 px-3.5 rounded-xl bg-[#1B1816] border border-white/[0.08] hover:border-white/25 text-[#FAF6F2] flex items-center gap-1.5 text-xs font-semibold transition-all"
-                  title="Edit rincian playlist"
-                >
-                  <Pencil className="w-3.5 h-3.5 text-[#FF8A4C]" />
-                  <span>Edit</span>
-                </button>
-              )}
+              <h1 className="text-xl sm:text-4xl font-bold text-[#EEDFC7] tracking-tight leading-tight truncate">
+                {albumTitle}
+              </h1>
+              <div className="flex flex-wrap items-center gap-1.5 text-xs text-[#9A9288]">
+                <span className="text-[#EEDFC7] font-medium truncate">{artistName}</span>
+                <span>&bull;</span>
+                <span>{releaseYear}</span>
+                <span>&bull;</span>
+                <span>{tracks.length} Lagu</span>
+              </div>
             </div>
           </div>
         </div>
+      )}
 
-        {/* Mobile Compact Action Row (Full width breathing room on < sm) */}
-        <div className="flex sm:hidden items-center gap-2 pt-4 relative z-10">
+      {/* 2. Flat Minimal Action Bar (Zero Glow / Zero Bounce) */}
+      <div className="px-4 sm:px-7 py-3 flex items-center gap-2.5 flex-shrink-0 bg-[#121213]">
+        <button
+          onClick={handleMasterPlayToggle}
+          className="h-9 sm:h-10 px-4 sm:px-5 rounded-lg bg-[#CE7F20] text-[#0B0B0C] text-xs font-semibold flex items-center gap-2 cursor-pointer flex-shrink-0"
+          title={isStagePlaying ? 'Jeda Musik' : 'Putar Semua'}
+        >
+          {isStagePlaying ? (
+            <Pause className="w-3.5 h-3.5 fill-current stroke-current" />
+          ) : (
+            <Play className="w-3.5 h-3.5 fill-current stroke-current translate-x-0.5" />
+          )}
+          <span>{isStagePlaying ? 'Jeda' : 'Putar'}</span>
+        </button>
+
+        {onToggleShuffle && (
           <button
-            onClick={handleMasterPlayToggle}
-            className="h-9 px-4 rounded-xl bg-gradient-to-r from-[#FF6B2B] to-[#FF8A3D] active:scale-[0.98] text-[#0A0908] text-xs font-bold flex items-center gap-1.5 shadow-[0_6px_18px_rgba(255,107,43,0.3)] flex-shrink-0"
+            onClick={onToggleShuffle}
+            className={`h-9 sm:h-10 px-3.5 rounded-lg border text-xs font-medium flex items-center gap-1.5 ${
+              isShuffle
+                ? 'bg-[#607938]/20 border-[#607938] text-[#EEDFC7]'
+                : 'bg-[#19191B] border-white/[0.08] text-[#9A9288]'
+            }`}
+            title={isShuffle ? 'Acak Aktif' : 'Acak Pemutaran'}
           >
-            {isStagePlaying ? (
-              <Pause className="w-3.5 h-3.5 fill-current stroke-current" />
-            ) : (
-              <Play className="w-3.5 h-3.5 fill-current stroke-current translate-x-0.5" />
-            )}
-            <span>{isStagePlaying ? 'Jeda' : 'Putar'}</span>
+            <Shuffle className="w-3.5 h-3.5" />
+            <span>Acak</span>
           </button>
+        )}
 
-          {onToggleShuffle && (
-            <button
-              onClick={onToggleShuffle}
-              className={`h-9 px-3 rounded-xl border text-xs font-semibold flex items-center gap-1.5 transition-all ${
-                isShuffle
-                  ? 'bg-[#FF6B2B]/15 border-[#FF6B2B]/40 text-[#FF8A4C]'
-                  : 'bg-[#1B1816] border-white/[0.08] text-[#B8B0A8]'
-              }`}
-            >
-              <Shuffle className="w-3.5 h-3.5" />
-              <span>Acak</span>
-            </button>
-          )}
+        {isArtistView && (
+          <button
+            onClick={() => setIsFollowing((v) => !v)}
+            className={`h-9 sm:h-10 px-3.5 rounded-lg border text-xs font-medium flex items-center gap-1.5 ${
+              isFollowing
+                ? 'bg-[#607938]/20 border-[#607938] text-[#EEDFC7]'
+                : 'bg-[#19191B] border-white/[0.08] text-[#EEDFC7]'
+            }`}
+          >
+            {isFollowing && <Check className="w-3.5 h-3.5 text-[#607938]" />}
+            <span>{isFollowing ? 'Mengikuti' : 'Ikuti'}</span>
+          </button>
+        )}
 
-          {isArtistView && (
-            <button
-              onClick={() => setIsFollowing((v) => !v)}
-              className={`h-9 px-3.5 rounded-xl border text-xs font-semibold transition-all ${
-                isFollowing
-                  ? 'bg-[#FF6B2B]/15 border-[#FF6B2B]/40 text-[#FF8A4C]'
-                  : 'bg-[#1B1816] border-white/[0.08] text-[#FAF6F2]'
-              }`}
-            >
-              {isFollowing ? 'Mengikuti' : 'Ikuti'}
-            </button>
-          )}
-
-          {isFavorites && onOpenEditModal && (
-            <button
-              onClick={onOpenEditModal}
-              className="h-9 px-3 rounded-xl bg-[#1B1816] border border-white/[0.08] text-[#FAF6F2] flex items-center gap-1.5 text-xs font-semibold"
-            >
-              <Pencil className="w-3.5 h-3.5 text-[#FF8A4C]" />
-              <span>Edit</span>
-            </button>
-          )}
-        </div>
+        {isFavorites && onOpenEditModal && (
+          <button
+            onClick={onOpenEditModal}
+            className="h-9 sm:h-10 px-3.5 rounded-lg bg-[#19191B] border border-white/[0.08] text-[#EEDFC7] flex items-center gap-1.5 text-xs font-medium"
+            title="Edit rincian playlist"
+          >
+            <Pencil className="w-3.5 h-3.5 text-[#CE7F20]" />
+            <span>Edit</span>
+          </button>
+        )}
       </div>
 
-      {/* 2. Clean Editorial Tracklist */}
-      <div className="px-2.5 sm:px-6 py-4 sm:py-5 flex-1 flex flex-col bg-[#131110]">
-        <div className="flex items-center justify-between px-2 mb-2.5">
-          <h2 className="text-xs font-bold uppercase tracking-[0.12em] text-[#8A817A]">
-            {isArtistView ? 'Lagu Populer' : 'Daftar Lagu'}
+      {/* 3. Clean Minimal Tracklist */}
+      <div className="px-2.5 sm:px-7 pb-6 pt-1 flex-1 flex flex-col bg-[#121213]">
+        <div className="flex items-center justify-between px-2 pb-2 mb-1 border-b border-white/[0.06]">
+          <h2 className="text-xs font-semibold uppercase tracking-wider text-[#9A9288]">
+            {isArtistView ? 'Populer' : 'Daftar Lagu'}
           </h2>
           {tracks.length > 0 && (
-            <span className="text-[11px] font-mono text-[#756E68]">
-              {tracks.length} trek
+            <span className="text-[11px] font-mono text-[#68625B]">
+              {tracks.length} lagu
             </span>
           )}
         </div>
 
         {isFavorites && tracks.length === 0 ? (
-          <div className="flex-1 flex flex-col items-center justify-center py-12 text-center text-[#A8A099]">
-            <div className="w-12 h-12 rounded-2xl bg-[#FF6B2B]/15 border border-[#FF6B2B]/25 flex items-center justify-center mb-3">
-              <Heart className="w-5 h-5 text-[#FF6B2B]" />
-            </div>
-            <h3 className="text-sm font-bold text-[#FAF6F2] mb-1">Belum Ada Lagu Favorit</h3>
-            <p className="text-xs text-[#756E68] max-w-xs">
-              Ketuk ikon hati pada lagu apa saja untuk menyimpannya ke koleksi ini.
+          <div className="flex-1 flex flex-col items-center justify-center py-12 text-center text-[#9A9288]">
+            <Heart className="w-7 h-7 text-[#CE7F20] mb-3" />
+            <h3 className="text-sm font-semibold text-[#EEDFC7] mb-1">Belum Ada Lagu Favorit</h3>
+            <p className="text-xs text-[#68625B] max-w-xs">
+              Ketuk ikon hati pada lagu apa saja untuk menyimpannya di sini.
             </p>
           </div>
         ) : tracks.length === 0 ? (
-          <div className="flex-1 flex flex-col items-center justify-center py-12 text-center text-[#8A817A]">
+          <div className="flex-1 flex flex-col items-center justify-center py-12 text-center text-[#68625B]">
             <p className="text-xs">Memuat daftar lagu...</p>
           </div>
         ) : (
-          <div className="space-y-1">
+          <div className="divide-y divide-white/[0.04]">
             {tracks.map((t, index) => {
               const isActive = isSameTrack(t, track) || t.id === activeTrackId;
-              const isHovered = hoveredTrackId === t.id;
               const isLiked = isLikedTrack ? isLikedTrack(t.id) : false;
               const streamsFormatted = computeRealtimeStreams(t.title, t.artist, index, (t as any).rank);
 
               return (
                 <div
                   key={t.id}
-                  onMouseEnter={() => setHoveredTrackId(t.id)}
-                  onMouseLeave={() => setHoveredTrackId(null)}
                   onClick={() => {
                     if (isActive) {
                       onTogglePlay();
@@ -388,34 +339,28 @@ export const AlbumShowcase: React.FC<AlbumShowcaseProps> = ({
                       onSelectTrack(t);
                     }
                   }}
-                  className={`grid grid-cols-[24px_1fr_auto_auto] md:grid-cols-[28px_5fr_2.5fr_34px_auto] gap-2.5 sm:gap-4 px-2.5 sm:px-3.5 py-2 rounded-xl text-sm items-center cursor-pointer transition-all border group ${
+                  className={`grid grid-cols-[24px_1fr_auto_auto] md:grid-cols-[28px_5fr_2.5fr_34px_auto] gap-2.5 sm:gap-4 px-2 sm:px-3 py-2.5 rounded-lg text-sm items-center cursor-pointer ${
                     isActive
-                      ? 'bg-[#FF6B2B]/15 border-[#FF6B2B]/25 text-[#FF8A4C]'
-                      : 'bg-transparent border-transparent hover:bg-white/[0.04] text-[#B8B0A8]'
+                      ? 'bg-[#53341A]/35 text-[#EEDFC7]'
+                      : 'text-[#9A9288]'
                   }`}
                 >
-                  <div className="w-6 h-7 flex items-center justify-center flex-shrink-0">
+                  <div className="w-6 h-6 flex items-center justify-center flex-shrink-0">
                     {isActive ? (
                       isPlaying ? (
-                        isHovered ? (
-                          <Pause className="w-4 h-4 text-[#FF6B2B] fill-[#FF6B2B]" />
-                        ) : (
-                          <Volume2 className="w-4 h-4 text-[#FF6B2B] animate-pulse" />
-                        )
+                        <Volume2 className="w-4 h-4 text-[#CE7F20]" />
                       ) : (
-                        <Play className="w-4 h-4 text-[#FF6B2B] fill-[#FF6B2B] translate-x-0.5" />
+                        <Play className="w-3.5 h-3.5 text-[#CE7F20] fill-current translate-x-0.5" />
                       )
-                    ) : isHovered ? (
-                      <Play className="w-4 h-4 text-[#FAF6F2] fill-[#FAF6F2] translate-x-0.5" />
                     ) : (
-                      <span className="text-xs font-mono text-[#756E68]">
+                      <span className="text-xs font-mono text-[#68625B]">
                         {String(index + 1).padStart(2, '0')}
                       </span>
                     )}
                   </div>
 
                   <div className="flex items-center gap-3 min-w-0">
-                    <div className="w-10 h-10 rounded-lg overflow-hidden flex-shrink-0 bg-[#1D1A17] border border-white/[0.06]">
+                    <div className="w-10 h-10 rounded overflow-hidden flex-shrink-0 bg-[#19191B] border border-white/[0.06]">
                       <img
                         src={t.coverUrl}
                         alt={t.title}
@@ -429,18 +374,18 @@ export const AlbumShowcase: React.FC<AlbumShowcaseProps> = ({
                     <div className="flex flex-col min-w-0">
                       <span
                         className={`truncate text-sm leading-tight ${
-                          isActive ? 'text-[#FFA14A] font-semibold' : 'text-[#FAF6F2] font-medium'
+                          isActive ? 'text-[#CE7F20] font-semibold' : 'text-[#EEDFC7] font-medium'
                         }`}
                       >
                         {t.title}
                       </span>
-                      <span className="text-xs text-[#8A817A] truncate pt-0.5">
+                      <span className="text-xs text-[#9A9288] truncate pt-0.5">
                         {t.artist}
                       </span>
                     </div>
                   </div>
 
-                  <div className="hidden md:block text-[11px] font-mono text-[#756E68] truncate">
+                  <div className="hidden md:block text-[11px] font-mono text-[#68625B] truncate">
                     {streamsFormatted}
                   </div>
 
@@ -450,19 +395,17 @@ export const AlbumShowcase: React.FC<AlbumShowcaseProps> = ({
                         e.stopPropagation();
                         onToggleLikeTrack?.(t);
                       }}
-                      className={`p-1.5 rounded-lg transition-colors ${
-                        isLiked
-                          ? 'text-[#FF6B2B]'
-                          : 'text-[#756E68] sm:opacity-0 sm:group-hover:opacity-100 hover:text-[#FAF6F2]'
+                      className={`p-1.5 rounded ${
+                        isLiked ? 'text-[#CE7F20]' : 'text-[#68625B]'
                       }`}
                       title={isLiked ? 'Hapus dari favorit' : 'Simpan ke favorit'}
                       aria-label="Favorit"
                     >
-                      <Heart className={`w-4 h-4 ${isLiked ? 'fill-[#FF6B2B]' : ''}`} />
+                      <Heart className={`w-4 h-4 ${isLiked ? 'fill-[#CE7F20]' : ''}`} />
                     </button>
                   </div>
 
-                  <span className="text-xs font-mono text-[#756E68] text-right min-w-[36px]">
+                  <span className="text-xs font-mono text-[#68625B] text-right min-w-[36px]">
                     {formatDuration(t.durationMs)}
                   </span>
                 </div>

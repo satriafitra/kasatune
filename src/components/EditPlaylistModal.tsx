@@ -111,7 +111,7 @@ export const EditPlaylistModal: React.FC<EditPlaylistModalProps> = ({
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-white/[0.07] bg-[#12100E]">
           <div className="flex items-center gap-2">
-            <Sparkles className="w-4 h-4 text-[#FF6B2B]" />
+            <Sparkles className="w-4 h-4 text-[#CE7F20]" />
             <h2 className="text-base font-bold text-[#FAF6F2] tracking-tight">
               Edit Rincian Playlist
             </h2>
@@ -172,7 +172,7 @@ export const EditPlaylistModal: React.FC<EditPlaylistModalProps> = ({
             <div className="flex-1 w-full space-y-3.5">
               <div>
                 <label className="block text-xs font-bold uppercase tracking-wider text-[#9E958D] mb-1.5">
-                  Nama Playlist <span className="text-[#FF6B2B]">*</span>
+                  Nama Playlist <span className="text-[#CE7F20]">*</span>
                 </label>
                 <input
                   type="text"
@@ -180,7 +180,7 @@ export const EditPlaylistModal: React.FC<EditPlaylistModalProps> = ({
                   onChange={(e) => setName(e.target.value)}
                   maxLength={60}
                   placeholder="Beri nama playlist Anda..."
-                  className="w-full px-3 py-2 rounded-xl bg-[#0E0C0B] border border-white/[0.08] focus:border-[#FF6B2B]/60 text-sm text-[#FAF6F2] placeholder-[#756E68] focus:outline-none transition-colors"
+                  className="w-full px-3 py-2 rounded-xl bg-[#0E0C0B] border border-white/[0.08] focus:border-[#CE7F20]/60 text-sm text-[#FAF6F2] placeholder-[#756E68] focus:outline-none transition-colors"
                 />
               </div>
 
@@ -194,7 +194,7 @@ export const EditPlaylistModal: React.FC<EditPlaylistModalProps> = ({
                   rows={3}
                   maxLength={200}
                   placeholder="Tambahkan deskripsi singkat tentang playlist ini..."
-                  className="w-full px-3 py-2 rounded-xl bg-[#0E0C0B] border border-white/[0.08] focus:border-[#FF6B2B]/60 text-xs text-[#FAF6F2] placeholder-[#756E68] focus:outline-none resize-none transition-colors"
+                  className="w-full px-3 py-2 rounded-xl bg-[#0E0C0B] border border-white/[0.08] focus:border-[#CE7F20]/60 text-xs text-[#FAF6F2] placeholder-[#756E68] focus:outline-none resize-none transition-colors"
                 />
               </div>
             </div>
@@ -211,7 +211,7 @@ export const EditPlaylistModal: React.FC<EditPlaylistModalProps> = ({
               value={coverUrl.startsWith('data:') ? '' : coverUrl}
               onChange={(e) => setCoverUrl(e.target.value)}
               placeholder="https://images.unsplash.com/..."
-              className="w-full px-3 py-2 rounded-xl bg-[#0E0C0B] border border-white/[0.08] focus:border-[#FF6B2B]/60 text-xs text-[#FAF6F2] placeholder-[#756E68] focus:outline-none transition-colors font-mono"
+              className="w-full px-3 py-2 rounded-xl bg-[#0E0C0B] border border-white/[0.08] focus:border-[#CE7F20]/60 text-xs text-[#FAF6F2] placeholder-[#756E68] focus:outline-none transition-colors font-mono"
             />
           </div>
 
@@ -230,7 +230,7 @@ export const EditPlaylistModal: React.FC<EditPlaylistModalProps> = ({
                     onClick={() => setCoverUrl(preset.url)}
                     className={`relative rounded-xl overflow-hidden border aspect-square group transition-all ${
                       isSelected
-                        ? 'border-[#FF6B2B] ring-2 ring-[#FF6B2B]/40 scale-105'
+                        ? 'border-[#CE7F20] ring-2 ring-[#CE7F20]/40 scale-105'
                         : 'border-white/[0.08] hover:border-white/25'
                     }`}
                     title={preset.name}
@@ -244,7 +244,7 @@ export const EditPlaylistModal: React.FC<EditPlaylistModalProps> = ({
                       {preset.name}
                     </div>
                     {isSelected && (
-                      <div className="absolute top-1 right-1 w-4 h-4 rounded-full bg-[#FF6B2B] text-[#0A0908] flex items-center justify-center shadow-sm">
+                      <div className="absolute top-1 right-1 w-4 h-4 rounded-full bg-[#CE7F20] text-[#0A0908] flex items-center justify-center shadow-sm">
                         <Check className="w-2.5 h-2.5 stroke-[3]" />
                       </div>
                     )}
@@ -265,7 +265,7 @@ export const EditPlaylistModal: React.FC<EditPlaylistModalProps> = ({
             </button>
             <button
               type="submit"
-              className="px-5 py-2 rounded-xl text-xs font-bold text-[#0A0908] bg-gradient-to-r from-[#FF6B2B] to-[#FF8A3D] hover:brightness-110 active:scale-95 transition-all shadow-md flex items-center gap-1.5"
+              className="px-5 py-2 rounded-lg text-xs font-semibold text-[#0B0B0C] bg-[#CE7F20] flex items-center gap-1.5"
             >
               <Check className="w-4 h-4" />
               <span>Simpan Perubahan</span>
