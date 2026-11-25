@@ -1,5 +1,6 @@
 import { Ytdl, Client, chooseFormat } from '@distube/ytdl-core';
 import { parseScript } from 'meriyah';
+import crypto from 'node:crypto';
 import vm from 'node:vm';
 import { Readable } from 'stream';
 
@@ -11,8 +12,8 @@ const WEB_USER_AGENT =
   'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36';
 const EMBED_HOST = 'https://www.reddit.com/';
 
-// Vercel Serverless Functions have a 4.5MB buffered limit; bounded Range chunks stream cleanly & never overflow
-const DEFAULT_MAX_CHUNK_BYTES = 1572864; // 1.5MB for VisionOS / Archive / SoundCloud Buffer
+// Vercel Serverless Functions have a 4.5MB (4,718,592B) buffered limit; 4.0MB chunks minimize Range hops safely under cap
+const DEFAULT_MAX_CHUNK_BYTES = 4000000; // 4.0MB for VisionOS / Archive / SoundCloud / Bilibili
 const MOBILE_MAX_CHUNK_BYTES = 524288; // 512KB cap required by YouTube Android/iOS CDN endpoints
 
 // In-memory cache for resolved format URLs / assembled buffers to make Range scrubbing & repeated plays instant
@@ -456,6 +457,13 @@ async function resolveViaArchiveOrg(
   return null;
 }
 
+const BILI_WBI_TAB = [
+  46, 47, 18, 2, 53, 8, 23, 32, 15, 50, 10, 31, 58, 3, 45, 35, 27, 43, 5, 49,
+  33, 9, 42, 19, 29, 28, 14, 39, 12, 38, 41, 13, 37, 48, 7, 16, 24, 55, 40,
+  61, 26, 17, 0, 1, 60, 51, 30, 4, 22, 25, 54, 21, 56, 59, 6, 63, 57, 62, 11,
+  36, 20, 34, 44, 52,
+];
+
 let cachedBiliCookie: { val: string; expires: number } | null = null;
 async function getBiliCookie(): Promise<string> {
   const now = Date.now();
@@ -466,12 +474,50 @@ async function getBiliCookie(): Promise<string> {
       signal: AbortSignal.timeout(3000),
     }).then((r) => r.json());
     if (spi?.data?.b_3) {
-      const val = `buvid3=${spi.data.b_3};`;
+      const bNut = Math.floor(now / 1000);
+      const val = `buvid3=${spi.data.b_3}; buvid4=${spi.data.b_4 || ''}; b_nut=${bNut};`;
       cachedBiliCookie = { val, expires: now + 30 * 60 * 1000 };
       return val;
     }
   } catch {}
   return '';
+}
+
+let cachedBiliMixin: { key: string; expires: number } | null = null;
+async function getBiliWbiMixin(): Promise<string> {
+  const now = Date.now();
+  if (cachedBiliMixin && cachedBiliMixin.expires > now) return cachedBiliMixin.key;
+  try {
+    const nav: any = await fetch('https://api.bilibili.com/x/web-interface/nav', {
+      headers: { 'User-Agent': WEB_USER_AGENT, Referer: 'https://www.bilibili.com/' },
+      signal: AbortSignal.timeout(3000),
+    }).then((r) => r.json());
+    const ik = String(nav?.data?.wbi_img?.img_url || '').split('/').pop()?.split('.')[0] || '';
+    const sk = String(nav?.data?.wbi_img?.sub_url || '').split('/').pop()?.split('.')[0] || '';
+    if (ik && sk) {
+      const raw = ik + sk;
+      const key = BILI_WBI_TAB.map((n) => raw[n] || '').join('').slice(0, 32);
+      if (key.length === 32) {
+        cachedBiliMixin = { key, expires: now + 30 * 60 * 1000 };
+        return key;
+      }
+    }
+  } catch {}
+  return '';
+}
+
+function parseBiliHtmlCards(html: string): Array<{ bvid: string; title: string; duration: string }> {
+  const out: Array<{ bvid: string; title: string; duration: string }> = [];
+  for (const part of html.split('bili-video-card__wrap').slice(1)) {
+    const chunk = part.slice(0, 4500);
+    const bvid =
+      /href="\/\/www\.bilibili\.com(?:\/[a-zA-Z-]+)?\/video\/(BV1[a-zA-Z0-9]{9})\/?"/.exec(chunk)?.[1] ||
+      /(BV1[a-zA-Z0-9]{9})/.exec(chunk)?.[1];
+    const duration = /bili-video-card__stats__duration[^>]*>([^<]+)</.exec(chunk)?.[1]?.trim();
+    const title = /class="bili-video-card__info--tit"[^>]*title="([^"]+)"/.exec(chunk)?.[1];
+    if (bvid && title && duration) out.push({ bvid, title, duration });
+  }
+  return out;
 }
 
 function parseBiliDuration(durStr: string): number {
@@ -488,11 +534,17 @@ async function resolveViaBilibili(
   artist: string,
   title: string,
   rawQuery: string,
-  durationSec: number
+  durationSec: number,
+  diag?: string[]
 ): Promise<Omit<CachedFormat, 'expires'> | null> {
   try {
-    const cookie = await getBiliCookie();
-    if (!cookie) return null;
+    const [cookie, mixin] = await Promise.all([getBiliCookie(), getBiliWbiMixin()]);
+    const biliHeaders: Record<string, string> = {
+      'User-Agent': WEB_USER_AGENT,
+      Referer: 'https://search.bilibili.com/',
+      Origin: 'https://search.bilibili.com',
+    };
+    if (cookie) biliHeaders['Cookie'] = cookie;
 
     const cleanTitleStr = (title || rawQuery)
       .replace(/\(.*?\)|\[.*?\]/g, ' ')
@@ -513,7 +565,7 @@ async function resolveViaBilibili(
         for (const jt of titleAliases) {
           searchJobs.push({
             query: `${ja} ${jt}`,
-            artistChecks: [ja.toLowerCase(), ...(cleanArtistStr ? [cleanArtistStr.toLowerCase()] : [])],
+            artistChecks: [ja.toLowerCase(), 'ユリイ', ...(cleanArtistStr ? [cleanArtistStr.toLowerCase()] : [])],
             titleChecks: [jt.toLowerCase(), ...titleWords],
           });
         }
@@ -528,23 +580,43 @@ async function resolveViaBilibili(
 
     const bad = [
       'ニコカラ', 'on vocal', 'off vocal', 'カラオケ', 'karaoke', 'cover', '翻唱',
-      '歌ってみた', 'piano', 'ピアノ', 'instrumental', '伴奏', '鼓谱', '譜面',
+      '歌ってみた', 'piano', 'ピアノ', 'instrumental', '伴奏', '鼓谱', '譜面', '钢琴',
       'drum', 'bass', 'guitar', 'tab', 'midi', '反応', 'reaction', 'nightcore',
-      'sped up', 'slowed', 'mad', 'amv',
+      'sped up', 'slowed', 'mad', 'amv', '夢ノ結唱', 'cevio', 'synthesizer', 'utau',
     ];
     const qLower = rawQuery.toLowerCase();
     const allowLive = qLower.includes('live') || qLower.includes('acoustic');
 
     for (const job of searchJobs) {
-      const sr: any = await fetch(
-        `https://api.bilibili.com/x/web-interface/search/type?search_type=video&keyword=${encodeURIComponent(job.query)}`,
-        {
-          headers: { 'User-Agent': WEB_USER_AGENT, Referer: 'https://www.bilibili.com/', Cookie: cookie },
+      let rawItems: any[] = [];
+      let wbiCode: number | string = 'no-mixin';
+      if (mixin) {
+        const wts = Math.floor(Date.now() / 1000);
+        const p: Record<string, string | number> = { keyword: job.query, search_type: 'video', wts };
+        const qs = Object.keys(p)
+          .sort()
+          .map((k) => `${encodeURIComponent(k)}=${encodeURIComponent(String(p[k]).replace(/[!'()*]/g, ''))}`)
+          .join('&');
+        const w_rid = crypto.createHash('md5').update(qs + mixin).digest('hex');
+        const sr: any = await fetch(`https://api.bilibili.com/x/web-interface/wbi/search/type?${qs}&w_rid=${w_rid}`, {
+          headers: biliHeaders,
           signal: AbortSignal.timeout(4000),
-        }
-      ).then((r) => r.json()).catch(() => null);
+        }).then((r) => r.json()).catch(() => null);
+        wbiCode = sr?.code ?? 'err';
+        rawItems = sr?.data?.result || [];
+      }
 
-      const candidates = (sr?.data?.result || []).filter((item: any) => {
+      if (rawItems.length === 0) {
+        // Fallback to SSR HTML card extraction if WBI search returned nothing or blocked
+        const html = await fetch(`https://search.bilibili.com/all?keyword=${encodeURIComponent(job.query)}`, {
+          headers: { 'User-Agent': WEB_USER_AGENT, Referer: 'https://www.bilibili.com/', ...(cookie ? { Cookie: cookie } : {}) },
+          signal: AbortSignal.timeout(4000),
+        }).then((r) => r.text()).catch(() => '');
+        rawItems = parseBiliHtmlCards(html);
+        diag?.push(`bili(${job.query}):wbi=${wbiCode},ssr=${rawItems.length}`);
+      }
+
+      const candidates = rawItems.filter((item: any) => {
         const tClean = String(item.title || '').replace(/<[^>]+>/g, '').toLowerCase();
         const d = parseBiliDuration(item.duration);
         if (d < 60 || d > 480) return false;
@@ -555,7 +627,10 @@ async function resolveViaBilibili(
         return true;
       });
 
-      if (candidates.length === 0) continue;
+      if (candidates.length === 0) {
+        diag?.push(`bili_cand0(${job.query},raw=${rawItems.length})`);
+        continue;
+      }
 
       candidates.sort((a: any, b: any) => {
         const scoreB = (it: any) => {
@@ -576,21 +651,21 @@ async function resolveViaBilibili(
       for (const top of candidates.slice(0, 3)) {
         try {
           const pl: any = await fetch(`https://api.bilibili.com/x/player/pagelist?bvid=${top.bvid}`, {
-            headers: { 'User-Agent': WEB_USER_AGENT, Referer: 'https://www.bilibili.com/', Cookie: cookie },
+            headers: { 'User-Agent': WEB_USER_AGENT, Referer: 'https://www.bilibili.com/', ...(cookie ? { Cookie: cookie } : {}) },
             signal: AbortSignal.timeout(3500),
           }).then((r) => r.json());
           const cid = pl?.data?.[0]?.cid;
-          if (!cid) continue;
+          if (!cid) { diag?.push(`bili_nocid(${top.bvid})`); continue; }
 
           const play: any = await fetch(
             `https://api.bilibili.com/x/player/playurl?bvid=${top.bvid}&cid=${cid}&qn=16&fnval=1&platform=html5`,
             {
-              headers: { 'User-Agent': WEB_USER_AGENT, Referer: 'https://www.bilibili.com/', Cookie: cookie },
+              headers: { 'User-Agent': WEB_USER_AGENT, Referer: 'https://www.bilibili.com/', ...(cookie ? { Cookie: cookie } : {}) },
               signal: AbortSignal.timeout(3500),
             }
           ).then((r) => r.json());
           const d0 = play?.data?.durl?.[0];
-          if (!d0?.url) continue;
+          if (!d0?.url) { diag?.push(`bili_nodurl(${top.bvid},code=${play?.code})`); continue; }
 
           if (await isStreamUrlPlayable(d0.url, WEB_USER_AGENT, 'https://www.bilibili.com/')) {
             return {
@@ -602,10 +677,15 @@ async function resolveViaBilibili(
               maxChunkBytes: DEFAULT_MAX_CHUNK_BYTES,
             };
           }
-        } catch {}
+          diag?.push(`bili_unplayable(${top.bvid})`);
+        } catch (e: any) {
+          diag?.push(`bili_err(${top.bvid}:${e?.message || 'err'})`);
+        }
       }
     }
-  } catch {}
+  } catch (e: any) {
+    diag?.push(`bili_catch:${e?.message || 'err'}`);
+  }
   return null;
 }
 
@@ -940,7 +1020,8 @@ async function resolveAudioFormat(
   artist: string,
   title: string,
   rawQuery: string,
-  durationSec: number
+  durationSec: number,
+  diag?: string[]
 ): Promise<Omit<CachedFormat, 'expires'> | null> {
   if (videoId) {
     // Run YouTube VisionOS / ANDROID / IOS concurrently so AWS IP blocks fail fast in <=3.5s
@@ -956,18 +1037,28 @@ async function resolveAudioFormat(
     if (visionRes) return visionRes;
     if (androidRes) return androidRes;
     if (iosRes) return iosRes;
+    diag?.push('yt=blocked');
   }
 
   // Tier 4: SoundCloud Non-DRM HLS/Progressive Fallback (Vercel AWS IP safe)
   const scResult = await resolveViaSoundCloud(artist, title, rawQuery, durationSec);
-  if (scResult) return scResult;
+  if (scResult) {
+    // If SoundCloud fMP4 exceeds single-response 4MB cap, check if Archive.org has a direct single-hop MP3 first
+    if (scResult.buffer && scResult.buffer.length > DEFAULT_MAX_CHUNK_BYTES) {
+      const archiveMp3 = await resolveViaArchiveOrg(artist, title, rawQuery);
+      if (archiveMp3) return archiveMp3;
+    }
+    return scResult;
+  }
+  diag?.push('sc=0');
 
   // Tier 5: Archive.org Studio/Album MP3/M4A Fallback (Vercel AWS IP safe, full classic rock/indie)
   const archiveResult = await resolveViaArchiveOrg(artist, title, rawQuery);
   if (archiveResult) return archiveResult;
+  diag?.push('ia=0');
 
   // Tier 6: Bilibili Official MV MP4 Fallback (Vercel AWS IP safe, J-Pop / Asian / Anime tracks)
-  return await resolveViaBilibili(artist, title, rawQuery, durationSec);
+  return await resolveViaBilibili(artist, title, rawQuery, durationSec, diag);
 }
 
 export default async function handler(req: any, res: any) {
@@ -1206,18 +1297,25 @@ export default async function handler(req: any, res: any) {
         videoId = match?.id || '';
       }
 
+      const diag: string[] = [];
       const resolved = await resolveAudioFormat(
         videoId || '',
         y,
         artistParam,
         titleParam,
         rawQuery,
-        durationParam
+        durationParam,
+        diag
       );
       if (!resolved || (!resolved.url && !resolved.buffer)) {
         res.statusCode = 404;
         res.setHeader('Content-Type', 'application/json');
-        res.end(JSON.stringify({ error: 'No audio stream format found for ' + (videoId || rawQuery) }));
+        res.end(
+          JSON.stringify({
+            error: 'No audio stream format found for ' + (videoId || rawQuery),
+            trace: diag,
+          })
+        );
         return;
       }
 
@@ -1256,6 +1354,8 @@ export default async function handler(req: any, res: any) {
       res.statusCode = 206;
       res.setHeader('Content-Type', formatInfo.mimeType || 'audio/mp4');
       res.setHeader('Accept-Ranges', 'bytes');
+      res.setHeader('Cache-Control', 'public, max-age=300');
+      res.setHeader('Vary', 'Range');
       res.setHeader('Content-Range', `bytes ${start}-${end}/${total}`);
       res.setHeader('Content-Length', String(slice.length));
       res.end(slice);
@@ -1299,6 +1399,8 @@ export default async function handler(req: any, res: any) {
     res.statusCode = mediaRes.status; // 206 for range requests, 200 for full stream
     res.setHeader('Content-Type', mediaRes.headers.get('content-type') || formatInfo.mimeType);
     res.setHeader('Accept-Ranges', 'bytes');
+    res.setHeader('Cache-Control', 'public, max-age=300');
+    res.setHeader('Vary', 'Range');
 
     const contentRange = mediaRes.headers.get('content-range');
     if (contentRange) {
