@@ -4,12 +4,13 @@
  */
 
 import React, { useState } from 'react';
-import { Plus, X, Heart, Radio } from 'lucide-react';
+import { Plus, X, Heart, Radio, Home } from 'lucide-react';
 import type { CustomPlaylistData } from '../hooks/useCustomPlaylist';
 import { isValidImageUrl } from '../api/liveSearch';
 import { AddAlbumModal, CATALOG_ALBUMS, type PinnedServerItem } from './AddAlbumModal';
 
 export type AlbumFilterType =
+  | 'home'
   | 'friend'
   | 'all'
   | 'favorites'
@@ -145,6 +146,21 @@ export const DiscordServerRail: React.FC<DiscordServerRailProps> = ({
       <nav className="w-[216px] xl:w-[232px] h-full bg-[#121213] border border-white/[0.07] rounded-xl flex flex-col overflow-hidden select-none z-30">
         {/* Top Library Shortcuts */}
         <div className="p-2.5 space-y-1 border-b border-white/[0.06] flex-shrink-0">
+          <button
+            type="button"
+            onClick={() => onSelectAlbum('home')}
+            className={`w-full px-2.5 py-2 rounded-lg flex items-center justify-between gap-2.5 text-left ${
+              activeAlbum === 'home'
+                ? 'bg-[#53341A]/45 text-[#EEDFC7]'
+                : 'text-[#9A9288]'
+            }`}
+          >
+            <div className="flex items-center gap-2.5 min-w-0">
+              <Home className={`w-4 h-4 flex-shrink-0 ${activeAlbum === 'home' ? 'text-[#CE7F20]' : 'text-[#9A9288]'}`} />
+              <span className="text-xs font-medium truncate">Beranda</span>
+            </div>
+          </button>
+
           <button
             type="button"
             onClick={() => onSelectAlbum('favorites')}

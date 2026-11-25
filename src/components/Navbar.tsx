@@ -53,6 +53,7 @@ interface NavbarProps {
   onAddToQueue?: (track: BackendRadioheadTrack) => void;
   authUser?: AuthUser | null;
   onAccountLogout?: () => void;
+  onGoHome?: () => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -82,6 +83,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   onAddToQueue,
   authUser,
   onAccountLogout,
+  onGoHome,
 }) => {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [tempClientId, setTempClientId] = useState(clientId);
@@ -182,8 +184,12 @@ export const Navbar: React.FC<NavbarProps> = ({
 
   return (
     <header className="h-[52px] sm:h-14 w-full bg-[#0B0B0C] border-b border-white/[0.06] px-3.5 sm:px-5 flex items-center justify-between gap-3 select-none z-30 flex-shrink-0">
-      {/* Left: Clean Kasatune Brand */}
-      <div className="flex items-center gap-2.5 flex-shrink-0 cursor-pointer">
+      {/* Left: Clean Kasatune Brand (Clicks return to Home / Beranda) */}
+      <div
+        onClick={onGoHome}
+        className="flex items-center gap-2.5 flex-shrink-0 cursor-pointer"
+        title="Beranda"
+      >
         <KasatuneLogoIcon size={26} />
         <span className="font-bold text-[15px] sm:text-sm text-[#EEDFC7] tracking-tight">
           Kasatune

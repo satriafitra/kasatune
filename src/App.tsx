@@ -9,9 +9,10 @@
  */
 
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import { Plus, Heart, Radio, X, Disc3, Mic2, Library, ListMusic, LogOut } from 'lucide-react';
+import { Plus, Heart, Radio, X, Home, Mic2, Library, ListMusic, LogOut } from 'lucide-react';
 import { Navbar } from './components/Navbar';
 import { AuthScreen } from './components/AuthScreen';
+import { HomeFeed, type HomeDiscoveryData } from './components/HomeFeed';
 import {
   getSavedSessionUser,
   restoreAuthSession,
@@ -38,7 +39,7 @@ import { useFriendSpotify, type FriendTrack } from './hooks/useFriendSpotify';
 import { useCustomPlaylist } from './hooks/useCustomPlaylist';
 import { EditPlaylistModal } from './components/EditPlaylistModal';
 import type { BackendRadioheadTrack } from './api/backend';
-import { searchLiveMusic, fetchAlbumTracks, fetchArtistTracks, buildStreamUrl, searchLiveArtists, isValidImageUrl, isSameTrack } from './api/liveSearch';
+import { searchLiveMusic, fetchAlbumTracks, fetchArtistTracks, buildStreamUrl, searchLiveArtists, isValidImageUrl, isSameTrack, fetchHomeDiscovery } from './api/liveSearch';
 import { AddAlbumModal, CATALOG_ALBUMS, type PinnedServerItem } from './components/AddAlbumModal';
 import {
   isAudioInRamCache,
@@ -81,6 +82,9 @@ const AuthenticatedApp: React.FC<{
   const [searchFilter, setSearchFilter] = useState('');
   const [liveTracks, setLiveTracks] = useState<BackendRadioheadTrack[]>([]);
   const [isLoadingLive, setIsLoadingLive] = useState<boolean>(false);
+  const [homeDiscovery, setHomeDiscovery] = useState<HomeDiscoveryData | null>(null);
+  const [isLoadingHome, setIsLoadingHome] = useState<boolean>(true);
+  const [homePlaybackList, setHomePlaybackList] = useState<BackendRadioheadTrack[]>([]);
   const [mobileView, setMobileView] = useState<'player' | 'lyrics' | 'queue' | 'sidebar'>('player');
   const [queueToast, setQueueToast] = useState<string | null>(null);
   const [, setCacheTick] = useState(0);
@@ -251,21 +255,13 @@ const AuthenticatedApp: React.FC<{
     };
   }, [searchFilter]);
 
-  // Session & Condition Persistence: Restore the exact last condition on refresh
+  // Session & Condition Persistence: Default new accounts to clean real-time Home feed ('home')
   const [activeAlbum, setActiveAlbum] = useState<AlbumFilterType>(() => {
     try {
       const saved = localStorage.getItem(kActiveAlbum);
       if (saved && saved !== 'all') return saved as AlbumFilterType;
-
-      const savedPinned = localStorage.getItem(kPinned);
-      if (savedPinned) {
-        const list = JSON.parse(savedPinned);
-        if (Array.isArray(list) && list.length > 0 && list[0].id) {
-          return list[0].id as AlbumFilterType;
-        }
-      }
     } catch {}
-    return 'favorites';
+    return 'home';
   });
 
   const [isFriendSyncConnected, setIsFriendSyncConnected] = useState<boolean>(() => {
@@ -445,9 +441,8 @@ const AuthenticatedApp: React.FC<{
           savedTrack ||
           (savedTrackId && (tracks.find((t) => t.id === savedTrackId) || onlineTracksForActive?.find((t) => t.id === savedTrackId))) ||
           (onlineTracksForActive && onlineTracksForActive.length > 0 && onlineTracksForActive[0]) ||
-          (activeAlbum && activeAlbum !== 'friend' && tracks.find((t) => matchesAlbumFilter(t, activeAlbum, likedTrackIds))) ||
-          tracks.find((t) => t.category === 'vander') ||
-          tracks[0];
+          (activeAlbum && activeAlbum !== 'home' && activeAlbum !== 'friend' && tracks.find((t) => matchesAlbumFilter(t, activeAlbum, likedTrackIds))) ||
+          null;
 
         if (targetTrack) {
           selectTrack(targetTrack);
@@ -612,8 +607,38 @@ const AuthenticatedApp: React.FC<{
     resolveTargetTrack,
   ]);
 
-  // Filter tracks based on active Discord Server or Custom Playlist
+  // Load real-time global Home discovery (Top Songs {currentYear}, GTA VI Viral, & Random Recommendations)
+  const loadHomeFeed = useCallback(async (forceRefresh: boolean = false) => {
+    setIsLoadingHome(true);
+    try {
+      const data = await fetchHomeDiscovery(forceRefresh);
+      setHomeDiscovery(data);
+      // For a fresh account with no saved track yet, prepare the #1 global hit instead of any legacy default
+      if (!forceRefresh && !localStorage.getItem(kSavedTrack) && data.topGlobal.length > 0) {
+        const topSong = data.topGlobal[0];
+        selectTrack(topSong);
+        loadTrack(
+          resolvePlayableUrl(topSong),
+          topSong.bpm,
+          topSong.durationMs > 0 ? topSong.durationMs / 1000 : 210,
+          false
+        );
+      }
+    } finally {
+      setIsLoadingHome(false);
+    }
+  }, [kSavedTrack, selectTrack, loadTrack]);
+
+  useEffect(() => {
+    loadHomeFeed(false);
+  }, [loadHomeFeed]);
+
+  // Filter tracks based on active stage (Home, Favorites, Artist, or Local Library)
   const displayTracks = useMemo(() => {
+    if (activeAlbum === 'home') {
+      if (homePlaybackList.length > 0) return homePlaybackList;
+      return homeDiscovery?.topGlobal || [];
+    }
     if (activeAlbum === 'favorites') {
       return likedTracks;
     }
@@ -622,11 +647,11 @@ const AuthenticatedApp: React.FC<{
     }
 
     return tracks.filter((t) => matchesAlbumFilter(t, activeAlbum, likedTrackIds));
-  }, [tracks, activeAlbum, likedTracks, likedTrackIds, onlineAlbumTracks]);
+  }, [tracks, activeAlbum, likedTracks, likedTrackIds, onlineAlbumTracks, homePlaybackList, homeDiscovery]);
 
   // Auto-fetch artist / album popular tracks on refresh or category load
   useEffect(() => {
-    if (!activeAlbum || activeAlbum === 'friend' || activeAlbum === 'favorites') return;
+    if (!activeAlbum || activeAlbum === 'home' || activeAlbum === 'friend' || activeAlbum === 'favorites') return;
     if (onlineAlbumTracks[activeAlbum] && onlineAlbumTracks[activeAlbum].length > 0) return;
 
     let isSubscribed = true;
@@ -764,6 +789,14 @@ const AuthenticatedApp: React.FC<{
         }
       } catch {}
 
+      if (album === 'home') {
+        setCurrentAlbumEntity(null);
+        try {
+          localStorage.removeItem(kActiveEntity);
+        } catch {}
+        return;
+      }
+
       if (album === 'favorites') {
         if (likedTracks.length > 0) {
           const firstLiked = likedTracks[0];
@@ -845,7 +878,8 @@ const AuthenticatedApp: React.FC<{
       } else {
         const matchedTrack =
           tracks.find((t) => matchesAlbumFilter(t, album, likedTrackIds)) ||
-          tracks.find((t) => t.category === 'vander');
+          tracks.find((t) => t.id === 'rh-creep') ||
+          tracks[0];
         if (matchedTrack) {
           selectTrack(matchedTrack);
           try {
@@ -1385,6 +1419,10 @@ const AuthenticatedApp: React.FC<{
           pause();
           onAccountLogout();
         }}
+        onGoHome={() => {
+          handleSelectAlbum('home');
+          setMobileView('player');
+        }}
       />
 
       {/* 2. Clean 3-Card Dark Matte Workspace */}
@@ -1595,54 +1633,73 @@ const AuthenticatedApp: React.FC<{
           </div>
         )}
 
-        {/* Center & Right Stage: Main Showcase + Collapsible Lyrics / Queue */}
+        {/* Center & Right Stage: Home / Main Showcase + Collapsible Lyrics / Queue */}
         <div className={`flex-1 h-full min-w-0 p-2 sm:p-2.5 md:p-0 gap-3 overflow-hidden ${mobileView === 'sidebar' ? 'hidden md:flex' : 'flex'}`}>
           <div className={`flex-1 h-full min-w-0 ${mobileView === 'lyrics' || mobileView === 'queue' ? 'hidden lg:block' : 'block'}`}>
-            <AlbumShowcase
-              track={activeTrack}
-              tracks={displayTracks}
-              activeTrackId={activeTrack.id}
-              colors={albumColors}
-              isPlaying={isPlaying}
-              onTogglePlay={togglePlay}
-              onSelectTrack={handleSelectTrack}
-              friendStandbyInfo={{
-                friendName: friendPlayback?.friendName || 'Teman',
-                avatarUrl: friendPlayback?.avatarUrl,
-                isStandby: Boolean(
-                  isFriendSyncConnected &&
-                  activeAlbum === 'friend' &&
-                  friendPlayback &&
-                  !friendPlayback.isPlaying &&
-                  !friendPlayback.track
-                ),
-              }}
-              friendHeaderSlot={
-                <FriendSpotifyCard
-                  playbackState={friendPlayback}
-                  liveProgressMs={friendLiveProgressMs}
-                  isLoading={isLoadingFriend}
-                  isConnecting={isConnectingFriend}
-                  isConnected={isFriendSyncConnected}
-                  discordUserId={discordUserId}
-                  friendsLiveMap={friendsLiveMap}
-                  onSetDiscordUserId={handleSetDiscordUserId}
-                  onConnectSpotify={handleConnectFriendSpotify}
-                  onRefresh={refetchFriendSpotify}
-                  onToggleConnect={handleToggleFriendSync}
-                  onSwitchToMyMusic={handleSwitchToMyMusic}
-                />
-              }
-              activeAlbum={activeAlbum}
-              albumEntity={currentAlbumEntity}
-              customPlaylist={customPlaylist}
-              onOpenEditModal={() => setIsEditPlaylistModalOpen(true)}
-              isLikedTrack={isLiked}
-              onToggleLikeTrack={toggleLike}
-              onAddToQueue={handleAddToQueue}
-              onToggleShuffle={toggleShuffle}
-              isShuffle={isShuffle}
-            />
+            {activeAlbum === 'home' ? (
+              <HomeFeed
+                userName={authUser.name}
+                data={homeDiscovery}
+                isLoading={isLoadingHome}
+                activeTrack={activeTrack}
+                isPlaying={isPlaying}
+                onSelectTrack={(trk, list) => {
+                  setHomePlaybackList(list);
+                  handleSelectTrack(trk);
+                }}
+                onTogglePlay={togglePlay}
+                onRefresh={() => loadHomeFeed(true)}
+                isLikedTrack={isLiked}
+                onToggleLikeTrack={toggleLike}
+                onAddToQueue={handleAddToQueue}
+              />
+            ) : (
+              <AlbumShowcase
+                track={activeTrack}
+                tracks={displayTracks}
+                activeTrackId={activeTrack.id}
+                colors={albumColors}
+                isPlaying={isPlaying}
+                onTogglePlay={togglePlay}
+                onSelectTrack={handleSelectTrack}
+                friendStandbyInfo={{
+                  friendName: friendPlayback?.friendName || 'Teman',
+                  avatarUrl: friendPlayback?.avatarUrl,
+                  isStandby: Boolean(
+                    isFriendSyncConnected &&
+                    activeAlbum === 'friend' &&
+                    friendPlayback &&
+                    !friendPlayback.isPlaying &&
+                    !friendPlayback.track
+                  ),
+                }}
+                friendHeaderSlot={
+                  <FriendSpotifyCard
+                    playbackState={friendPlayback}
+                    liveProgressMs={friendLiveProgressMs}
+                    isLoading={isLoadingFriend}
+                    isConnecting={isConnectingFriend}
+                    isConnected={isFriendSyncConnected}
+                    discordUserId={discordUserId}
+                    friendsLiveMap={friendsLiveMap}
+                    onSetDiscordUserId={handleSetDiscordUserId}
+                    onConnectSpotify={handleConnectFriendSpotify}
+                    onRefresh={refetchFriendSpotify}
+                    onToggleConnect={handleToggleFriendSync}
+                    onSwitchToMyMusic={handleSwitchToMyMusic}
+                  />
+                }
+                activeAlbum={activeAlbum}
+                albumEntity={currentAlbumEntity}
+                customPlaylist={customPlaylist}
+                onOpenEditModal={() => setIsEditPlaylistModalOpen(true)}
+                isLikedTrack={isLiked}
+                onToggleLikeTrack={toggleLike}
+                onAddToQueue={handleAddToQueue}
+                onToggleShuffle={toggleShuffle}
+                isShuffle={isShuffle}
+              />
+            )}
           </div>
 
           {/* Right Lyrics Panel */}
@@ -1739,16 +1796,22 @@ const AuthenticatedApp: React.FC<{
         onToggleLike={() => toggleLike(activeTrack)}
       />
 
-      {/* 3.5 Dedicated Mobile Bottom Navigation Bar (4 Clean Tabs: Lagu, Lirik, Antrian, Koleksi) */}
+      {/* 3.5 Dedicated Mobile Bottom Navigation Bar (4 Clean Tabs: Beranda, Lirik, Antrian, Koleksi) */}
       <nav className="md:hidden w-full bg-[#0B0B0C] border-t border-white/[0.07] px-2 pt-1.5 pb-[max(0.45rem,env(safe-area-inset-bottom))] grid grid-cols-4 gap-1 flex-shrink-0 z-40">
         <button
-          onClick={() => setMobileView('player')}
+          onClick={() => {
+            if (mobileView === 'player' && activeAlbum !== 'home') {
+              handleSelectAlbum('home');
+            } else {
+              setMobileView('player');
+            }
+          }}
           className={`flex flex-col items-center justify-center gap-0.5 py-1.5 rounded-lg ${
             mobileView === 'player' ? 'text-[#EEDFC7]' : 'text-[#68625B]'
           }`}
         >
-          <Disc3 className={`w-5 h-5 ${mobileView === 'player' ? 'text-[#CE7F20]' : ''}`} />
-          <span className="text-[10px] font-medium">Lagu</span>
+          <Home className={`w-5 h-5 ${mobileView === 'player' ? 'text-[#CE7F20]' : ''}`} />
+          <span className="text-[10px] font-medium">Beranda</span>
         </button>
 
         <button

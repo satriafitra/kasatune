@@ -835,3 +835,235 @@ export async function searchLiveMusic(
     return [];
   }
 }
+
+export interface LiveHomeDiscovery {
+  year: number;
+  topGlobal: BackendRadioheadTrack[];
+  gtaTrending: BackendRadioheadTrack[];
+  recommendations: BackendRadioheadTrack[];
+  fetchedAt: number;
+}
+
+const GTA6_TRENDING_QUERIES = [
+  { artist: 'Tom Petty', title: 'Love Is A Long Road' },
+  { artist: 'The Pointer Sisters', title: 'Hot Together' },
+  { artist: 'Wang Chung', title: 'Everybody Have Fun Tonight' },
+  { artist: 'A Flock of Seagulls', title: 'I Ran (So Far Away)' },
+  { artist: 'Laura Branigan', title: 'Self Control' },
+  { artist: 'Daryl Hall & John Oates', title: 'Out of Touch' },
+  { artist: 'Tears for Fears', title: 'Everybody Wants to Rule the World' },
+  { artist: 'The Weeknd', title: 'Blinding Lights' },
+];
+
+function shuffleArray<T>(arr: T[]): T[] {
+  const copy = [...arr];
+  for (let i = copy.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [copy[i], copy[j]] = [copy[j], copy[i]];
+  }
+  return copy;
+}
+
+async function fetchDeezerGlobalChart(limit: number = 25): Promise<BackendRadioheadTrack[]> {
+  try {
+    const res = await fetch(`/api/deezer/chart/0/tracks?limit=${limit}`);
+    if (!res.ok) return [];
+    const data = await res.json();
+    if (!Array.isArray(data?.data)) return [];
+    const currentYear = new Date().getFullYear();
+
+    return data.data
+      .filter((item: any) => item?.title && item?.artist?.name)
+      .map((item: any) => {
+        const artist = String(item.artist.name);
+        const title = String(item.title);
+        const durationMs = item.duration ? Number(item.duration) * 1000 : 210000;
+        const coverUrl =
+          item.album?.cover_xl ||
+          item.album?.cover_big ||
+          item.album?.cover_medium ||
+          item.artist?.picture_xl ||
+          '';
+
+        return {
+          id: `chart-dz-${item.id}`,
+          title,
+          artist,
+          album: item.album?.title || title,
+          category: 'online',
+          year: currentYear,
+          coverUrl,
+          previewUrl: buildStreamUrl(artist, title, durationMs),
+          durationMs,
+          bpm: 118,
+          mood: 'Global Chart',
+          dominantColors: ['#CE7F20', '#53341A', '#121213'],
+        };
+      });
+  } catch {
+    return [];
+  }
+}
+
+async function fetchAppleTopSongsRss(country: 'us' | 'id', limit: number = 25): Promise<BackendRadioheadTrack[]> {
+  try {
+    const res = await fetch(`https://itunes.apple.com/${country}/rss/topsongs/limit=${limit}/json`);
+    if (!res.ok) return [];
+    const data = await res.json();
+    const entries = data?.feed?.entry;
+    if (!Array.isArray(entries)) return [];
+    const currentYear = new Date().getFullYear();
+
+    return entries
+      .map((entry: any) => {
+        const title = entry?.['im:name']?.label || '';
+        const artist = entry?.['im:artist']?.label || '';
+        if (!title || !artist) return null;
+
+        const images = Array.isArray(entry?.['im:image']) ? entry['im:image'] : [];
+        const rawImg = images[images.length - 1]?.label || '';
+        const coverUrl = rawImg ? rawImg.replace(/\d+x\d+bb\./, '600x600bb.') : '';
+        const album = entry?.['im:collection']?.['im:name']?.label || title;
+        const relDate = entry?.['im:releaseDate']?.label || '';
+        const year = relDate ? parseInt(relDate.slice(0, 4), 10) || currentYear : currentYear;
+        const links = Array.isArray(entry?.link) ? entry.link : [];
+        const audioLink = links.find((l: any) => l?.attributes?.type?.includes('audio'));
+        const durationAttr = Number(audioLink?.['im:duration']?.label || 0);
+        const durationMs = durationAttr > 30000 ? durationAttr : 210000;
+        const rawId = entry?.id?.attributes?.['im:id'] || `${country}-${title}-${artist}`;
+
+        return {
+          id: `chart-am-${country}-${rawId}`,
+          title,
+          artist,
+          album,
+          category: 'online',
+          year,
+          coverUrl,
+          previewUrl: buildStreamUrl(artist, title, durationMs),
+          durationMs,
+          bpm: 116,
+          mood: country === 'id' ? 'Indonesia Chart' : 'Global Chart',
+          dominantColors: ['#CE7F20', '#53341A', '#121213'],
+        } as BackendRadioheadTrack;
+      })
+      .filter((x: BackendRadioheadTrack | null): x is BackendRadioheadTrack => Boolean(x));
+  } catch {
+    return [];
+  }
+}
+
+async function fetchGtaTrendingTracks(): Promise<BackendRadioheadTrack[]> {
+  const results = await Promise.all(
+    GTA6_TRENDING_QUERIES.map(async (q) => {
+      try {
+        const url = `https://itunes.apple.com/search?term=${encodeURIComponent(
+          `${q.artist} ${q.title}`
+        )}&entity=song&limit=5`;
+        const res = await fetch(url);
+        if (!res.ok) return null;
+        const data = await res.json();
+        const items: any[] = Array.isArray(data?.results) ? data.results : [];
+        const nonOrigRx = /\b(karaoke|instrumental|tribute|cover|parody|remake|lullaby)\b/i;
+        const best =
+          items.find(
+            (it) =>
+              it.trackName &&
+              !nonOrigRx.test(`${it.trackName} ${it.artistName || ''}`) &&
+              String(it.artistName || '').toLowerCase().includes(q.artist.split(' ')[0].toLowerCase())
+          ) || items.find((it) => it.trackName && !nonOrigRx.test(it.trackName));
+
+        if (!best) return null;
+        const coverUrl = best.artworkUrl100
+          ? String(best.artworkUrl100).replace('100x100bb.jpg', '600x600bb.jpg')
+          : '';
+        const durationMs = best.trackTimeMillis || 225000;
+        const year = best.releaseDate ? parseInt(String(best.releaseDate).slice(0, 4), 10) : new Date().getFullYear();
+
+        return {
+          id: `gta-trk-${best.trackId}`,
+          title: best.trackName,
+          artist: best.artistName || q.artist,
+          album: best.collectionName || best.trackName,
+          category: 'online',
+          year,
+          coverUrl,
+          previewUrl: buildStreamUrl(best.artistName || q.artist, best.trackName, durationMs),
+          durationMs,
+          bpm: 120,
+          mood: 'GTA VI Viral',
+          dominantColors: ['#CE7F20', '#53341A', '#121213'],
+        } as BackendRadioheadTrack;
+      } catch {
+        return null;
+      }
+    })
+  );
+  return results.filter((x): x is BackendRadioheadTrack => Boolean(x));
+}
+
+/**
+ * Fetches live real-time Home feed (Global Top Songs, Indonesia Top Songs, GTA VI Viral hits)
+ * using the real current year and randomized recommendations.
+ */
+export async function fetchHomeDiscovery(forceRefresh: boolean = false): Promise<LiveHomeDiscovery> {
+  const year = new Date().getFullYear();
+  const cacheKey = `kasatune_home_discovery_v1_${year}`;
+
+  if (!forceRefresh && typeof sessionStorage !== 'undefined') {
+    try {
+      const cached = sessionStorage.getItem(cacheKey);
+      if (cached) {
+        const parsed: LiveHomeDiscovery = JSON.parse(cached);
+        if (parsed && Date.now() - parsed.fetchedAt < 10 * 60 * 1000 && parsed.topGlobal?.length > 0) {
+          return parsed;
+        }
+      }
+    } catch {}
+  }
+
+  const [deezerGlobal, appleUs, appleId, gtaTrending] = await Promise.all([
+    fetchDeezerGlobalChart(25),
+    fetchAppleTopSongsRss('us', 20),
+    fetchAppleTopSongsRss('id', 20),
+    fetchGtaTrendingTracks(),
+  ]);
+
+  // Merge & deduplicate Global Top Songs (Deezer Global Chart + Apple Music US Top Songs)
+  const topGlobal: BackendRadioheadTrack[] = [];
+  const seenGlobal = new Set<string>();
+  for (const track of [...deezerGlobal, ...appleUs]) {
+    const key = `${track.artist.toLowerCase().trim()}::${track.title.toLowerCase().trim()}`;
+    if (seenGlobal.has(key)) continue;
+    seenGlobal.add(key);
+    topGlobal.push(track);
+    if (topGlobal.length >= 15) break;
+  }
+
+  // Randomized live recommendations mixing Global + Indonesia real-time charts
+  const recPool: BackendRadioheadTrack[] = [];
+  const seenRec = new Set<string>();
+  for (const track of [...appleId, ...appleUs, ...deezerGlobal]) {
+    const key = `${track.artist.toLowerCase().trim()}::${track.title.toLowerCase().trim()}`;
+    if (seenRec.has(key)) continue;
+    seenRec.add(key);
+    recPool.push(track);
+  }
+  const recommendations = shuffleArray(recPool).slice(0, 12);
+
+  const payload: LiveHomeDiscovery = {
+    year,
+    topGlobal,
+    gtaTrending,
+    recommendations,
+    fetchedAt: Date.now(),
+  };
+
+  try {
+    if (typeof sessionStorage !== 'undefined' && topGlobal.length > 0) {
+      sessionStorage.setItem(cacheKey, JSON.stringify(payload));
+    }
+  } catch {}
+
+  return payload;
+}

@@ -516,7 +516,7 @@ export function useMusicSync(accountEmail?: string | null): SyncedMusicState {
         if (found) return found;
       }
       const savedAlbum = localStorage.getItem(activeAlbumKey);
-      if (savedAlbum && savedAlbum !== 'radiohead' && savedAlbum !== 'friend' && savedAlbum !== 'favorites') {
+      if (savedAlbum && savedAlbum !== 'home' && savedAlbum !== 'radiohead' && savedAlbum !== 'friend' && savedAlbum !== 'favorites') {
         const foundAlbumTrack = DEFAULT_RADIOHEAD_TRACKS.find(
           (t) =>
             t.category === savedAlbum ||
@@ -527,7 +527,8 @@ export function useMusicSync(accountEmail?: string | null): SyncedMusicState {
         if (foundAlbumTrack) return foundAlbumTrack;
       }
     } catch {}
-    return DEFAULT_RADIOHEAD_TRACKS[0];
+    // Never default to KING MOKONDO; use clean studio classic until live Home chart loads
+    return DEFAULT_RADIOHEAD_TRACKS.find((t) => t.id === 'rh-creep') || DEFAULT_RADIOHEAD_TRACKS[0];
   });
   const [isBackendOnline, setIsBackendOnline] = useState<boolean>(false);
   const [isShuffle, setIsShuffle] = useState<boolean>(false);
@@ -543,7 +544,8 @@ export function useMusicSync(accountEmail?: string | null): SyncedMusicState {
         }
       }
     } catch {}
-    return parseLrc(DEFAULT_RADIOHEAD_TRACKS[0].syncedLyrics);
+    const starter = DEFAULT_RADIOHEAD_TRACKS.find((t) => t.id === 'rh-creep') || DEFAULT_RADIOHEAD_TRACKS[0];
+    return parseLrc(starter.syncedLyrics);
   });
   const [plainLyrics, setPlainLyrics] = useState<string | null>(null);
   const [isLoadingSong, setIsLoadingSong] = useState<boolean>(false);
