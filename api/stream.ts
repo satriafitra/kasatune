@@ -1228,6 +1228,7 @@ export default async function handler(req: any, res: any) {
       // Always instantiate VisionOS-only Ytdl for search & metadata (never triggers worker.js crash on Vercel)
       const y = new Ytdl({ clients: [Client.VisionOS] });
       let videoId = id;
+      let candidateVideoIds: string[] = id ? [id] : [];
 
       if (!videoId) {
         const stopWords = new Set([
@@ -1424,6 +1425,10 @@ export default async function handler(req: any, res: any) {
         );
         const match = sortedMatches[0] || validMatches[0] || searchResults[0];
         videoId = match?.id || '';
+        candidateVideoIds = [...sortedMatches, ...validMatches, ...searchResults]
+          .map((m: any) => m?.id)
+          .filter((vid: any, idx: number, arr: any[]) => typeof vid === 'string' && vid && arr.indexOf(vid) === idx)
+          .slice(0, 3);
       }
 
       const diag: string[] = [];
@@ -1442,6 +1447,8 @@ export default async function handler(req: any, res: any) {
         res.end(
           JSON.stringify({
             error: 'No audio stream format found for ' + (videoId || rawQuery),
+            videoId: videoId || candidateVideoIds[0] || null,
+            videoIds: candidateVideoIds,
             trace: diag,
           })
         );
