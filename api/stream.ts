@@ -22,10 +22,44 @@ interface CachedFormat {
   mimeType: string;
   contentLength?: string;
   userAgent?: string;
+  referer?: string;
   maxChunkBytes: number;
   expires: number;
 }
 const urlCache = new Map<string, CachedFormat>();
+
+const JP_ARTIST_ALIASES: Array<[RegExp, string]> = [
+  [/tsukuyomi/i, '月詠み'],
+];
+
+const JP_TITLE_ALIASES: Array<[RegExp, string[]]> = [
+  [/\bgyakutengeki\b|\bgyakuten geki\b/i, ['逆転劇']],
+  [/\bnightjar\b|\byodaka\b/i, ['ヨダカ', 'ヨタカ']],
+  [/\bkyuseishu\b|\bkyuseisyu\b/i, ['救世主']],
+  [/\bmayday\b|\bmede\b/i, ['メデ', 'メーデー']],
+  [/^if$/i, ['イフ', '如果']],
+  [/\bshinsekaikara\b|\bshinsekai kara\b/i, ['新世界から']],
+  [/\bmoonlight at midday\b/i, ['真昼の月明かり']],
+  [/\breason for existence\b|\bikiru yosuga\b/i, ['生きるよすが']],
+  [/\bameisensou\b/i, ['アメイセンソウ']],
+  [/\bneko to yuri\b|\bcat and lily\b/i, ['猫とユリ']],
+];
+
+function getLocalizedAliases(artist: string, title: string): {
+  artistAliases: string[];
+  titleAliases: string[];
+} {
+  const artistAliases: string[] = [];
+  for (const [rx, jp] of JP_ARTIST_ALIASES) {
+    if (rx.test(artist)) artistAliases.push(jp);
+  }
+  const cleanTitle = title.replace(/\(.*?\)|\[.*?\]/g, ' ').replace(/\s+/g, ' ').trim();
+  const titleAliases: string[] = [];
+  for (const [rx, alts] of JP_TITLE_ALIASES) {
+    if (rx.test(cleanTitle)) titleAliases.push(...alts);
+  }
+  return { artistAliases, titleAliases };
+}
 
 let cachedScClientId: { id: string; expires: number } | null = null;
 async function getSoundCloudClientId(): Promise<string | null> {
@@ -101,6 +135,82 @@ async function resolveViaAndroidInnerTube(videoId: string): Promise<Omit<CachedF
   }
 }
 
+async function fetchSoundCloudTrackBuffer(
+  tr: any,
+  cid: string
+): Promise<Omit<CachedFormat, 'expires'> | null> {
+  const transcodings: any[] = tr?.media?.transcodings || [];
+
+  // Prefer unencrypted HLS audio/mp4 first (cached in memory as clean fMP4)
+  const hlsAacList = transcodings.filter(
+    (x: any) => x.format?.protocol === 'hls' && x.format?.mime_type?.includes('audio/mp4')
+  );
+  for (const aacTr of hlsAacList) {
+    try {
+      const trInfo: any = await fetch(`${aacTr.url}?client_id=${cid}`, {
+        headers: { Origin: 'https://soundcloud.com', Referer: 'https://soundcloud.com/' },
+        signal: AbortSignal.timeout(4000),
+      }).then((r) => r.json());
+      if (!trInfo?.url) continue;
+
+      const m3u8 = await fetch(trInfo.url, { signal: AbortSignal.timeout(4000) }).then((r) => r.text());
+      // Reject DRM-encrypted HLS streams immediately (#EXT-X-KEY / SAMPLE-AES)
+      if (!m3u8 || m3u8.includes('#EXT-X-KEY') || m3u8.includes('SAMPLE-AES')) continue;
+
+      const initMatch = /#EXT-X-MAP:URI="([^"]+)"/.exec(m3u8);
+      if (!initMatch?.[1]) continue;
+
+      const initBuf = Buffer.from(
+        await fetch(initMatch[1], { signal: AbortSignal.timeout(4000) }).then((r) => r.arrayBuffer())
+      );
+      // Reject MP4 containers using DRM FairPlay/CENC encryption boxes (enca / sinf)
+      if (initBuf.length < 32 || initBuf.includes('enca') || initBuf.includes('sinf')) continue;
+
+      const segUrls = m3u8
+        .split('\n')
+        .map((l) => l.trim())
+        .filter((l) => l.startsWith('http'));
+      if (segUrls.length === 0) continue;
+
+      const bufs = await Promise.all(
+        segUrls.map((u) => fetch(u, { signal: AbortSignal.timeout(6000) }).then((r) => r.arrayBuffer()))
+      );
+      const assembled = Buffer.concat([initBuf, ...bufs.map((b) => Buffer.from(b))]);
+      return {
+        buffer: assembled,
+        mimeType: 'audio/mp4',
+        contentLength: String(assembled.length),
+        maxChunkBytes: DEFAULT_MAX_CHUNK_BYTES,
+      };
+    } catch {
+      // Try next transcoding
+    }
+  }
+
+  // Secondary SoundCloud check: progressive MP3 (non-DRM direct stream)
+  const progTr = transcodings.find(
+    (x: any) => x.format?.protocol === 'progressive' && x.format?.mime_type?.includes('audio/mpeg')
+  );
+  if (progTr) {
+    try {
+      const trInfo: any = await fetch(`${progTr.url}?client_id=${cid}`, {
+        headers: { Origin: 'https://soundcloud.com', Referer: 'https://soundcloud.com/' },
+        signal: AbortSignal.timeout(4000),
+      }).then((r) => r.json());
+      if (trInfo?.url && (await isStreamUrlPlayable(trInfo.url, WEB_USER_AGENT))) {
+        return {
+          url: trInfo.url,
+          mimeType: 'audio/mpeg',
+          userAgent: WEB_USER_AGENT,
+          maxChunkBytes: DEFAULT_MAX_CHUNK_BYTES,
+        };
+      }
+    } catch {}
+  }
+
+  return null;
+}
+
 async function resolveViaSoundCloud(
   artist: string,
   title: string,
@@ -116,77 +226,79 @@ async function resolveViaSoundCloud(
       .replace(/\s+/g, ' ')
       .trim();
     const cleanArtistStr = artist.trim();
-    const searchTerm = cleanArtistStr ? `${cleanArtistStr} ${cleanTitleStr}` : rawQuery;
+    const { artistAliases, titleAliases } = getLocalizedAliases(cleanArtistStr, cleanTitleStr);
 
-    const sr = await fetch(
-      `https://api-v2.soundcloud.com/search/tracks?q=${encodeURIComponent(searchTerm)}&limit=15&client_id=${cid}`,
-      { headers: { 'User-Agent': WEB_USER_AGENT } }
-    ).then((r) => r.json());
-
-    const qLower = rawQuery.toLowerCase();
-    const allowLive = qLower.includes('live') || qLower.includes('acoustic');
-    const forbidden = [
-      'cover', 'remix', 'flip', 'slowed', 'reverb', 'karaoke',
-      'instrumental', 'nightcore', 'sped up', 'speed up', 'dj ',
-      'mashup', 'edit', 'gym', 'motivation', 'podcast', 'tutorial',
-    ];
+    const searchJobs: Array<{ query: string; matchWords: string[] }> = [];
     const titleWords = cleanTitleStr
       .toLowerCase()
       .replace(/[^\p{L}\p{N}\s]/gu, ' ')
       .split(/\s+/)
       .filter((w) => w.length >= 2);
+    const primaryQuery = cleanArtistStr ? `${cleanArtistStr} ${cleanTitleStr}` : rawQuery;
+    searchJobs.push({ query: primaryQuery, matchWords: titleWords });
 
-    const candidates = (sr?.collection || []).filter((t: any) => {
-      if (!t?.duration || t.duration < 45000 || t.duration > 660000) return false;
-      const hasAac = t.media?.transcodings?.some((x: any) => x.format?.mime_type?.includes('audio/mp4'));
-      if (!hasAac) return false;
-
-      const tLower = `${t.title || ''}`.toLowerCase();
-      if (forbidden.some((f) => tLower.includes(f))) return false;
-      if (!allowLive && tLower.includes('live')) return false;
-      if (titleWords.length > 0 && !titleWords.every((w) => tLower.includes(w))) return false;
-
-      if (durationSec > 30) {
-        const diff = Math.abs(t.duration / 1000 - durationSec);
-        if (diff > 25) return false;
+    if (artistAliases.length > 0 && titleAliases.length > 0) {
+      for (const ja of artistAliases) {
+        for (const jt of titleAliases) {
+          searchJobs.push({
+            query: `${ja} ${jt}`,
+            matchWords: [jt.toLowerCase()],
+          });
+        }
       }
-      return true;
-    });
+    }
 
-    if (candidates.length === 0) return null;
+    const qLower = rawQuery.toLowerCase();
+    const allowLive = qLower.includes('live') || qLower.includes('acoustic') || qLower.includes('unplugged');
+    const forbidden = [
+      'cover', 'remix', 'flip', 'slowed', 'reverb', 'low pitch', 'karaoke', 'off vocal',
+      'instrumental', 'nightcore', 'sped up', 'speed up', 'dj ',
+      'mashup', 'edit', 'gym', 'motivation', 'podcast', 'tutorial', 'tv size', '8d ', 'piano',
+    ];
 
-    candidates.sort((a: any, b: any) => {
-      if (durationSec > 30) {
-        return Math.abs(a.duration / 1000 - durationSec) - Math.abs(b.duration / 1000 - durationSec);
+    for (const job of searchJobs) {
+      const sr = await fetch(
+        `https://api-v2.soundcloud.com/search/tracks?q=${encodeURIComponent(job.query)}&limit=15&client_id=${cid}`,
+        { headers: { 'User-Agent': WEB_USER_AGENT }, signal: AbortSignal.timeout(4000) }
+      ).then((r) => r.json()).catch(() => null);
+
+      const candidates = (sr?.collection || []).filter((t: any) => {
+        if (!t?.duration || t.duration < 45000 || t.duration > 660000) return false;
+        const hasAudio = t.media?.transcodings?.some(
+          (x: any) =>
+            x.format?.mime_type?.includes('audio/mp4') ||
+            (x.format?.protocol === 'progressive' && x.format?.mime_type?.includes('audio/mpeg'))
+        );
+        if (!hasAudio) return false;
+
+        const tLower = `${t.title || ''}`.toLowerCase();
+        if (forbidden.some((f) => tLower.includes(f))) return false;
+        if (!allowLive && tLower.includes('live')) return false;
+        if (job.matchWords.length > 0 && !job.matchWords.every((w) => tLower.includes(w))) return false;
+
+        if (durationSec > 30) {
+          const diff = Math.abs(t.duration / 1000 - durationSec);
+          if (diff > 25) return false;
+        }
+        return true;
+      });
+
+      if (candidates.length === 0) continue;
+
+      candidates.sort((a: any, b: any) => {
+        if (durationSec > 30) {
+          return Math.abs(a.duration / 1000 - durationSec) - Math.abs(b.duration / 1000 - durationSec);
+        }
+        return (b.playback_count || 0) - (a.playback_count || 0);
+      });
+
+      // Iterate top candidates so DRM-encrypted tracks (enca/#EXT-X-KEY) fall through cleanly
+      for (const cand of candidates.slice(0, 5)) {
+        const cleanAudio = await fetchSoundCloudTrackBuffer(cand, cid);
+        if (cleanAudio) return cleanAudio;
       }
-      return (b.playback_count || 0) - (a.playback_count || 0);
-    });
-
-    const best = candidates[0];
-    const aacTr = best.media.transcodings.find((x: any) => x.format?.mime_type?.includes('audio/mp4'));
-    const trInfo: any = await fetch(`${aacTr.url}?client_id=${cid}`, {
-      headers: { Origin: 'https://soundcloud.com', Referer: 'https://soundcloud.com/' },
-    }).then((r) => r.json());
-
-    if (!trInfo?.url) return null;
-    const m3u8 = await fetch(trInfo.url).then((r) => r.text());
-    const initMatch = /#EXT-X-MAP:URI="([^"]+)"/.exec(m3u8);
-    const segUrls = m3u8
-      .split('\n')
-      .map((l) => l.trim())
-      .filter((l) => l.startsWith('http'));
-    const allUrls = [initMatch?.[1], ...segUrls].filter(Boolean) as string[];
-    if (allUrls.length === 0) return null;
-
-    const bufs = await Promise.all(allUrls.map((u) => fetch(u).then((r) => r.arrayBuffer())));
-    const assembled = Buffer.concat(bufs.map((b) => Buffer.from(b)));
-
-    return {
-      buffer: assembled,
-      mimeType: 'audio/mp4',
-      contentLength: String(assembled.length),
-      maxChunkBytes: DEFAULT_MAX_CHUNK_BYTES,
-    };
+    }
+    return null;
   } catch {
     return null;
   }
@@ -205,6 +317,9 @@ async function resolveViaArchiveOrg(
     const cleanArtistStr = artist.trim();
     if (!cleanArtistStr || !cleanTitleStr) return null;
 
+    const qLower = `${artist} ${title} ${rawQuery}`.toLowerCase();
+    const allowLive = qLower.includes('live') || qLower.includes('unplugged') || qLower.includes('acoustic');
+
     const titleWords = cleanTitleStr
       .toLowerCase()
       .replace(/[^\p{L}\p{N}\s]/gu, ' ')
@@ -214,15 +329,17 @@ async function resolveViaArchiveOrg(
 
     const queries = [
       `title:("${cleanTitleStr}") AND creator:("${cleanArtistStr}") AND mediatype:(audio)`,
+      `"${cleanTitleStr}" AND creator:("${cleanArtistStr}") AND mediatype:(audio)`,
+      `creator:("${cleanArtistStr}") AND ("Nevermind" OR "In Utero" OR "Bleach" OR "Greatest Hits" OR "Remaster" OR "Studio" OR "Album") AND mediatype:(audio)`,
       `creator:("${cleanArtistStr}") AND mediatype:(audio)`,
     ];
 
     const seenIds = new Set<string>();
-    const candidateIds: string[] = [];
+    const candidateDocs: Array<{ identifier: string; title?: string }> = [];
 
     for (const aq of queries) {
       const res: any = await fetch(
-        `https://archive.org/advancedsearch.php?q=${encodeURIComponent(aq)}&fl[]=identifier,title&rows=8&output=json`,
+        `https://archive.org/advancedsearch.php?q=${encodeURIComponent(aq)}&fl[]=identifier,title&rows=12&output=json`,
         { signal: AbortSignal.timeout(4000) }
       ).then((r) => r.json()).catch(() => null);
 
@@ -234,61 +351,270 @@ async function resolveViaArchiveOrg(
           s.includes('tribute') ||
           s.includes('karaoke') ||
           s.includes('interview') ||
-          s.includes('podcast')
+          s.includes('podcast') ||
+          s.includes('instrumental')
         ) {
           continue;
         }
         seenIds.add(doc.identifier);
-        candidateIds.push(doc.identifier);
+        candidateDocs.push(doc);
       }
-      if (candidateIds.length >= 4) break;
+      if (candidateDocs.length >= 10) break;
     }
 
-    if (candidateIds.length === 0) return null;
+    if (candidateDocs.length === 0) return null;
+
+    const scoreDoc = (d: { identifier: string; title?: string }) => {
+      const s = `${d.identifier} ${d.title || ''}`.toLowerCase();
+      let sc = 0;
+      if (
+        s.includes('nevermind') ||
+        s.includes('in-utero') ||
+        s.includes('in utero') ||
+        s.includes('bleach') ||
+        s.includes('studio') ||
+        s.includes('album') ||
+        s.includes('remaster') ||
+        s.includes('greatest') ||
+        s.includes('single')
+      ) {
+        sc += 60;
+      }
+      if (titleWords.every((w) => s.includes(w))) sc += 25;
+      if (!allowLive) {
+        if (s.includes('unplugged')) sc -= 10;
+        if (
+          s.includes('live') ||
+          s.includes('bootleg') ||
+          s.includes('soundboard') ||
+          s.includes('rehearsal') ||
+          s.includes('demo')
+        ) {
+          sc -= 40;
+        }
+      }
+      return sc;
+    };
+    candidateDocs.sort((a, b) => scoreDoc(b) - scoreDoc(a));
 
     const fileLists = await Promise.all(
-      candidateIds.slice(0, 4).map(async (ident) => {
+      candidateDocs.slice(0, 8).map(async (doc) => {
         try {
-          const m: any = await fetch(`https://archive.org/metadata/${ident}/files`, {
+          const m: any = await fetch(`https://archive.org/metadata/${doc.identifier}/files`, {
             signal: AbortSignal.timeout(4000),
           }).then((r) => r.json());
-          return { ident, files: (m?.result || []) as any[] };
+          return { ident: doc.identifier, files: (m?.result || []) as any[] };
         } catch {
-          return { ident, files: [] as any[] };
+          return { ident: doc.identifier, files: [] as any[] };
         }
       })
     );
 
+    const validMatches: Array<{ ident: string; file: any; livePenalty: number }> = [];
     for (const { ident, files } of fileLists) {
-      const matched = files.find((f) => {
+      for (const f of files) {
         const name = (f.name || '').toLowerCase();
-        if (!name.endsWith('.mp3') && !name.endsWith('.m4a') && !name.endsWith('.ogg')) return false;
-        if (name.includes('64kb') || name.includes('cover') || name.includes('demo')) return false;
-        if (Number(f.size || 0) < 400000) return false;
-        return titleWords.every((w) => name.includes(w));
+        if (!name.endsWith('.mp3') && !name.endsWith('.m4a') && !name.endsWith('.ogg')) continue;
+        if (
+          name.includes('64kb') ||
+          name.includes('cover') ||
+          name.includes('demo') ||
+          name.includes('instrumental') ||
+          name.includes('karaoke')
+        ) {
+          continue;
+        }
+        if (Number(f.size || 0) < 400000) continue;
+        if (!titleWords.every((w) => name.includes(w))) continue;
+        const livePenalty =
+          !allowLive && (name.includes('live') || name.includes('unplugged') || ident.toLowerCase().includes('live'))
+            ? 1
+            : 0;
+        validMatches.push({ ident, file: f, livePenalty });
+      }
+    }
+
+    validMatches.sort((a, b) => a.livePenalty - b.livePenalty);
+    const picked = validMatches[0];
+    if (picked) {
+      const fileUrl = `https://archive.org/download/${picked.ident}/${encodeURIComponent(picked.file.name)}`;
+      const lower = picked.file.name.toLowerCase();
+      const mimeType = lower.endsWith('.m4a')
+        ? 'audio/mp4'
+        : lower.endsWith('.ogg')
+        ? 'audio/ogg'
+        : 'audio/mpeg';
+
+      return {
+        url: fileUrl,
+        mimeType,
+        contentLength: picked.file.size ? String(picked.file.size) : undefined,
+        maxChunkBytes: DEFAULT_MAX_CHUNK_BYTES,
+      };
+    }
+  } catch {}
+  return null;
+}
+
+let cachedBiliCookie: { val: string; expires: number } | null = null;
+async function getBiliCookie(): Promise<string> {
+  const now = Date.now();
+  if (cachedBiliCookie && cachedBiliCookie.expires > now) return cachedBiliCookie.val;
+  try {
+    const spi: any = await fetch('https://api.bilibili.com/x/frontend/finger/spi', {
+      headers: { 'User-Agent': WEB_USER_AGENT },
+      signal: AbortSignal.timeout(3000),
+    }).then((r) => r.json());
+    if (spi?.data?.b_3) {
+      const val = `buvid3=${spi.data.b_3};`;
+      cachedBiliCookie = { val, expires: now + 30 * 60 * 1000 };
+      return val;
+    }
+  } catch {}
+  return '';
+}
+
+function parseBiliDuration(durStr: string): number {
+  const parts = String(durStr || '')
+    .split(':')
+    .map((n) => parseInt(n, 10));
+  if (parts.some((n) => Number.isNaN(n))) return 0;
+  if (parts.length === 2) return parts[0] * 60 + parts[1];
+  if (parts.length === 3) return parts[0] * 3600 + parts[1] * 60 + parts[2];
+  return 0;
+}
+
+async function resolveViaBilibili(
+  artist: string,
+  title: string,
+  rawQuery: string,
+  durationSec: number
+): Promise<Omit<CachedFormat, 'expires'> | null> {
+  try {
+    const cookie = await getBiliCookie();
+    if (!cookie) return null;
+
+    const cleanTitleStr = (title || rawQuery)
+      .replace(/\(.*?\)|\[.*?\]/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+    const cleanArtistStr = artist.trim();
+    const { artistAliases, titleAliases } = getLocalizedAliases(cleanArtistStr, cleanTitleStr);
+
+    const titleWords = cleanTitleStr
+      .toLowerCase()
+      .replace(/[^\p{L}\p{N}\s]/gu, ' ')
+      .split(/\s+/)
+      .filter((w) => w.length >= 2);
+
+    const searchJobs: Array<{ query: string; artistChecks: string[]; titleChecks: string[] }> = [];
+    if (artistAliases.length > 0 && titleAliases.length > 0) {
+      for (const ja of artistAliases) {
+        for (const jt of titleAliases) {
+          searchJobs.push({
+            query: `${ja} ${jt}`,
+            artistChecks: [ja.toLowerCase(), ...(cleanArtistStr ? [cleanArtistStr.toLowerCase()] : [])],
+            titleChecks: [jt.toLowerCase(), ...titleWords],
+          });
+        }
+      }
+    } else if (cleanArtistStr && cleanTitleStr) {
+      searchJobs.push({
+        query: `${cleanArtistStr} ${cleanTitleStr}`,
+        artistChecks: [cleanArtistStr.toLowerCase()],
+        titleChecks: titleWords,
+      });
+    }
+
+    const bad = [
+      'ニコカラ', 'on vocal', 'off vocal', 'カラオケ', 'karaoke', 'cover', '翻唱',
+      '歌ってみた', 'piano', 'ピアノ', 'instrumental', '伴奏', '鼓谱', '譜面',
+      'drum', 'bass', 'guitar', 'tab', 'midi', '反応', 'reaction', 'nightcore',
+      'sped up', 'slowed', 'mad', 'amv',
+    ];
+    const qLower = rawQuery.toLowerCase();
+    const allowLive = qLower.includes('live') || qLower.includes('acoustic');
+
+    for (const job of searchJobs) {
+      const sr: any = await fetch(
+        `https://api.bilibili.com/x/web-interface/search/type?search_type=video&keyword=${encodeURIComponent(job.query)}`,
+        {
+          headers: { 'User-Agent': WEB_USER_AGENT, Referer: 'https://www.bilibili.com/', Cookie: cookie },
+          signal: AbortSignal.timeout(4000),
+        }
+      ).then((r) => r.json()).catch(() => null);
+
+      const candidates = (sr?.data?.result || []).filter((item: any) => {
+        const tClean = String(item.title || '').replace(/<[^>]+>/g, '').toLowerCase();
+        const d = parseBiliDuration(item.duration);
+        if (d < 60 || d > 480) return false;
+        if (durationSec > 30 && Math.abs(d - durationSec) > 38) return false;
+        if (bad.some((b) => tClean.includes(b))) return false;
+        if (job.artistChecks.length > 0 && !job.artistChecks.some((a) => tClean.includes(a))) return false;
+        if (job.titleChecks.length > 0 && !job.titleChecks.some((w) => tClean.includes(w))) return false;
+        return true;
       });
 
-      if (matched) {
-        const fileUrl = `https://archive.org/download/${ident}/${encodeURIComponent(matched.name)}`;
-        const mimeType = matched.name.toLowerCase().endsWith('.m4a')
-          ? 'audio/mp4'
-          : matched.name.toLowerCase().endsWith('.ogg')
-          ? 'audio/ogg'
-          : 'audio/mpeg';
+      if (candidates.length === 0) continue;
 
-        return {
-          url: fileUrl,
-          mimeType,
-          contentLength: matched.size ? String(matched.size) : undefined,
-          maxChunkBytes: DEFAULT_MAX_CHUNK_BYTES,
+      candidates.sort((a: any, b: any) => {
+        const scoreB = (it: any) => {
+          const t = String(it.title || '').replace(/<[^>]+>/g, '').toLowerCase();
+          let s = 0;
+          if (t.includes('官方') || t.includes('official')) s += 80;
+          if (t.includes('mv') || t.includes('music video')) s += 50;
+          if (t.includes('完整版') || t.includes('op')) s += 20;
+          if (!allowLive && t.includes('live')) s -= 60;
+          if (durationSec > 30) {
+            s -= Math.abs(parseBiliDuration(it.duration) - durationSec);
+          }
+          return s;
         };
+        return scoreB(b) - scoreB(a);
+      });
+
+      for (const top of candidates.slice(0, 3)) {
+        try {
+          const pl: any = await fetch(`https://api.bilibili.com/x/player/pagelist?bvid=${top.bvid}`, {
+            headers: { 'User-Agent': WEB_USER_AGENT, Referer: 'https://www.bilibili.com/', Cookie: cookie },
+            signal: AbortSignal.timeout(3500),
+          }).then((r) => r.json());
+          const cid = pl?.data?.[0]?.cid;
+          if (!cid) continue;
+
+          const play: any = await fetch(
+            `https://api.bilibili.com/x/player/playurl?bvid=${top.bvid}&cid=${cid}&qn=16&fnval=1&platform=html5`,
+            {
+              headers: { 'User-Agent': WEB_USER_AGENT, Referer: 'https://www.bilibili.com/', Cookie: cookie },
+              signal: AbortSignal.timeout(3500),
+            }
+          ).then((r) => r.json());
+          const d0 = play?.data?.durl?.[0];
+          if (!d0?.url) continue;
+
+          if (await isStreamUrlPlayable(d0.url, WEB_USER_AGENT, 'https://www.bilibili.com/')) {
+            return {
+              url: d0.url,
+              mimeType: 'video/mp4',
+              contentLength: d0.size ? String(d0.size) : undefined,
+              userAgent: WEB_USER_AGENT,
+              referer: 'https://www.bilibili.com/',
+              maxChunkBytes: DEFAULT_MAX_CHUNK_BYTES,
+            };
+          }
+        } catch {}
       }
     }
   } catch {}
   return null;
 }
 
+let cachedVisitorData: { val: string; expires: number } | null = null;
 async function fetchVisitorData(): Promise<string | undefined> {
+  const now = Date.now();
+  if (cachedVisitorData && cachedVisitorData.expires > now) {
+    return cachedVisitorData.val;
+  }
   try {
     const r = await fetch('https://www.youtube.com/youtubei/v1/visitor_id?prettyPrint=false', {
       method: 'POST',
@@ -296,10 +622,13 @@ async function fetchVisitorData(): Promise<string | undefined> {
       body: JSON.stringify({
         context: { client: { clientName: 'WEB', clientVersion: '2.20261027.01.00' } },
       }),
+      signal: AbortSignal.timeout(3000),
     });
     if (!r.ok) return undefined;
     const j: any = await r.json();
-    return j?.responseContext?.visitorData || undefined;
+    const val = j?.responseContext?.visitorData;
+    if (val) cachedVisitorData = { val, expires: now + 15 * 60 * 1000 };
+    return val || undefined;
   } catch {
     return undefined;
   }
@@ -560,15 +889,49 @@ async function resolveViaEmbeddedInProcess(videoId: string): Promise<Omit<Cached
   }
 }
 
-async function isStreamUrlPlayable(url: string, userAgent?: string): Promise<boolean> {
+async function isStreamUrlPlayable(url: string, userAgent?: string, referer?: string): Promise<boolean> {
   try {
     const headers: Record<string, string> = { Range: 'bytes=0-1024' };
     if (userAgent) headers['User-Agent'] = userAgent;
-    const check = await fetch(url, { headers, signal: AbortSignal.timeout(4000) });
+    if (referer) headers['Referer'] = referer;
+    const check = await fetch(url, { headers, signal: AbortSignal.timeout(3500) });
     return check.status === 200 || check.status === 206;
   } catch {
     return false;
   }
+}
+
+async function resolveViaVisionOS(
+  videoId: string,
+  visionYtdl: Ytdl
+): Promise<Omit<CachedFormat, 'expires'> | null> {
+  try {
+    const info = await Promise.race([
+      visionYtdl.getInfo(videoId),
+      new Promise<null>((resolve) => setTimeout(() => resolve(null), 3500)),
+    ]);
+    if (!info) return null;
+    const mp4AudioFormats = (info.formats || [])
+      .filter((f: any) => f.hasAudio && !f.hasVideo && f.mimeType?.includes('audio/mp4') && f.url)
+      .sort((a: any, b: any) => (b.audioBitrate || 0) - (a.audioBitrate || 0));
+
+    const format =
+      mp4AudioFormats[0] ||
+      chooseFormat(info.formats, {
+        quality: 'highestaudio',
+        filter: (f: any) => f.hasAudio && !f.hasVideo,
+      });
+
+    if (format?.url && (await isStreamUrlPlayable(format.url))) {
+      return {
+        url: format.url,
+        mimeType: format.mimeType || 'audio/mp4; codecs="mp4a.40.2"',
+        contentLength: format.contentLength ? String(format.contentLength) : undefined,
+        maxChunkBytes: DEFAULT_MAX_CHUNK_BYTES,
+      };
+    }
+  } catch {}
+  return null;
 }
 
 async function resolveAudioFormat(
@@ -580,51 +943,31 @@ async function resolveAudioFormat(
   durationSec: number
 ): Promise<Omit<CachedFormat, 'expires'> | null> {
   if (videoId) {
-    // Tier 1: VisionOS via Ytdl (needsPlayer: false -> zero worker thread, supports full & 1.5MB chunks)
-    try {
-      const info = await visionYtdl.getInfo(videoId);
-      const mp4AudioFormats = (info.formats || [])
-        .filter((f: any) => f.hasAudio && !f.hasVideo && f.mimeType?.includes('audio/mp4') && f.url)
-        .sort((a: any, b: any) => (b.audioBitrate || 0) - (a.audioBitrate || 0));
-
-      const format =
-        mp4AudioFormats[0] ||
-        chooseFormat(info.formats, {
-          quality: 'highestaudio',
-          filter: (f: any) => f.hasAudio && !f.hasVideo,
-        });
-
-      if (format?.url && (await isStreamUrlPlayable(format.url))) {
-        return {
-          url: format.url,
-          mimeType: format.mimeType || 'audio/mp4; codecs="mp4a.40.2"',
-          contentLength: format.contentLength ? String(format.contentLength) : undefined,
-          maxChunkBytes: DEFAULT_MAX_CHUNK_BYTES,
-        };
-      }
-    } catch {
-      // Continue to Tier 2
-    }
-
-    // Tier 2: Direct YouTube ANDROID InnerTube (zero worker thread, 512KB chunk)
-    const androidResult = await resolveViaAndroidInnerTube(videoId);
-    if (androidResult?.url && (await isStreamUrlPlayable(androidResult.url, androidResult.userAgent))) {
-      return androidResult;
-    }
-
-    // Tier 3: Direct YouTube IOS InnerTube (zero worker thread, 512KB chunk)
-    const iosResult = await resolveViaIosInnerTube(videoId);
-    if (iosResult?.url && (await isStreamUrlPlayable(iosResult.url, iosResult.userAgent))) {
-      return iosResult;
-    }
+    // Run YouTube VisionOS / ANDROID / IOS concurrently so AWS IP blocks fail fast in <=3.5s
+    const [visionRes, androidRes, iosRes] = await Promise.all([
+      resolveViaVisionOS(videoId, visionYtdl),
+      resolveViaAndroidInnerTube(videoId).then(async (r) =>
+        r?.url && (await isStreamUrlPlayable(r.url, r.userAgent)) ? r : null
+      ),
+      resolveViaIosInnerTube(videoId).then(async (r) =>
+        r?.url && (await isStreamUrlPlayable(r.url, r.userAgent)) ? r : null
+      ),
+    ]);
+    if (visionRes) return visionRes;
+    if (androidRes) return androidRes;
+    if (iosRes) return iosRes;
   }
 
-  // Tier 4: SoundCloud fMP4 HLS Assembly (Vercel AWS IP safe, full original studio songs)
+  // Tier 4: SoundCloud Non-DRM HLS/Progressive Fallback (Vercel AWS IP safe)
   const scResult = await resolveViaSoundCloud(artist, title, rawQuery, durationSec);
   if (scResult) return scResult;
 
-  // Tier 5: Archive.org Audio MP3/M4A Fallback (Vercel AWS IP safe)
-  return await resolveViaArchiveOrg(artist, title, rawQuery);
+  // Tier 5: Archive.org Studio/Album MP3/M4A Fallback (Vercel AWS IP safe, full classic rock/indie)
+  const archiveResult = await resolveViaArchiveOrg(artist, title, rawQuery);
+  if (archiveResult) return archiveResult;
+
+  // Tier 6: Bilibili Official MV MP4 Fallback (Vercel AWS IP safe, J-Pop / Asian / Anime tracks)
+  return await resolveViaBilibili(artist, title, rawQuery, durationSec);
 }
 
 export default async function handler(req: any, res: any) {
@@ -657,8 +1000,8 @@ export default async function handler(req: any, res: any) {
   }
 
   const cacheKey = id
-    ? `v3:id:${id}`
-    : `v3:q:${rawQuery.toLowerCase()}|${artistParam.toLowerCase()}|${titleParam.toLowerCase()}`;
+    ? `v4:id:${id}`
+    : `v4:q:${rawQuery.toLowerCase()}|${artistParam.toLowerCase()}|${titleParam.toLowerCase()}`;
 
   try {
     const now = Date.now();
@@ -882,6 +1225,10 @@ export default async function handler(req: any, res: any) {
         ...resolved,
         expires: now + 5 * 60 * 1000, // Cache for 5 minutes
       };
+      if (urlCache.size >= 20) {
+        const oldestKey = urlCache.keys().next().value;
+        if (oldestKey) urlCache.delete(oldestKey);
+      }
       urlCache.set(cacheKey, formatInfo);
     }
 
@@ -940,6 +1287,7 @@ export default async function handler(req: any, res: any) {
     const fetchHeaders: Record<string, string> = {};
     if (reqRangeHeader) fetchHeaders['Range'] = reqRangeHeader;
     if (formatInfo.userAgent) fetchHeaders['User-Agent'] = formatInfo.userAgent;
+    if (formatInfo.referer) fetchHeaders['Referer'] = formatInfo.referer;
 
     let mediaRes = await fetch(formatInfo.url!, { headers: fetchHeaders });
 
