@@ -28,6 +28,7 @@ interface CachedFormat {
   expires: number;
 }
 const urlCache = new Map<string, CachedFormat>();
+const notFoundCache = new Map<string, { body: string; expires: number }>();
 
 const JP_ARTIST_ALIASES: Array<[RegExp, string]> = [
   [/tsukuyomi/i, '月詠み'],
@@ -1221,6 +1222,14 @@ export default async function handler(req: any, res: any) {
 
   try {
     const now = Date.now();
+    const cached404 = notFoundCache.get(cacheKey);
+    if (cached404 && cached404.expires > now) {
+      res.statusCode = 404;
+      res.setHeader('Content-Type', 'application/json');
+      res.end(cached404.body);
+      return;
+    }
+
     let formatInfo = urlCache.get(cacheKey);
 
     // If cache expired or not found, resolve with ytdl
@@ -1442,16 +1451,20 @@ export default async function handler(req: any, res: any) {
         diag
       );
       if (!resolved || (!resolved.url && !resolved.buffer)) {
+        const errBody = JSON.stringify({
+          error: 'No audio stream format found for ' + (videoId || rawQuery),
+          videoId: videoId || candidateVideoIds[0] || null,
+          videoIds: candidateVideoIds,
+          trace: diag,
+        });
+        if (notFoundCache.size >= 50) {
+          const oldest = notFoundCache.keys().next().value;
+          if (oldest) notFoundCache.delete(oldest);
+        }
+        notFoundCache.set(cacheKey, { body: errBody, expires: now + 3 * 60 * 1000 });
         res.statusCode = 404;
         res.setHeader('Content-Type', 'application/json');
-        res.end(
-          JSON.stringify({
-            error: 'No audio stream format found for ' + (videoId || rawQuery),
-            videoId: videoId || candidateVideoIds[0] || null,
-            videoIds: candidateVideoIds,
-            trace: diag,
-          })
-        );
+        res.end(errBody);
         return;
       }
 
