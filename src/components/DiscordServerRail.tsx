@@ -50,6 +50,11 @@ interface DiscordServerRailProps {
   customPlaylist?: CustomPlaylistData;
   likedCount?: number;
   isFriendConnected?: boolean;
+  pinnedServers?: PinnedServerItem[];
+  onTogglePin?: (server: PinnedServerItem) => void;
+  onSelectAndPin?: (server: PinnedServerItem) => void;
+  isAddModalOpenExternal?: boolean;
+  onSetAddModalOpenExternal?: (open: boolean) => void;
 }
 
 export const DiscordServerRail: React.FC<DiscordServerRailProps> = ({
@@ -58,16 +63,21 @@ export const DiscordServerRail: React.FC<DiscordServerRailProps> = ({
   customPlaylist,
   likedCount = 0,
   isFriendConnected = false,
+  pinnedServers: controlledPinned,
+  onTogglePin: controlledTogglePin,
+  onSelectAndPin: controlledSelectAndPin,
+  isAddModalOpenExternal,
+  onSetAddModalOpenExternal,
 }) => {
   const [hoveredId, setHoveredId] = useState<string | null>(null);
-  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [internalAddModalOpen, setInternalAddModalOpen] = useState(false);
 
-  // User-customized pinned artists list (Empty by default per user request)
-  const [pinnedServers, setPinnedServers] = useState<PinnedServerItem[]>(() => {
+  const isAddModalOpen = isAddModalOpenExternal !== undefined ? isAddModalOpenExternal : internalAddModalOpen;
+  const setIsAddModalOpen = onSetAddModalOpenExternal || setInternalAddModalOpen;
+
+  // User-customized pinned artists list (Empty by default per user request, persisted in localStorage)
+  const [internalPinnedServers, setInternalPinnedServers] = useState<PinnedServerItem[]>(() => {
     try {
-      localStorage.removeItem('kasatune_pinned_servers');
-      localStorage.removeItem('kasatune_pinned_servers_v2');
-      localStorage.removeItem('kasatune_pinned_servers_v3');
       const saved = localStorage.getItem('kasatune_pinned_artists_v4');
       if (saved) {
         const parsed = JSON.parse(saved);
@@ -91,11 +101,17 @@ export const DiscordServerRail: React.FC<DiscordServerRailProps> = ({
         }
       }
     } catch {}
-    return []; // Empty by default
+    return [];
   });
 
+  const pinnedServers = controlledPinned ?? internalPinnedServers;
+
   const handleTogglePin = (server: PinnedServerItem) => {
-    setPinnedServers((prev) => {
+    if (controlledTogglePin) {
+      controlledTogglePin(server);
+      return;
+    }
+    setInternalPinnedServers((prev) => {
       const exists = prev.some((s) => s.id === server.id);
       const next = exists ? prev.filter((s) => s.id !== server.id) : [...prev, server];
       try {
@@ -106,7 +122,12 @@ export const DiscordServerRail: React.FC<DiscordServerRailProps> = ({
   };
 
   const handleSelectAndPin = (server: PinnedServerItem) => {
-    setPinnedServers((prev) => {
+    if (controlledSelectAndPin) {
+      controlledSelectAndPin(server);
+      setIsAddModalOpen(false);
+      return;
+    }
+    setInternalPinnedServers((prev) => {
       if (!prev.some((s) => s.id === server.id)) {
         const next = [...prev, server];
         try {

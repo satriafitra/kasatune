@@ -16,6 +16,24 @@ import {
 } from '../api/backend';
 import friendTracksData from '../data/friend_tracks.json';
 import musicLibraryData from '../data/music_library.json';
+import { buildStreamUrl } from '../api/liveSearch';
+
+function ensureFullAudioUrl(track: BackendRadioheadTrack): BackendRadioheadTrack {
+  const url = (track.previewUrl || '').trim();
+  const isTruncatedOrExpiring =
+    !url ||
+    url.includes('audio-ssl.itunes.apple.com') ||
+    url.includes('cdnt-preview.dzcdn.net') ||
+    (url.startsWith('/api/stream') && !url.includes('title='));
+
+  if (isTruncatedOrExpiring) {
+    return {
+      ...track,
+      previewUrl: buildStreamUrl(track.artist, track.title, track.durationMs),
+    };
+  }
+  return track;
+}
 
 const PRELOADED_TRACKS: BackendRadioheadTrack[] = [
   ...(friendTracksData as unknown as BackendRadioheadTrack[]),
@@ -449,7 +467,7 @@ const seenIds = new Set<string>();
   if (!seenIds.has(t.id) && !seenIds.has(normKey)) {
     seenIds.add(t.id);
     seenIds.add(normKey);
-    mergedList.push(t);
+    mergedList.push(ensureFullAudioUrl(t));
   }
 });
 
@@ -484,7 +502,7 @@ export function useMusicSync(): SyncedMusicState {
       if (savedStr) {
         const parsed = JSON.parse(savedStr);
         if (parsed && parsed.title && parsed.previewUrl) {
-          return parsed;
+          return ensureFullAudioUrl(parsed);
         }
       }
       const savedId = localStorage.getItem('kasatune_saved_track_id');
@@ -535,7 +553,7 @@ export function useMusicSync(): SyncedMusicState {
     if (health.isOnline) {
       const backendTracks = await fetchRadioheadTracksFromBackend();
       if (backendTracks && backendTracks.length > 0) {
-        const merged: BackendRadioheadTrack[] = [...backendTracks];
+        const merged: BackendRadioheadTrack[] = backendTracks.map(ensureFullAudioUrl);
         const existingIds = new Set(backendTracks.map((t) => t.id));
         DEFAULT_RADIOHEAD_TRACKS.forEach((t) => {
           if (!existingIds.has(t.id)) {

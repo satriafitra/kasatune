@@ -8,11 +8,8 @@
 
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import {
-  ChevronLeft,
-  ChevronRight,
   Search,
   Settings,
-  RefreshCw,
   Music2,
   X,
   Play,
@@ -174,45 +171,13 @@ export const Navbar: React.FC<NavbarProps> = ({
   const currentRedirectUri = window.location.origin + window.location.pathname;
 
   return (
-    <header className="h-14 w-full bg-[#0B0C0E] border-b border-[#282B32] px-3 sm:px-4 flex items-center justify-between gap-2 sm:gap-4 select-none z-30">
-      {/* Left: History Arrows (Desktop only) & Kasatune Brand */}
-      <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
-        <div className="hidden md:flex items-center gap-1">
-          <button
-            className="w-7 h-7 rounded-md bg-[#141619] hover:bg-[#1C1E22] text-[#A0A5AD] hover:text-white flex items-center justify-center transition-colors border border-[#282B32]/60"
-            title="Back"
-          >
-            <ChevronLeft className="w-4 h-4" />
-          </button>
-          <button
-            className="w-7 h-7 rounded-md bg-[#141619] hover:bg-[#1C1E22] text-[#A0A5AD] hover:text-white flex items-center justify-center transition-colors border border-[#282B32]/60"
-            title="Forward"
-          >
-            <ChevronRight className="w-4 h-4" />
-          </button>
-        </div>
-
-        {/* Authentic Modern Kasatune Brand Logo */}
-        <div className="flex items-center gap-2.5 group cursor-pointer select-none">
-          <div className="relative flex items-center justify-center">
-            {/* Ambient Backlight Glow on hover */}
-            <div className="absolute -inset-1 bg-gradient-to-r from-white/30 to-[#FF4C00]/30 rounded-xl blur-sm opacity-0 group-hover:opacity-100 transition duration-300" />
-            <KasatuneLogoIcon size={32} className="relative transform group-hover:scale-105 transition-transform" />
-          </div>
-          <div className="flex flex-col">
-            <div className="flex items-center gap-1.5">
-              <span className="font-black text-sm text-white tracking-tight leading-none group-hover:text-white transition-colors">
-                Kasatune
-              </span>
-              <span className="text-[9px] font-black uppercase tracking-wider px-1.5 py-0.2 rounded bg-[#FF4C00]/15 text-[#FF5A1F] border border-[#FF4C00]/30 leading-normal">
-                STUDIO
-              </span>
-            </div>
-            <span className="hidden md:inline text-[10px] text-[#8C929C] font-medium leading-tight pt-0.5">
-              Music Studio
-            </span>
-          </div>
-        </div>
+    <header className="h-14 w-full bg-[#0B0C0E] border-b border-[#1E2025] px-3 sm:px-5 flex items-center justify-between gap-3 select-none z-30">
+      {/* Left: Clean Kasatune Brand */}
+      <div className="flex items-center gap-2.5 flex-shrink-0 cursor-pointer">
+        <KasatuneLogoIcon size={28} />
+        <span className="font-bold text-sm text-white tracking-tight">
+          Kasatune
+        </span>
       </div>
 
       {/* Mobile View Switcher & Search Button (Visible on < md) */}
@@ -604,62 +569,41 @@ export const Navbar: React.FC<NavbarProps> = ({
           </div>
       )}
 
-      {/* Right Controls: Desktop full status & settings, Mobile single sleek icon button */}
+      {/* Right Controls: Simplified Friend Sync & Settings */}
       <div className="hidden md:flex items-center gap-2">
-        {/* Friend Live Status Pill (Simplified, No Neon AI Glare) */}
-        <div
+        <button
           onClick={onConnectFriendSpotify}
-          className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-[#141619] border border-[#282B32] hover:border-[#383C45] text-xs cursor-pointer hover:bg-[#1C1E22] transition-colors"
-          title={
+          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${
             isFriendConnected
-              ? 'Friend Spotify is connected'
-              : 'Click to connect Friend Spotify'
-          }
+              ? 'bg-[#1DB954]/15 border-[#1DB954]/40 text-[#1DB954]'
+              : 'bg-[#141619] border-[#282B32] text-[#A0A5AD] hover:text-white hover:bg-[#1C1E22]'
+          }`}
+          title={isFriendConnected ? 'Friend Live Sync aktif' : 'Buka Live Sync Teman'}
         >
           <span
             className={`w-2 h-2 rounded-full flex-shrink-0 ${
               isFriendConnected ? 'bg-[#1DB954]' : 'bg-[#656A74]'
             }`}
           />
-          <span className="font-semibold text-[11px] text-[#A0A5AD] truncate max-w-[130px]">
-            {friendTrackTitle ? friendTrackTitle : 'Spotify Live'}
+          <span className="truncate max-w-[130px]">
+            {friendTrackTitle ? friendTrackTitle : 'Live Sync'}
           </span>
-        </div>
+        </button>
 
-        {/* Backend Status Pill (Clean, No Glow) */}
-        <div
-          className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-[#141619] border border-[#282B32] text-xs cursor-pointer hover:bg-[#1C1E22] transition-colors"
-          title="Click to re-ping Go Backend"
-          onClick={onRefreshBackend}
-        >
-          <span
-            className={`w-2 h-2 rounded-full flex-shrink-0 ${
-              isBackendOnline ? 'bg-[#23A55A]' : 'bg-[#FEE75C]'
-            }`}
-          />
-          <span className="font-semibold text-[11px] text-[#A0A5AD]">
-            {isBackendOnline ? 'Go API Online' : 'Connecting'}
-          </span>
-          <RefreshCw
-            className={`w-3 h-3 text-[#A0A5AD] ${isLoading ? 'animate-spin' : ''}`}
-          />
-        </div>
-
-        {/* Settings Button (Desktop) */}
         {isAuthenticated ? (
           <button
             onClick={onLogout}
-            className="px-2.5 py-1 rounded-md bg-[#1C1E22] hover:bg-[#ED4245] text-white text-xs font-semibold transition-colors border border-[#282B32]"
+            className="px-3 py-1.5 rounded-full bg-[#1C1E22] hover:bg-[#ED4245] text-white text-xs font-medium transition-colors border border-[#282B32]"
           >
             Disconnect
           </button>
         ) : (
           <button
             onClick={() => setIsSettingsOpen(true)}
-            className="px-2.5 py-1 rounded-md bg-[#141619] hover:bg-[#1C1E22] text-[#A0A5AD] hover:text-white border border-[#282B32] text-xs font-semibold transition-colors flex items-center gap-1.5"
+            className="p-2 rounded-full bg-[#141619] hover:bg-[#1C1E22] text-[#A0A5AD] hover:text-white border border-[#282B32] transition-colors"
+            title="Pengaturan"
           >
-            <Settings className="w-3.5 h-3.5" />
-            <span>Settings</span>
+            <Settings className="w-4 h-4" />
           </button>
         )}
       </div>

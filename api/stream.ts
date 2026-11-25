@@ -25,17 +25,23 @@ export default async function handler(req: any, res: any) {
 
   // Parse query params
   const url = new URL(req.url, 'http://localhost');
-  const q = url.searchParams.get('q') || (req.query && req.query.q);
+  const q = url.searchParams.get('q') || (req.query && req.query.q) || '';
+  const artistParam = url.searchParams.get('artist') || (req.query && req.query.artist) || '';
+  const titleParam = url.searchParams.get('title') || (req.query && req.query.title) || '';
+  const durationParam = Number(url.searchParams.get('duration') || (req.query && req.query.duration) || 0);
   const id = url.searchParams.get('id') || (req.query && req.query.id);
 
-  if (!q && !id) {
+  const rawQuery = (q || `${artistParam} ${titleParam}`).trim();
+  if (!rawQuery && !id) {
     res.statusCode = 400;
     res.setHeader('Content-Type', 'application/json');
     res.end(JSON.stringify({ error: 'Missing parameter "q" or "id"' }));
     return;
   }
 
-  const cacheKey = id || q.toLowerCase().trim();
+  const cacheKey = id
+    ? `v2:id:${id}`
+    : `v2:q:${rawQuery.toLowerCase()}|${artistParam.toLowerCase()}|${titleParam.toLowerCase()}`;
 
   try {
     const now = Date.now();
@@ -47,9 +53,71 @@ export default async function handler(req: any, res: any) {
       let videoId = id;
 
       if (!videoId) {
-        // Search clean audio target to match studio recording & lyrics timing
-        const searchTarget = `${q}`;
-        const searchResults = await y.search(searchTarget);
+        const stopWords = new Set([
+          'feat', 'ft', 'the', 'and', 'for', 'with', 'official',
+          'audio', 'video', 'lyric', 'lyrics', 'remaster', 'remastered', 'version',
+        ]);
+        const normalizeTokens = (str: string): string[] =>
+          (str || '')
+            .toLowerCase()
+            .replace(/\(.*?\)|\[.*?\]/g, ' ')
+            .replace(/[^\p{L}\p{N}\s]/gu, ' ')
+            .split(/\s+/)
+            .filter((w) => w.length >= 2 && !stopWords.has(w));
+
+        const cleanTitleStr = (titleParam || rawQuery)
+          .replace(/\(.*?\)|\[.*?\]/g, ' ')
+          .replace(/\s+/g, ' ')
+          .trim();
+        const cleanArtistStr = artistParam.trim();
+        const baseSearch = cleanArtistStr ? `${cleanArtistStr} ${cleanTitleStr}`.trim() : rawQuery;
+
+        // Search multiple studio-oriented queries to bypass YouTube's karaoke/DJ/reaction clutter
+        const queriesToTry = [
+          `${baseSearch} official audio`,
+          `${baseSearch} topic`,
+          baseSearch,
+        ];
+
+        const seenIds = new Set<string>();
+        const searchResults: any[] = [];
+        const titleTokens = normalizeTokens(titleParam || rawQuery);
+        const artistTokens = normalizeTokens(cleanArtistStr);
+
+        for (const target of queriesToTry) {
+          try {
+            const resBatch = await y.search(target);
+            for (const item of resBatch || []) {
+              if (item?.id && !seenIds.has(item.id)) {
+                seenIds.add(item.id);
+                searchResults.push(item);
+              }
+            }
+
+            // Early exit ONLY if we already have an exact Topic/Artist match close to expected duration
+            const hasStrongStudioHit = searchResults.some((item: any) => {
+              const tLower = (item.title || '').toLowerCase();
+              const aLower = (item.author?.name || '').toLowerCase();
+              const sec = item.lengthSeconds || 0;
+              if (sec < 45 || sec > 600) return false;
+              if (tLower.includes('karaoke') || tLower.includes('tv size') || tLower.includes('remix') || tLower.includes('cover')) {
+                return false;
+              }
+              const allTitleMatched = titleTokens.length > 0 && titleTokens.every((w) => tLower.includes(w));
+              const artistMatched = artistTokens.length === 0 || artistTokens.some((w) => aLower.includes(w));
+              const durationClose = !durationParam || Math.abs(sec - durationParam) <= 15;
+              return allTitleMatched && artistMatched && durationClose && (aLower.includes('topic') || artistTokens.some((w) => aLower.includes(w)));
+            });
+
+            if (hasStrongStudioHit) break;
+          } catch {
+            // Continue next search query variant
+          }
+        }
+
+        const qLower = rawQuery.toLowerCase();
+        const allowLive =
+          qLower.includes('live') || qLower.includes('acoustic') || qLower.includes('unplugged');
 
         const forbiddenKeywords = [
           'karaoke',
@@ -59,19 +127,8 @@ export default async function handler(req: any, res: any) {
           'off vocal',
           'tanpa vokal',
           'no vocal',
-          'karaoke version',
-          'karaoke video',
-          'lirik karaoke',
           'cover',
           'remix',
-          'acoustic cover',
-          'piano cover',
-          'guitar cover',
-          'drum cover',
-          'fingerstyle',
-          'bass tab',
-          'tutorial',
-          'how to play',
           'slowed',
           'reverb',
           'sped up',
@@ -79,22 +136,37 @@ export default async function handler(req: any, res: any) {
           'nightcore',
           'parody',
           'reaction',
+          'fingerstyle',
+          'bass tab',
+          'tutorial',
+          'how to play',
+          'best of',
+          'full album',
+          'playlist',
+          'compilation',
+          'medley',
+          'mashup',
+          'tv size',
+          'short ver',
+          'osu!',
+          'amv',
+          'qnf',
+          'dj ',
+          'dj-',
           'teaser',
           'ringtone',
         ];
 
         const isForbidden = (title: string, authorName?: string) => {
-          const lower = `${title} ${authorName || ''}`.toLowerCase();
+          const lower = `${title || ''} ${authorName || ''}`.toLowerCase();
           return forbiddenKeywords.some((word) => lower.includes(word));
         };
 
-        // Filter out shorts (< 45s) and multi-hour mix loops (> 660s) and karaoke/instrumentals
         let validMatches = searchResults.filter((item: any) => {
           const sec = item.lengthSeconds || 0;
           return sec >= 45 && sec <= 660 && !isForbidden(item.title, item.author?.name);
         });
 
-        // If all were filtered (rare), relax non-karaoke filter but strictly keep no-karaoke
         if (validMatches.length === 0) {
           validMatches = searchResults.filter((item: any) => {
             const lower = `${item.title || ''} ${item.author?.name || ''}`.toLowerCase();
@@ -107,39 +179,61 @@ export default async function handler(req: any, res: any) {
           });
         }
 
-        // Score candidates for official studio vocals & exact sync
         const scoreCandidate = (item: any) => {
           let score = 0;
           const t = (item.title || '').toLowerCase();
           const a = (item.author?.name || '').toLowerCase();
-          const qLower = q.toLowerCase();
+          const sec = item.lengthSeconds || 0;
 
-          // 1. YouTube Topic channel (Official release directly uploaded by record label/distributor)
-          if (a.includes('- topic') || a.includes('topic')) score += 120;
+          // 1. Strict Title Token Match (Prevents returning a completely different song by the same artist)
+          if (titleTokens.length > 0) {
+            const matchedCount = titleTokens.filter((w) => t.includes(w)).length;
+            const ratio = matchedCount / titleTokens.length;
+            if (matchedCount === 0) score -= 500;
+            else if (ratio === 1) score += 320;
+            else score += Math.round(ratio * 180) - 90;
+          }
+          if (cleanTitleStr.length >= 2 && t.includes(cleanTitleStr.toLowerCase())) {
+            score += 120;
+          }
 
-          // 2. Author matches artist name in query
-          const words = qLower.split(/[\s-]+/).filter((w: string) => w.length > 2);
-          if (words.some((w: string) => a.includes(w))) score += 60;
+          // Penalize multi-song titles / mashup pipes
+          if ((t.includes('||') || t.split(' - ').length >= 3) && !cleanTitleStr.includes('-')) {
+            score -= 180;
+          }
 
-          // 3. Official studio audio badges
-          if (t.includes('official audio')) score += 50;
-          if (t.includes('audio') || t.includes('official track')) score += 40;
-          if (
-            t.includes('official lyric video') ||
-            t.includes('official video') ||
-            t.includes('official music video')
-          )
-            score += 30;
-          if (t.includes('lyric') || t.includes('lirik')) score += 25;
+          // 2. Artist match on channel/title
+          if (artistTokens.length > 0) {
+            if (artistTokens.some((w) => a.includes(w))) score += 120;
+            if (artistTokens.some((w) => t.includes(w))) score += 60;
+          } else {
+            const qWords = normalizeTokens(rawQuery);
+            if (qWords.some((w) => a.includes(w))) score += 70;
+          }
 
-          // 4. Exact title matching
-          if (t.includes(qLower) || qLower.includes(t)) score += 35;
+          // 3. Official Studio / Topic Priority
+          if (a.includes('- topic') || a.endsWith('topic')) score += 150;
+          if (t.includes('official audio')) score += 75;
+          if (t.includes('official track') || t.includes('(audio)')) score += 55;
+          if (t.includes('official lyric') || t.includes('lyric video') || t.includes('lirik')) score += 45;
+          if (t.includes('official music video') || t.includes('official video')) score += 25;
 
-          // 5. Heavy penalties for live, acoustic, concert, slowed
-          if (t.includes('live') && !qLower.includes('live')) score -= 60;
-          if (t.includes('concert') && !qLower.includes('concert')) score -= 60;
-          if (t.includes('acoustic') && !qLower.includes('acoustic')) score -= 40;
-          if (t.includes('mix') && !qLower.includes('mix')) score -= 50;
+          // 4. Live/Concert/Mix penalties unless requested
+          if (!allowLive) {
+            if (t.includes('live') || t.includes('concert') || t.includes('blank canvas') || t.includes('awards')) {
+              score -= 180;
+            }
+            if (t.includes('acoustic')) score -= 80;
+          }
+          if (t.includes('mix') && !qLower.includes('mix')) score -= 40;
+
+          // 5. Duration closeness bonus for 1:1 lyric timing match
+          if (durationParam > 30 && sec > 0) {
+            const diff = Math.abs(sec - durationParam);
+            if (diff <= 8) score += 110;
+            else if (diff <= 20) score += 55;
+            else if (diff > 60) score -= 100;
+          }
 
           return score;
         };
@@ -159,10 +253,17 @@ export default async function handler(req: any, res: any) {
       }
 
       const info = await y.getInfo(videoId);
-      const format = chooseFormat(info.formats, {
-        quality: 'highestaudio',
-        filter: (f: any) => f.hasAudio && !f.hasVideo,
-      });
+      // Prefer universal AAC MP4 audio (itag 140 / audio/mp4) for reliable playback & seeking across all browsers
+      const mp4AudioFormats = (info.formats || [])
+        .filter((f: any) => f.hasAudio && !f.hasVideo && f.mimeType?.includes('audio/mp4') && f.url)
+        .sort((a: any, b: any) => (b.audioBitrate || 0) - (a.audioBitrate || 0));
+
+      const format =
+        mp4AudioFormats[0] ||
+        chooseFormat(info.formats, {
+          quality: 'highestaudio',
+          filter: (f: any) => f.hasAudio && !f.hasVideo,
+        });
 
       if (!format || !format.url) {
         res.statusCode = 404;

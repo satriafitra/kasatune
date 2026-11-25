@@ -226,26 +226,17 @@ export const PlayerBar: React.FC<PlayerBarProps> = ({
         </div>
       </div>
 
-      {/* Right: BPM badge, Lyrics Toggle & Volume Slider */}
-      <div className="flex items-center gap-2 sm:gap-3 min-w-0 sm:min-w-[180px] justify-end flex-shrink-0">
-        {/* Metronome Beat Indicator without AI glow */}
-        <div
-          className="hidden xl:flex items-center gap-1.5 px-2 py-0.5 rounded bg-[#141619] border border-[#282B32] text-[10px] text-[#A0A5AD]"
-          title={`Song BPM: ${bpm}`}
-        >
-          <span className="w-1.5 h-1.5 rounded-full bg-[#BFE7EA]" />
-          <span className="font-mono text-[10px] font-semibold text-[#A0A5AD]">{bpm} BPM</span>
-        </div>
-
-        {/* Clean Lyrics Toggle Button (No Border Box) */}
+      {/* Right: Lyrics Toggle & Volume Slider */}
+      <div className="flex items-center gap-2 sm:gap-3 min-w-0 sm:min-w-[160px] justify-end flex-shrink-0">
+        {/* Clean Lyrics Toggle Button */}
         <button
           onClick={onToggleLyrics}
-          className={`p-1.5 rounded transition-colors flex items-center justify-center ${
+          className={`p-2 rounded-full transition-colors flex items-center justify-center ${
             showLyrics
-              ? 'text-[#BFE7EA] hover:text-white'
-              : 'text-[#656A74] hover:text-[#A0A5AD]'
+              ? 'text-[#1DB954] bg-[#1DB954]/10'
+              : 'text-[#656A74] hover:text-white'
           }`}
-          title="Toggle Lyrics"
+          title="Tampilkan / Sembunyikan Lirik"
         >
           <Mic2 className="w-4 h-4" />
         </button>
@@ -260,7 +251,7 @@ export const PlayerBar: React.FC<PlayerBarProps> = ({
             {volume === 0 ? (
               <VolumeX className="w-4 h-4 text-[#ED4245]" />
             ) : (
-              <Volume2 className="w-4 h-4 hover:text-[#BFE7EA]" />
+              <Volume2 className="w-4 h-4 hover:text-white" />
             )}
           </button>
 
@@ -271,7 +262,7 @@ export const PlayerBar: React.FC<PlayerBarProps> = ({
             step="0.02"
             value={volume}
             onChange={(e) => onVolumeChange(parseFloat(e.target.value))}
-            className="w-18 sm:w-22 h-1 bg-[#282B32] rounded-lg appearance-none cursor-pointer accent-[#BFE7EA]"
+            className="w-20 h-1 bg-[#282B32] rounded-lg appearance-none cursor-pointer accent-[#1DB954]"
           />
         </div>
       </div>

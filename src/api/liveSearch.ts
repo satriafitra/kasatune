@@ -12,6 +12,20 @@
 import type { BackendRadioheadTrack } from './backend';
 import musicLibraryData from '../data/music_library.json';
 
+/**
+ * Builds an accurate full-song stream URL with artist, title, and expected duration
+ * so the backend matches the exact original studio recording & lyric timing.
+ */
+export function buildStreamUrl(artist: string, title: string, durationMs?: number): string {
+  const cleanArtist = (artist || '').trim();
+  const cleanTitle = (title || '').trim();
+  const q = `${cleanArtist} ${cleanTitle}`.trim();
+  const sec = durationMs && durationMs > 1000 ? Math.round(durationMs / 1000) : 0;
+  const params = new URLSearchParams({ q, artist: cleanArtist, title: cleanTitle });
+  if (sec > 0) params.set('duration', String(sec));
+  return `/api/stream?${params.toString()}`;
+}
+
 export interface LiveSearchResult {
   tracks: BackendRadioheadTrack[];
   isLoading: boolean;
@@ -212,7 +226,7 @@ export async function searchLiveArtists(
           if (!seenNames.has(k)) {
             seenNames.add(k);
             artists.push({
-              id: `online-artist-${a.id}`,
+              id: `online-artist-dz-${a.id}`,
               name: a.name,
               artist: a.name,
               albumTitle: 'Lagu Populer',
@@ -390,9 +404,11 @@ export async function fetchAlbumTracks(
         ? parseInt(albumInfo.releaseDate.slice(0, 4), 10)
         : 2024;
 
-      const fullStreamUrl = `/api/stream?q=${encodeURIComponent(
-        item.artistName + ' ' + item.trackName
-      )}`;
+      const fullStreamUrl = buildStreamUrl(
+        item.artistName || albumInfo?.artistName || 'Unknown Artist',
+        item.trackName,
+        item.trackTimeMillis
+      );
 
       return {
         id: `online-trk-${item.trackId || idx}`,
@@ -450,31 +466,36 @@ export async function fetchArtistTracks(
     } else if (lower.includes('hindia')) {
       queryTerm = 'Hindia';
       knownArtistId = 1440146558;
+    } else if (lower.includes('nirvana')) {
+      queryTerm = 'Nirvana';
+      knownArtistId = 112018;
     } else if (lower.includes('sheila on 7') || lower === 'sheilaon7') {
       queryTerm = 'Sheila On 7';
       knownArtistId = 299830776;
     } else if (lower.includes('rich brian') || lower === 'richbrian') {
       queryTerm = 'Rich Brian';
       knownArtistId = 1023207266;
+    } else if (lower.includes('radiohead')) {
+      queryTerm = 'Radiohead';
+      knownArtistId = 657515;
     }
 
-    const numericIdMatch = artistName.match(/\d+/);
-    const resolvedArtistId = knownArtistId || (numericIdMatch ? numericIdMatch[0] : null);
+    const pureNumericId = artistName.startsWith('online-artist-') && /^\d+$/.test(cleanQuery) ? cleanQuery : null;
+    const resolvedArtistId = knownArtistId || pureNumericId;
 
     const mapItunesTrack = (item: any, idx: number): BackendRadioheadTrack => {
       const coverUrl = item.artworkUrl100
         ? item.artworkUrl100.replace('100x100bb.jpg', '600x600bb.jpg')
         : 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=600&auto=format&fit=crop&q=80';
 
+      const artistStr = item.artistName || queryTerm;
       const year = item.releaseDate ? parseInt(item.releaseDate.slice(0, 4), 10) : 2024;
-      const fullStreamUrl = `/api/stream?q=${encodeURIComponent(
-        (item.artistName || queryTerm) + ' ' + item.trackName
-      )}`;
+      const fullStreamUrl = buildStreamUrl(artistStr, item.trackName, item.trackTimeMillis);
 
       return {
         id: `online-trk-${item.trackId || idx}`,
         title: item.trackName,
-        artist: item.artistName || queryTerm,
+        artist: artistStr,
         album: item.collectionName || 'Top Hits',
         category: `online-artist-${encodeURIComponent(queryTerm)}`,
         year,
@@ -488,6 +509,37 @@ export async function fetchArtistTracks(
       };
     };
 
+    const normalizeAndDedupeTracks = (rawTracks: any[]): BackendRadioheadTrack[] => {
+      // Filter out instrumental/karaoke/commentary tracks when fetching artist discographies
+      const cleanRaw = rawTracks.filter((i: any) => {
+        if (i.wrapperType !== 'track' || !i.trackName) return false;
+        const lowerTitle = i.trackName.toLowerCase();
+        return (
+          !lowerTitle.includes('karaoke') &&
+          !lowerTitle.includes('instrumental') &&
+          !lowerTitle.includes('sped up') &&
+          !lowerTitle.includes('slowed')
+        );
+      });
+
+      const seen = new Set<string>();
+      const songs: BackendRadioheadTrack[] = [];
+      for (let i = 0; i < cleanRaw.length; i++) {
+        const item = cleanRaw[i];
+        const cleanT = item.trackName
+          .toLowerCase()
+          .replace(/feat\..*/i, '')
+          .replace(/\(.*?\)|\[.*?\]/g, '')
+          .split(' - ')[0]
+          .trim();
+        if (cleanT && !seen.has(cleanT)) {
+          seen.add(cleanT);
+          songs.push(mapItunesTrack(item, i));
+        }
+      }
+      return songs;
+    };
+
     // 1. Direct Apple Music Lookup if Artist ID is available
     if (resolvedArtistId) {
       try {
@@ -496,44 +548,32 @@ export async function fetchArtistTracks(
         if (res.ok) {
           const data = await res.json();
           if (data.results && Array.isArray(data.results)) {
-            const rawTracks = data.results.filter(
-              (i: any) => i.wrapperType === 'track' && i.trackName
-            );
-            if (rawTracks.length > 0) {
-              const seen = new Set<string>();
-              const songs: BackendRadioheadTrack[] = [];
-              for (let i = 0; i < rawTracks.length; i++) {
-                const item = rawTracks[i];
-                const cleanT = item.trackName
-                  .toLowerCase()
-                  .replace(/feat\..*/i, '')
-                  .replace(/\(.*\)/, '')
-                  .trim();
-                if (!seen.has(cleanT)) {
-                  seen.add(cleanT);
-                  songs.push(mapItunesTrack(item, i));
-                }
-              }
+            const songs = normalizeAndDedupeTracks(data.results);
 
-              // Guarantee Hindia's 'everything u are' is included in Hindia's catalog
-              if (lower.includes('hindia') && !seen.has('everything u are')) {
-                try {
-                  const evRes = await fetch(
-                    `https://itunes.apple.com/search?term=${encodeURIComponent(
-                      'Hindia everything u are'
-                    )}&entity=song&limit=1`
+            // Guarantee Hindia's 'everything u are' is included in Hindia's catalog
+            if (
+              lower.includes('hindia') &&
+              !songs.some((s) => s.title.toLowerCase().includes('everything u are'))
+            ) {
+              try {
+                const evRes = await fetch(
+                  `https://itunes.apple.com/search?term=${encodeURIComponent(
+                    'Hindia everything u are'
+                  )}&entity=song&limit=3`
+                );
+                if (evRes.ok) {
+                  const evData = await evRes.json();
+                  const hit = evData.results?.find((r: any) =>
+                    (r.trackName || '').toLowerCase().includes('everything u are')
                   );
-                  if (evRes.ok) {
-                    const evData = await evRes.json();
-                    if (evData.results && evData.results[0]) {
-                      songs.unshift(mapItunesTrack(evData.results[0], 9999));
-                    }
+                  if (hit) {
+                    songs.unshift(mapItunesTrack(hit, 9999));
                   }
-                } catch {}
-              }
-
-              if (songs.length > 0) return songs;
+                }
+              } catch {}
             }
+
+            if (songs.length > 0) return songs;
           }
         }
       } catch (err) {
@@ -563,26 +603,8 @@ export async function fetchArtistTracks(
             if (sRes.ok) {
               const sData = await sRes.json();
               if (sData.results && Array.isArray(sData.results)) {
-                const rawTracks = sData.results.filter(
-                  (i: any) => i.wrapperType === 'track' && i.trackName
-                );
-                if (rawTracks.length > 0) {
-                  const seen = new Set<string>();
-                  const songs: BackendRadioheadTrack[] = [];
-                  for (let i = 0; i < rawTracks.length; i++) {
-                    const item = rawTracks[i];
-                    const cleanT = item.trackName
-                      .toLowerCase()
-                      .replace(/feat\..*/i, '')
-                      .replace(/\(.*\)/, '')
-                      .trim();
-                    if (!seen.has(cleanT)) {
-                      seen.add(cleanT);
-                      songs.push(mapItunesTrack(item, i));
-                    }
-                  }
-                  if (songs.length > 0) return songs;
-                }
+                const songs = normalizeAndDedupeTracks(sData.results);
+                if (songs.length > 0) return songs;
               }
             }
           }
@@ -681,9 +703,11 @@ export async function searchLiveMusic(
           : 'https://is1-ssl.mzstatic.com/image/thumb/Music112/v4/0a/a7/9f/0aa79f8a-101c-f475-c158-66e56d4a378a/JK_ZMCZ-15801.jpg/600x600bb.jpg';
 
         const year = item.releaseDate ? parseInt(item.releaseDate.slice(0, 4), 10) : 2024;
-        const fullStreamUrl = `/api/stream?q=${encodeURIComponent(
-          item.artistName + ' ' + item.trackName
-        )}`;
+        const fullStreamUrl = buildStreamUrl(
+          item.artistName || 'Unknown Artist',
+          item.trackName,
+          item.trackTimeMillis
+        );
 
         return {
           id: `live-online-${item.trackId}`,

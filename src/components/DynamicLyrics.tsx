@@ -9,7 +9,7 @@
  */
 
 import React, { useEffect, useRef, useState } from 'react';
-import { Compass, AlignLeft, Music, Hash, Sparkles } from 'lucide-react';
+import { Compass, AlignLeft, Music, Sparkles } from 'lucide-react';
 import type { LyricLine } from '../utils/lrcParser';
 import { findActiveLyricIndex, formatTime } from '../utils/lrcParser';
 import type { AlbumColors } from '../hooks/useAlbumColor';
@@ -64,15 +64,14 @@ export const DynamicLyrics: React.FC<DynamicLyricsProps> = ({
   const isIntro = lyrics.length > 0 && activeIndex === -1 && lyrics[0].timeMs > 2500;
 
   return (
-    <div className="w-full h-full bg-[#111215] rounded-lg border border-[#282B32] flex flex-col overflow-hidden select-none relative shadow-sm">
-      {/* Top Discord Channel Header */}
-      <div className="h-12 px-5 flex items-center justify-between border-b border-[#282B32] z-20 flex-shrink-0 bg-[#141619]">
+    <div className="w-full h-full bg-[#121212] rounded-xl border border-[#1E2025] flex flex-col overflow-hidden select-none relative">
+      {/* Clean Minimal Lyrics Header */}
+      <div className="h-12 px-5 flex items-center justify-between border-b border-[#1E2025] z-20 flex-shrink-0 bg-[#141619]/60">
         <div className="flex items-center gap-2 min-w-0">
-          <Hash className="w-4 h-4 text-[#949BA4] flex-shrink-0" />
           <span className="font-bold text-sm text-white tracking-tight">
-            synced-lyrics
+            Lirik
           </span>
-          <span className="text-xs text-[#949BA4] truncate hidden sm:inline">
+          <span className="text-xs text-[#949BA4] truncate">
             &bull; {trackTitle}
           </span>
         </div>
@@ -80,14 +79,14 @@ export const DynamicLyrics: React.FC<DynamicLyricsProps> = ({
         {lyrics.length > 0 && (
           <button
             onClick={() => setAutoScroll(!autoScroll)}
-            className={`px-2.5 py-1 rounded-md text-xs font-semibold flex items-center gap-1.5 transition-colors border ${
+            className={`px-2.5 py-1 rounded-full text-[11px] font-medium flex items-center gap-1.5 transition-colors border ${
               autoScroll
                 ? 'bg-[#1C1E22] text-[#BFE7EA] border-[#282B32]'
                 : 'bg-transparent text-[#656A74] border-transparent hover:bg-[#1C1E22] hover:text-white'
             }`}
           >
-            <Compass className="w-3.5 h-3.5" />
-            <span>Auto-scroll</span>
+            <Compass className="w-3 h-3" />
+            <span>Auto</span>
           </button>
         )}
       </div>

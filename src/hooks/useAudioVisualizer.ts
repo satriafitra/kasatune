@@ -39,6 +39,7 @@ export interface AudioVisualizerControls {
 
 interface UseAudioVisualizerOptions {
   onEnded?: () => void;
+  onAudioError?: () => void;
   defaultDurationSec?: number;
 }
 
@@ -49,9 +50,7 @@ export function useAudioVisualizer(
   options?: UseAudioVisualizerOptions
 ): AudioVisualizerControls {
   const audioRef = useRef<HTMLAudioElement | null>(null);
-  const audioContextRef = useRef<AudioContext | null>(null);
-  const analyserRef = useRef<AnalyserNode | null>(null);
-  const sourceNodeRef = useRef<MediaElementAudioSourceNode | null>(null);
+  const pendingSeekRef = useRef<number | null>(null);
 
   const getSavedPlaytime = (): number => {
     try {
@@ -74,11 +73,17 @@ export function useAudioVisualizer(
   const durationRef = useRef<number>(initialDurationSec);
   const currentTimeRef = useRef<number>(initialPlaytime);
   const isPlayingRef = useRef<boolean>(false);
+  const volumeRef = useRef<number>(0.85);
 
   const onEndedRef = useRef(options?.onEnded);
   useEffect(() => {
     onEndedRef.current = options?.onEnded;
   }, [options?.onEnded]);
+
+  const onAudioErrorRef = useRef(options?.onAudioError);
+  useEffect(() => {
+    onAudioErrorRef.current = options?.onAudioError;
+  }, [options?.onAudioError]);
 
   const [visualizerData, setVisualizerData] = useState<VisualizerData>({
     frequencyData: new Uint8Array(128),
@@ -92,64 +97,15 @@ export function useAudioVisualizer(
     bpm: initialBpm,
   });
 
-  // Setup Web Audio API Context and AnalyserNode
-  const setupWebAudio = useCallback(() => {
-    const audio = audioRef.current;
-    if (!audio) return;
-
-    try {
-      if (!audioContextRef.current) {
-        const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
-        const ctx = new AudioCtx();
-        const analyser = ctx.createAnalyser();
-        analyser.fftSize = 256;
-        analyser.smoothingTimeConstant = 0.82;
-
-        try {
-          const source = ctx.createMediaElementSource(audio);
-          source.connect(analyser);
-          analyser.connect(ctx.destination);
-          sourceNodeRef.current = source;
-        } catch {
-          // Fallback if media element already bound
-        }
-
-        audioContextRef.current = ctx;
-        analyserRef.current = analyser;
-      }
-
-      if (audioContextRef.current && audioContextRef.current.state === 'suspended') {
-        audioContextRef.current.resume().catch(() => {});
-      }
-    } catch {
-      // Direct audio element fallback
-    }
-  }, []);
-
-  // Unlock audio context on any user interaction
-  useEffect(() => {
-    const unlockAudio = () => {
-      if (audioContextRef.current && audioContextRef.current.state === 'suspended') {
-        audioContextRef.current.resume().catch(() => {});
-      }
-    };
-    window.addEventListener('click', unlockAudio, { once: true });
-    window.addEventListener('keydown', unlockAudio, { once: true });
-    return () => {
-      window.removeEventListener('click', unlockAudio);
-      window.removeEventListener('keydown', unlockAudio);
-    };
-  }, []);
-
-  // Initialize HTMLAudioElement
+  // Initialize native HTMLAudioElement directly (no CORS/createMediaElementSource hijack that causes silent playback)
   useEffect(() => {
     const audio = new Audio();
-    audio.crossOrigin = 'anonymous';
     audio.preload = 'auto';
+    audio.muted = false;
+    audio.volume = volumeRef.current;
     audioRef.current = audio;
 
     const handleEnded = () => {
-      // Natural track finish: clean stop and trigger onEnded for smooth track transition
       setIsPlaying(false);
       isPlayingRef.current = false;
       if (onEndedRef.current) {
@@ -168,6 +124,8 @@ export function useAudioVisualizer(
     };
 
     const handlePlay = () => {
+      audio.muted = false;
+      audio.volume = volumeRef.current;
       setIsPlaying(true);
       isPlayingRef.current = true;
     };
@@ -178,22 +136,42 @@ export function useAudioVisualizer(
         setDuration(audio.duration);
         durationRef.current = audio.duration;
       }
+      if (pendingSeekRef.current !== null && pendingSeekRef.current > 0) {
+        const target = pendingSeekRef.current;
+        pendingSeekRef.current = null;
+        try {
+          const maxSafe = !isNaN(audio.duration) && isFinite(audio.duration) && audio.duration > 0
+            ? Math.max(0, audio.duration - 0.2)
+            : target;
+          audio.currentTime = Math.min(maxSafe, target);
+        } catch {}
+      }
     };
 
     const handleTimeUpdate = () => {
-      if (!audio || audio.paused || isNaN(audio.currentTime)) return;
-      currentTimeRef.current = audio.currentTime;
-      setCurrentTime(audio.currentTime);
+      if (!audio || isNaN(audio.currentTime)) return;
+      if (!audio.paused) {
+        currentTimeRef.current = audio.currentTime;
+        setCurrentTime(audio.currentTime);
+      }
       if (!isNaN(audio.duration) && isFinite(audio.duration) && audio.duration > 0) {
         if (Math.abs(durationRef.current - audio.duration) > 1.5) {
           setDuration(audio.duration);
           durationRef.current = audio.duration;
         }
       }
-      if (audio.currentTime > 0) {
+      if (audio.currentTime > 0 && !audio.paused) {
         try {
           localStorage.setItem('kasatune_saved_playtime', String(audio.currentTime));
         } catch {}
+      }
+    };
+
+    const handleError = () => {
+      setIsPlaying(false);
+      isPlayingRef.current = false;
+      if (onAudioErrorRef.current) {
+        onAudioErrorRef.current();
       }
     };
 
@@ -203,8 +181,8 @@ export function useAudioVisualizer(
     audio.addEventListener('loadedmetadata', handleLoadedMetadata);
     audio.addEventListener('timeupdate', handleTimeUpdate);
     audio.addEventListener('seeked', handleTimeUpdate);
+    audio.addEventListener('error', handleError);
 
-    // Save exact position immediately before tab reload or unload
     const handleBeforeUnload = () => {
       if (currentTimeRef.current > 0) {
         try {
@@ -217,24 +195,8 @@ export function useAudioVisualizer(
     if (initialUrl) {
       audio.src = initialUrl;
       audio.load();
-
       if (initialPlaytime > 0) {
-        const applyMountSeek = () => {
-          if (!isNaN(audio.duration) && isFinite(audio.duration) && audio.duration > 0) {
-            audio.currentTime = Math.min(Math.max(0, audio.duration - 0.2), initialPlaytime);
-          } else {
-            try {
-              audio.currentTime = initialPlaytime;
-            } catch {}
-          }
-        };
-
-        if (audio.readyState >= 1) {
-          applyMountSeek();
-        } else {
-          audio.addEventListener('loadedmetadata', applyMountSeek, { once: true });
-          audio.addEventListener('canplay', applyMountSeek, { once: true });
-        }
+        pendingSeekRef.current = initialPlaytime;
       }
     }
 
@@ -245,54 +207,37 @@ export function useAudioVisualizer(
       audio.removeEventListener('loadedmetadata', handleLoadedMetadata);
       audio.removeEventListener('timeupdate', handleTimeUpdate);
       audio.removeEventListener('seeked', handleTimeUpdate);
+      audio.removeEventListener('error', handleError);
       window.removeEventListener('beforeunload', handleBeforeUnload);
       audio.pause();
       audio.src = '';
-      if (audioContextRef.current && audioContextRef.current.state !== 'closed') {
-        audioContextRef.current.close().catch(() => {});
-      }
     };
   }, []);
 
-  // High-precision clock ticker (ticks every 25ms, strictly locked to audio decode position)
+  // Clock ticker strictly locked to actual <audio> decode position (never fakes silent progress)
   useEffect(() => {
     if (!isPlaying) return;
 
-    let lastTick = performance.now();
     const interval = setInterval(() => {
       const audio = audioRef.current;
-      const now = performance.now();
-      const deltaSec = (now - lastTick) / 1000;
-      lastTick = now;
+      if (!audio) return;
 
-      if (audio && !audio.paused && !isNaN(audio.currentTime) && audio.currentTime >= 0) {
+      if (!audio.paused && !isNaN(audio.currentTime)) {
         currentTimeRef.current = audio.currentTime;
-      } else {
-        currentTimeRef.current = Math.min(
-          durationRef.current,
-          currentTimeRef.current + deltaSec
-        );
+        setCurrentTime(audio.currentTime);
       }
-      setCurrentTime(currentTimeRef.current);
 
-      // Throttled persistence of playtime across page refresh (every ~1 sec)
-      if (Math.round(currentTimeRef.current * 10) % 10 === 0) {
+      if (Math.round(currentTimeRef.current * 10) % 10 === 0 && currentTimeRef.current > 0) {
         try {
           localStorage.setItem('kasatune_saved_playtime', String(currentTimeRef.current));
         } catch {}
       }
-
-      if (currentTimeRef.current >= durationRef.current) {
-        setIsPlaying(false);
-        isPlayingRef.current = false;
-        if (onEndedRef.current) onEndedRef.current();
-      }
-    }, 25);
+    }, 50);
 
     return () => clearInterval(interval);
   }, [isPlaying]);
 
-  // Clean Track Switcher: Guarantees 100% synchronization on track skip, supporting initial playtime persistence
+  // Clean Track Switcher: Direct native audio playback with instant unmuted output
   const loadTrack = useCallback((url: string, newBpm: number, durationSec: number, autoPlay: boolean = true, initialTimeSec: number = 0) => {
     const audio = audioRef.current;
     if (!audio) return;
@@ -300,43 +245,25 @@ export function useAudioVisualizer(
     const safeDuration = durationSec > 0 ? durationSec : 266;
     const safeInitial = Math.max(0, Math.min(safeDuration, initialTimeSec));
 
-    // Initialize clock
     setCurrentTime(safeInitial);
     currentTimeRef.current = safeInitial;
     setDuration(safeDuration);
     durationRef.current = safeDuration;
     setCurrentBpm(newBpm > 0 ? newBpm : 128);
+    pendingSeekRef.current = safeInitial > 0 ? safeInitial : null;
 
     audio.pause();
+    audio.muted = false;
+    audio.volume = volumeRef.current;
+
     if (url) {
       audio.src = url;
       audio.load();
 
-      const applyInitialSeek = () => {
-        if (!isNaN(audio.duration) && isFinite(audio.duration) && audio.duration > 0) {
-          setDuration(audio.duration);
-          durationRef.current = audio.duration;
-          if (safeInitial > 0) {
-            audio.currentTime = Math.min(Math.max(0, audio.duration - 0.2), safeInitial);
-          }
-        } else if (safeInitial > 0) {
-          try {
-            audio.currentTime = safeInitial;
-          } catch {}
-        }
-      };
-
-      if (audio.readyState >= 1 && audio.duration > 0) {
-        applyInitialSeek();
-      } else {
-        audio.addEventListener('loadedmetadata', applyInitialSeek, { once: true });
-        audio.addEventListener('canplay', applyInitialSeek, { once: true });
-      }
-
-      setupWebAudio();
-
       if (autoPlay) {
         audio.play().then(() => {
+          audio.muted = false;
+          audio.volume = volumeRef.current;
           setIsPlaying(true);
           isPlayingRef.current = true;
         }).catch(() => {
@@ -352,12 +279,14 @@ export function useAudioVisualizer(
       setIsPlaying(false);
       isPlayingRef.current = false;
     }
-  }, [setupWebAudio]);
+  }, []);
 
   const setVolume = useCallback((newVol: number) => {
     const clamped = Math.max(0, Math.min(1, newVol));
+    volumeRef.current = clamped;
     setVolumeState(clamped);
     if (audioRef.current) {
+      audioRef.current.muted = clamped === 0;
       audioRef.current.volume = clamped;
     }
   }, []);
@@ -366,7 +295,8 @@ export function useAudioVisualizer(
     const audio = audioRef.current;
     if (!audio || !audio.src) return;
 
-    setupWebAudio();
+    audio.muted = false;
+    audio.volume = volumeRef.current;
 
     try {
       await audio.play();
@@ -376,7 +306,7 @@ export function useAudioVisualizer(
       setIsPlaying(false);
       isPlayingRef.current = false;
     }
-  }, [setupWebAudio]);
+  }, []);
 
   const pause = useCallback(() => {
     if (audioRef.current) {
@@ -406,13 +336,15 @@ export function useAudioVisualizer(
       localStorage.setItem('kasatune_saved_playtime', String(clampedSec));
     } catch {}
 
-    if (audio && audio.duration && !isNaN(audio.duration) && audio.duration > 0) {
-      // Safely clamp seek position to audio duration without modulo wrapping (prevents infinite loop cycles)
+    if (audio && audio.readyState >= 1 && audio.duration && !isNaN(audio.duration) && audio.duration > 0) {
+      pendingSeekRef.current = null;
       audio.currentTime = Math.min(Math.max(0, audio.duration - 0.2), clampedSec);
+    } else {
+      pendingSeekRef.current = clampedSec;
     }
   }, []);
 
-  // 60 FPS Beat Engine & Spectrum Analyser Loop
+  // 60 FPS Beat Engine for subtle visual feedback
   useEffect(() => {
     let animId: number;
     const bufferLength = 128;
@@ -420,13 +352,9 @@ export function useAudioVisualizer(
 
     const renderLoop = (timestamp: number) => {
       const safeBpm = currentBpm > 0 ? currentBpm : 128;
-      const beatIntervalSec = 60 / safeBpm;
-      const beatIntervalMs = beatIntervalSec * 1000;
+      const beatIntervalMs = (60 / safeBpm) * 1000;
       const barIntervalMs = beatIntervalMs * 4;
-
-      const audioTimeMs = isPlaying
-        ? currentTimeRef.current * 1000
-        : timestamp;
+      const audioTimeMs = isPlaying ? currentTimeRef.current * 1000 : timestamp;
 
       const beatPhase = (audioTimeMs % beatIntervalMs) / beatIntervalMs;
       const barPhase = (audioTimeMs % barIntervalMs) / barIntervalMs;
@@ -443,39 +371,16 @@ export function useAudioVisualizer(
         ? Math.pow(Math.max(0, 1 - beatPhase * 1.8), 2.4) * 0.9
         : 0;
 
-      let activeBass = 0;
-      let activeMid = 0;
-      let activeTreble = 0;
+      const activeBass = kickImpulse * 0.8;
+      const activeMid = 0.2 + snareImpulse * 0.5;
+      const activeTreble = 0.15 + 0.15 * Math.cos(audioTimeMs * 0.006 * (safeBpm / 90));
 
-      if (isPlaying && analyserRef.current) {
-        analyserRef.current.getByteFrequencyData(dataArray);
-
-        let bassSum = 0;
-        for (let i = 1; i <= 10; i++) bassSum += dataArray[i];
-        activeBass = bassSum / (10 * 255);
-
-        let midSum = 0;
-        for (let i = 11; i <= 35; i++) midSum += dataArray[i];
-        activeMid = midSum / (25 * 255);
-
-        let trebleSum = 0;
-        for (let i = 36; i <= 80; i++) trebleSum += dataArray[i];
-        activeTreble = trebleSum / (45 * 255);
-
-        activeBass = Math.min(1, activeBass * 0.8 + kickImpulse * 0.35);
-        activeMid = Math.min(1, activeMid * 0.8 + snareImpulse * 0.25);
-      } else {
-        activeBass = kickImpulse * 0.8;
-        activeMid = 0.2 + snareImpulse * 0.5;
-        activeTreble = 0.15 + 0.15 * Math.cos(audioTimeMs * 0.006 * (safeBpm / 90));
-
-        for (let i = 0; i < bufferLength; i++) {
-          const freqNorm = i / bufferLength;
-          const wave1 = Math.sin(audioTimeMs * 0.003 * (safeBpm / 90) + i * 0.16);
-          const beatContribution = kickImpulse * Math.exp(-i * 0.07) * 180 + snareImpulse * Math.exp(-Math.abs(i - 20) * 0.1) * 120;
-          const val = Math.max(0, wave1 * 35 + 40 + beatContribution) * (1 - freqNorm * 0.35);
-          dataArray[i] = Math.min(255, Math.max(0, Math.round(val)));
-        }
+      for (let i = 0; i < bufferLength; i++) {
+        const freqNorm = i / bufferLength;
+        const wave1 = Math.sin(audioTimeMs * 0.003 * (safeBpm / 90) + i * 0.16);
+        const beatContribution = kickImpulse * Math.exp(-i * 0.07) * 180 + snareImpulse * Math.exp(-Math.abs(i - 20) * 0.1) * 120;
+        const val = Math.max(0, wave1 * 35 + 40 + beatContribution) * (1 - freqNorm * 0.35);
+        dataArray[i] = Math.min(255, Math.max(0, Math.round(val)));
       }
 
       setVisualizerData({
