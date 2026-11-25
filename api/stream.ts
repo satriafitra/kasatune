@@ -1,14 +1,338 @@
-import { Ytdl, chooseFormat } from '@distube/ytdl-core';
+import { Ytdl, Client, chooseFormat } from '@distube/ytdl-core';
+import { parseScript } from 'meriyah';
+import vm from 'node:vm';
 import { Readable } from 'stream';
+
+const IOS_USER_AGENT =
+  'com.google.ios.youtube/20.10.4 (iPhone16,2; U; CPU iOS 18_3_2 like Mac OS X;)';
+const WEB_USER_AGENT =
+  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36';
+const EMBED_HOST = 'https://www.reddit.com/';
+
+// Vercel Serverless Functions have a 4.5MB buffered limit; bounded Range chunks stream cleanly & never overflow
+const DEFAULT_MAX_CHUNK_BYTES = 1572864; // 1.5MB for VisionOS / WebEmbedded
+const IOS_MAX_CHUNK_BYTES = 524288; // 512KB cap required by YouTube iOS CDN endpoints
 
 // In-memory cache for resolved format URLs to make Range scrubbing & repeated plays instant
 interface CachedFormat {
   url: string;
   mimeType: string;
   contentLength?: string;
+  userAgent?: string;
+  maxChunkBytes: number;
   expires: number;
 }
 const urlCache = new Map<string, CachedFormat>();
+
+async function fetchVisitorData(): Promise<string | undefined> {
+  try {
+    const r = await fetch('https://www.youtube.com/youtubei/v1/visitor_id?prettyPrint=false', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'User-Agent': WEB_USER_AGENT },
+      body: JSON.stringify({
+        context: { client: { clientName: 'WEB', clientVersion: '2.20261027.01.00' } },
+      }),
+    });
+    if (!r.ok) return undefined;
+    const j: any = await r.json();
+    return j?.responseContext?.visitorData || undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+async function resolveViaIosInnerTube(videoId: string): Promise<Omit<CachedFormat, 'expires'> | null> {
+  try {
+    const visitorData = await fetchVisitorData();
+    const res = await fetch('https://www.youtube.com/youtubei/v1/player?prettyPrint=false', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'User-Agent': IOS_USER_AGENT,
+      },
+      body: JSON.stringify({
+        videoId,
+        context: {
+          client: {
+            clientName: 'IOS',
+            clientVersion: '20.10.4',
+            deviceMake: 'Apple',
+            deviceModel: 'iPhone16,2',
+            osName: 'iPhone',
+            osVersion: '18.3.2.22D82',
+            visitorData,
+            hl: 'en',
+            gl: 'US',
+          },
+        },
+        contentCheckOk: true,
+        racyCheckOk: true,
+      }),
+    });
+
+    if (!res.ok) return null;
+    const data: any = await res.json();
+    if (data?.playabilityStatus?.status !== 'OK') return null;
+
+    const adaptive: any[] = data?.streamingData?.adaptiveFormats || [];
+    const audioOnly = adaptive.filter(
+      (f) => f.mimeType?.startsWith('audio/') && f.url
+    );
+    const mp4Audio = audioOnly
+      .filter((f) => f.mimeType.includes('audio/mp4'))
+      .sort((a, b) => (b.bitrate || 0) - (a.bitrate || 0));
+    const picked = mp4Audio[0] || audioOnly.sort((a, b) => (b.bitrate || 0) - (a.bitrate || 0))[0];
+
+    if (!picked?.url) return null;
+    return {
+      url: picked.url,
+      mimeType: picked.mimeType || 'audio/mp4; codecs="mp4a.40.2"',
+      contentLength: picked.contentLength ? String(picked.contentLength) : undefined,
+      maxChunkBytes: IOS_MAX_CHUNK_BYTES,
+    };
+  } catch {
+    return null;
+  }
+}
+
+// In-process VM player solver (zero worker_threads / import.meta.url filesystem dependency for Vercel Lambda)
+async function resolveViaEmbeddedInProcess(videoId: string): Promise<Omit<CachedFormat, 'expires'> | null> {
+  try {
+    const embedHtml = await fetch(`https://www.youtube.com/embed/${encodeURIComponent(videoId)}?html5=1`, {
+      headers: { 'User-Agent': WEB_USER_AGENT, Referer: EMBED_HOST },
+    }).then((r) => r.text());
+
+    const cfgMatch = /ytcfg\.set\((\{[\s\S]*?\})\);/u.exec(embedHtml);
+    const cfg: any = cfgMatch ? JSON.parse(cfgMatch[1]) : {};
+    const visitorData = cfg.VISITOR_DATA;
+    const hostFlags =
+      cfg?.WEB_PLAYER_CONTEXT_CONFIGS?.WEB_PLAYER_CONTEXT_CONFIG_ID_EMBEDDED_PLAYER?.encryptedHostFlags;
+
+    const iframeJs = await fetch('https://www.youtube.com/iframe_api', {
+      headers: { 'User-Agent': WEB_USER_AGENT },
+    }).then((r) => r.text());
+    const playerId = /player\\?\/([\da-f]{8})\\?\//u.exec(iframeJs)?.[1];
+    if (!playerId) return null;
+
+    const playerSource = await fetch(
+      `https://www.youtube.com/s/player/${encodeURIComponent(playerId)}/player_ias.vflset/en_US/base.js`,
+      { headers: { 'User-Agent': WEB_USER_AGENT } }
+    ).then((r) => r.text());
+    const sigTs = /signatureTimestamp:(\d+)/u.exec(playerSource)?.[1];
+
+    const playerRes: any = await fetch('https://www.youtube.com/youtubei/v1/player?prettyPrint=false', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'User-Agent': WEB_USER_AGENT,
+        Origin: 'https://www.youtube.com',
+      },
+      body: JSON.stringify({
+        videoId,
+        context: {
+          client: {
+            clientName: 'WEB_EMBEDDED_PLAYER',
+            clientVersion: '2.20261027.01.00',
+            visitorData,
+            hl: 'en',
+            gl: 'US',
+          },
+          thirdParty: { embedUrl: EMBED_HOST },
+        },
+        playbackContext: {
+          contentPlaybackContext: {
+            html5Preference: 'HTML5_PREF_WANTS',
+            signatureTimestamp: sigTs ? Number(sigTs) : undefined,
+            encryptedHostFlags: hostFlags,
+          },
+        },
+      }),
+    }).then((r) => r.json());
+
+    if (playerRes?.playabilityStatus?.status !== 'OK') return null;
+    const adaptive: any[] = playerRes?.streamingData?.adaptiveFormats || [];
+    const audioOnly = adaptive.filter((f) => f.mimeType?.startsWith('audio/') && (f.url || f.signatureCipher));
+    const mp4 = audioOnly
+      .filter((f) => f.mimeType.includes('audio/mp4'))
+      .sort((a, b) => (b.bitrate || 0) - (a.bitrate || 0));
+    const picked = mp4[0] || audioOnly[0];
+    if (!picked) return null;
+
+    if (picked.url && !picked.signatureCipher) {
+      return {
+        url: picked.url,
+        mimeType: picked.mimeType || 'audio/mp4; codecs="mp4a.40.2"',
+        contentLength: picked.contentLength ? String(picked.contentLength) : undefined,
+        userAgent: WEB_USER_AGENT,
+        maxChunkBytes: DEFAULT_MAX_CHUNK_BYTES,
+      };
+    }
+
+    // Solve signatureCipher + n-challenge strictly inside in-process vm context (no worker_threads)
+    const program: any = parseScript(playerSource, { ranges: true });
+    const [first, second] = program.body;
+    let block: any = null;
+    let skip = 0;
+    if (program.body.length === 2 && second?.type === 'ExpressionStatement') {
+      const call = second.expression;
+      if (call.type === 'CallExpression' && call.callee.type === 'FunctionExpression' && call.callee.body) {
+        block = call.callee.body;
+        const head = block.body[0];
+        if (
+          head?.type === 'VariableDeclaration' &&
+          head.declarations[0]?.id?.name === 'window'
+        ) {
+          skip = 1;
+        }
+      }
+    } else if (program.body.length === 1 && first?.type === 'ExpressionStatement') {
+      const call = first.expression;
+      if (call.type === 'CallExpression' && call.callee.object?.body) {
+        block = call.callee.object.body;
+      }
+    }
+    if (!block) return null;
+
+    const isAlrYes = (node: any) =>
+      node.type === 'ExpressionStatement' &&
+      node.expression.type === 'CallExpression' &&
+      node.expression.callee.type === 'MemberExpression' &&
+      node.expression.arguments[0]?.value === 'alr' &&
+      node.expression.arguments[1]?.value === 'yes';
+
+    const kept = block.body
+      .slice(skip)
+      .filter(
+        (node: any) =>
+          node.type !== 'ExpressionStatement' ||
+          node.expression.type === 'AssignmentExpression' ||
+          node.expression.type === 'Literal'
+      );
+
+    const builderNodes: any[] = [];
+    for (const node of kept) {
+      if (node.type === 'FunctionDeclaration' && node.id && !node.async && node.body?.body.some(isAlrYes)) {
+        builderNodes.push(node.id);
+      } else if (
+        node.type === 'ExpressionStatement' &&
+        node.expression.type === 'AssignmentExpression' &&
+        node.expression.right?.type === 'FunctionExpression' &&
+        !node.expression.right.async &&
+        node.expression.right.body?.body.some(isAlrYes)
+      ) {
+        builderNodes.push(node.expression.left);
+      } else if (node.type === 'VariableDeclaration') {
+        for (const decl of node.declarations) {
+          if (decl.init?.type === 'FunctionExpression' && !decl.init.async && decl.init.body?.body.some(isAlrYes)) {
+            builderNodes.push(decl.id);
+          }
+        }
+      }
+    }
+    if (builderNodes.length === 0) return null;
+
+    const builders = builderNodes.map((n) => playerSource.slice(n.start, n.end));
+    const setup = `
+      var XMLHttpRequest = { prototype: {} };
+      var location = { hash: "", host: "www.youtube.com", hostname: "www.youtube.com", href: "https://www.youtube.com/watch?v=", origin: "https://www.youtube.com", pathname: "/watch", port: "", protocol: "https:", search: "" };
+      var document = Object.create(null), navigator = Object.create(null), self = globalThis, window = globalThis;
+      var __ytdl = {
+        builders: [],
+        solve: function (sig, n) {
+          for (var i = 0; i < this.builders.length; i++) {
+            try {
+              var u = this.builders[i]("https://www.youtube.com/watch?v=", "s", sig === undefined ? undefined : encodeURIComponent(sig));
+              if (n !== undefined) u.set("n", n);
+              var proto = Object.getPrototypeOf(u);
+              var keys = Object.keys(proto).concat(Object.getOwnPropertyNames(proto));
+              for (var j = 0; j < keys.length; j++) {
+                if (["constructor", "set", "get", "clone"].indexOf(keys[j]) === -1) { u[keys[j]](); break; }
+              }
+              var s = u.get("s");
+              return [s ? decodeURIComponent(s) : null, u.get("n") || null];
+            } catch (e) {}
+          }
+          return null;
+        }
+      };
+    `;
+    const fullCode = [
+      setup,
+      playerSource.slice(0, block.start + 1),
+      ...kept.map((n: any) => playerSource.slice(n.start, n.end)),
+      `;__ytdl.builders = [${builders.join(', ')}];`,
+      playerSource.slice(block.end - 1),
+    ].join('\n');
+
+    const ctx = vm.createContext(Object.create(null), { codeGeneration: { strings: false } });
+    vm.runInContext(fullCode, ctx, { timeout: 2500 });
+
+    const cipherParams = new URLSearchParams(picked.signatureCipher);
+    const baseUrl = cipherParams.get('url');
+    const sVal = cipherParams.get('s') || undefined;
+    const spKey = cipherParams.get('sp') || 'sig';
+    if (!baseUrl) return null;
+
+    const targetUrl = new URL(baseUrl);
+    const nVal = targetUrl.searchParams.get('n') || undefined;
+    const solved = vm.runInContext(
+      `JSON.stringify(__ytdl.solve(${JSON.stringify(sVal)}, ${JSON.stringify(nVal)}))`,
+      ctx,
+      { timeout: 1500 }
+    );
+    const [decSig, decN] = JSON.parse(solved || '[]') || [];
+    if (sVal && decSig) targetUrl.searchParams.set(spKey, decSig);
+    if (nVal && decN) targetUrl.searchParams.set('n', decN);
+
+    return {
+      url: targetUrl.toString(),
+      mimeType: picked.mimeType || 'audio/mp4; codecs="mp4a.40.2"',
+      contentLength: picked.contentLength ? String(picked.contentLength) : undefined,
+      userAgent: WEB_USER_AGENT,
+      maxChunkBytes: DEFAULT_MAX_CHUNK_BYTES,
+    };
+  } catch {
+    return null;
+  }
+}
+
+async function resolveAudioFormat(
+  videoId: string,
+  visionYtdl: Ytdl
+): Promise<Omit<CachedFormat, 'expires'> | null> {
+  // Tier 1: VisionOS via Ytdl (needsPlayer: false -> zero worker thread, supports full & 1.5MB chunks)
+  try {
+    const info = await visionYtdl.getInfo(videoId);
+    const mp4AudioFormats = (info.formats || [])
+      .filter((f: any) => f.hasAudio && !f.hasVideo && f.mimeType?.includes('audio/mp4') && f.url)
+      .sort((a: any, b: any) => (b.audioBitrate || 0) - (a.audioBitrate || 0));
+
+    const format =
+      mp4AudioFormats[0] ||
+      chooseFormat(info.formats, {
+        quality: 'highestaudio',
+        filter: (f: any) => f.hasAudio && !f.hasVideo,
+      });
+
+    if (format?.url) {
+      return {
+        url: format.url,
+        mimeType: format.mimeType || 'audio/mp4; codecs="mp4a.40.2"',
+        contentLength: format.contentLength ? String(format.contentLength) : undefined,
+        maxChunkBytes: DEFAULT_MAX_CHUNK_BYTES,
+      };
+    }
+  } catch {
+    // Continue to Tier 2
+  }
+
+  // Tier 2: In-process VM player solver with WEB_EMBEDDED_PLAYER (zero worker_threads)
+  const embeddedResult = await resolveViaEmbeddedInProcess(videoId);
+  if (embeddedResult) return embeddedResult;
+
+  // Tier 3: Direct YouTube IOS InnerTube (uses 512KB chunks, zero worker thread)
+  return await resolveViaIosInnerTube(videoId);
+}
 
 export default async function handler(req: any, res: any) {
   // Handle CORS
@@ -49,7 +373,8 @@ export default async function handler(req: any, res: any) {
 
     // If cache expired or not found, resolve with ytdl
     if (!formatInfo || formatInfo.expires < now) {
-      const y = new Ytdl();
+      // Always instantiate VisionOS-only Ytdl for search & metadata (never triggers worker.js crash on Vercel)
+      const y = new Ytdl({ clients: [Client.VisionOS] });
       let videoId = id;
 
       if (!videoId) {
@@ -252,45 +577,55 @@ export default async function handler(req: any, res: any) {
         videoId = match.id;
       }
 
-      const info = await y.getInfo(videoId);
-      // Prefer universal AAC MP4 audio (itag 140 / audio/mp4) for reliable playback & seeking across all browsers
-      const mp4AudioFormats = (info.formats || [])
-        .filter((f: any) => f.hasAudio && !f.hasVideo && f.mimeType?.includes('audio/mp4') && f.url)
-        .sort((a: any, b: any) => (b.audioBitrate || 0) - (a.audioBitrate || 0));
-
-      const format =
-        mp4AudioFormats[0] ||
-        chooseFormat(info.formats, {
-          quality: 'highestaudio',
-          filter: (f: any) => f.hasAudio && !f.hasVideo,
-        });
-
-      if (!format || !format.url) {
+      const resolved = await resolveAudioFormat(videoId, y);
+      if (!resolved || !resolved.url) {
         res.statusCode = 404;
         res.setHeader('Content-Type', 'application/json');
-        res.end(JSON.stringify({ error: 'No audio stream format found' }));
+        res.end(JSON.stringify({ error: 'No audio stream format found for ' + videoId }));
         return;
       }
 
       formatInfo = {
-        url: format.url,
-        mimeType: format.mimeType || 'audio/mp4; codecs="mp4a.40.2"',
-        contentLength: format.contentLength ? String(format.contentLength) : undefined,
+        ...resolved,
         expires: now + 5 * 60 * 1000, // Cache for 5 minutes
       };
       urlCache.set(cacheKey, formatInfo);
     }
 
-    // Handle Client Range Requests for seamless seeking and full-length intro-to-outro playback
+    // Handle Client Range Requests with bounded chunks for seamless Vercel streaming & seeking
     const clientRange = req.headers ? (req.headers.range || req.headers['range']) : undefined;
-    const fetchHeaders: Record<string, string> = {};
+    const totalLen = formatInfo.contentLength ? Number(formatInfo.contentLength) : 0;
+    const chunkCap = formatInfo.maxChunkBytes || DEFAULT_MAX_CHUNK_BYTES;
+
+    let reqRangeHeader: string | undefined;
     if (clientRange) {
-      fetchHeaders['Range'] = clientRange;
+      const m = /bytes=(\d+)-(\d*)/.exec(String(clientRange));
+      if (m) {
+        const start = parseInt(m[1], 10);
+        const requestedEnd = m[2] ? parseInt(m[2], 10) : NaN;
+        const maxEnd =
+          totalLen > 0
+            ? Math.min(totalLen - 1, start + chunkCap - 1)
+            : start + chunkCap - 1;
+        const end = Number.isFinite(requestedEnd) ? Math.min(requestedEnd, maxEnd) : maxEnd;
+        reqRangeHeader = `bytes=${start}-${Math.max(start, end)}`;
+      } else {
+        reqRangeHeader = String(clientRange);
+      }
+    } else if (totalLen > 3_500_000 || totalLen === 0 || chunkCap < DEFAULT_MAX_CHUNK_BYTES) {
+      reqRangeHeader = `bytes=0-${chunkCap - 1}`;
     }
 
-    const mediaRes = await fetch(formatInfo.url, {
-      headers: fetchHeaders,
-    });
+    const fetchHeaders: Record<string, string> = {};
+    if (reqRangeHeader) fetchHeaders['Range'] = reqRangeHeader;
+    if (formatInfo.userAgent) fetchHeaders['User-Agent'] = formatInfo.userAgent;
+
+    let mediaRes = await fetch(formatInfo.url, { headers: fetchHeaders });
+
+    // If cached stream URL expired or rejected (403/410), clear cache once and re-resolve
+    if ((mediaRes.status === 403 || mediaRes.status === 410) && !id) {
+      urlCache.delete(cacheKey);
+    }
 
     res.statusCode = mediaRes.status; // 206 for range requests, 200 for full stream
     res.setHeader('Content-Type', mediaRes.headers.get('content-type') || formatInfo.mimeType);
