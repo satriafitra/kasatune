@@ -2,7 +2,9 @@
  * AuthScreen Component
  * Clean, minimal dark matte Login / Register Gate (#0B0B0C / #121213 / #CE7F20 / #EEDFC7 / #607938):
  * - Email & Password sign-in ("Masuk") and registration ("Daftar")
- * - Google OAuth sign-in ("Lanjutkan dengan Google") via Google Identity Services + server fallback
+ * - Google OAuth 2.0 direct redirect flow using exact registered redirect_uri (`${origin}/`),
+ *   working seamlessly on both http://localhost:5173/ and https://kasatune.vercel.app/
+ *   without requiring Authorized JavaScript Origins (avoids 401 invalid_client / no registered origin).
  */
 
 import React, { useState, useEffect } from 'react';
@@ -12,39 +14,18 @@ import {
   GOOGLE_CLIENT_ID,
   loginWithEmail,
   registerWithEmail,
-  loginWithGoogleAccessToken,
   type AuthUser,
 } from '../utils/authStore';
 
 interface AuthScreenProps {
   onAuthenticated: (user: AuthUser) => void;
+  initialError?: string | null;
 }
 
-let gisScriptPromise: Promise<boolean> | null = null;
-function loadGoogleIdentityScript(): Promise<boolean> {
-  if (typeof window === 'undefined') return Promise.resolve(false);
-  if ((window as any).google?.accounts?.oauth2) return Promise.resolve(true);
-  if (gisScriptPromise) return gisScriptPromise;
-
-  gisScriptPromise = new Promise((resolve) => {
-    const existing = document.querySelector('script[src*="accounts.google.com/gsi/client"]');
-    if (existing) {
-      setTimeout(() => resolve(Boolean((window as any).google?.accounts?.oauth2)), 1500);
-      return;
-    }
-    const script = document.createElement('script');
-    script.src = 'https://accounts.google.com/gsi/client';
-    script.async = true;
-    script.defer = true;
-    script.onload = () => resolve(Boolean((window as any).google?.accounts?.oauth2));
-    script.onerror = () => resolve(false);
-    document.head.appendChild(script);
-  });
-
-  return gisScriptPromise;
-}
-
-export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthenticated }) => {
+export const AuthScreen: React.FC<AuthScreenProps> = ({
+  onAuthenticated,
+  initialError = null,
+}) => {
   const [mode, setMode] = useState<'login' | 'register'>('login');
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -52,19 +33,23 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthenticated }) => {
   const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [errorMsg, setErrorMsg] = useState<string | null>(initialError);
 
-  // Preload Google Identity Services & read any OAuth redirect error
   useEffect(() => {
-    loadGoogleIdentityScript();
+    if (initialError) {
+      setErrorMsg(initialError);
+    }
+  }, [initialError]);
+
+  useEffect(() => {
     try {
       const params = new URLSearchParams(window.location.search);
-      const authErr = params.get('auth_error');
+      const authErr = params.get('auth_error') || params.get('error');
       if (authErr) {
         if (authErr === 'cancelled' || authErr === 'access_denied') {
           setErrorMsg('Login Google dibatalkan.');
         } else {
-          setErrorMsg('Gagal menyelesaikan login Google. Silakan coba lagi.');
+          setErrorMsg(`Login Google gagal (${authErr}). Silakan coba lagi.`);
         }
         window.history.replaceState({}, document.title, window.location.pathname);
       }
@@ -94,57 +79,37 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthenticated }) => {
     }
   };
 
-  const handleGoogleLogin = async () => {
+  const handleGoogleLogin = () => {
     setErrorMsg(null);
     setIsGoogleLoading(true);
 
     try {
-      const loaded = await loadGoogleIdentityScript();
-      const oauth2 = (window as any).google?.accounts?.oauth2;
-
-      if (loaded && oauth2?.initTokenClient) {
-        const tokenClient = oauth2.initTokenClient({
-          client_id: GOOGLE_CLIENT_ID,
-          scope: 'openid email profile',
-          callback: async (tokenResponse: any) => {
-            if (tokenResponse?.error) {
-              setIsGoogleLoading(false);
-              if (tokenResponse.error !== 'access_denied' && tokenResponse.error !== 'popup_closed_by_user') {
-                setErrorMsg(
-                  `Login Google gagal (${tokenResponse.error}). Pastikan origin ${window.location.origin} sudah terdaftar di Google Cloud Console.`
-                );
-              }
-              return;
-            }
-            if (!tokenResponse?.access_token) {
-              setIsGoogleLoading(false);
-              setErrorMsg('Gagal mendapatkan akses dari akun Google.');
-              return;
-            }
-            const result = await loginWithGoogleAccessToken(tokenResponse.access_token);
-            setIsGoogleLoading(false);
-            if (result.error) {
-              setErrorMsg(result.error);
-              return;
-            }
-            if (result.user) {
-              onAuthenticated(result.user);
-            }
-          },
-          error_callback: () => {
-            setIsGoogleLoading(false);
-          },
-        });
-
-        tokenClient.requestAccessToken({ prompt: 'select_account' });
-        return;
+      const stateBytes = new Uint8Array(12);
+      if (typeof crypto !== 'undefined' && crypto.getRandomValues) {
+        crypto.getRandomValues(stateBytes);
       }
+      const state = Array.from(stateBytes, (b) => b.toString(16).padStart(2, '0')).join('') || String(Date.now());
+      try {
+        sessionStorage.setItem('kasatune_google_oauth_state', state);
+      } catch {}
 
-      // Fallback to server-side OAuth redirect flow if GIS script is unavailable
-      window.location.href = '/api/auth?action=google-start';
+      // Matches exact registered Authorized redirect URIs:
+      // http://localhost:5173/ and https://kasatune.vercel.app/
+      const redirectUri = `${window.location.origin}/`;
+
+      const authUrl = new URL('https://accounts.google.com/o/oauth2/v2/auth');
+      authUrl.searchParams.set('client_id', GOOGLE_CLIENT_ID);
+      authUrl.searchParams.set('redirect_uri', redirectUri);
+      authUrl.searchParams.set('response_type', 'token');
+      authUrl.searchParams.set('scope', 'openid email profile');
+      authUrl.searchParams.set('prompt', 'select_account');
+      authUrl.searchParams.set('include_granted_scopes', 'true');
+      authUrl.searchParams.set('state', state);
+
+      window.location.assign(authUrl.toString());
     } catch {
       setIsGoogleLoading(false);
-      setErrorMsg('Gagal membuka login Google. Silakan coba lagi.');
+      setErrorMsg('Gagal membuka halaman login Google.');
     }
   };
 

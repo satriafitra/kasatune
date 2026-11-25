@@ -15,6 +15,7 @@ import { AuthScreen } from './components/AuthScreen';
 import {
   getSavedSessionUser,
   restoreAuthSession,
+  loginWithGoogleAccessToken,
   logoutAccount,
   loadAccountDataSnapshot,
   saveAccountDataSnapshot,
@@ -1816,18 +1817,83 @@ const AuthenticatedApp: React.FC<{
 
 export const App: React.FC = () => {
   const [authUser, setAuthUser] = useState<AuthUser | null>(() => getSavedSessionUser());
-  const [isCheckingSession, setIsCheckingSession] = useState<boolean>(() => !getSavedSessionUser());
+  const [authError, setAuthError] = useState<string | null>(null);
+  const [isCheckingSession, setIsCheckingSession] = useState<boolean>(() => {
+    const hash = typeof window !== 'undefined' ? window.location.hash : '';
+    return hash.includes('access_token=') || !getSavedSessionUser();
+  });
 
   useEffect(() => {
     let active = true;
-    restoreAuthSession()
-      .then((user) => {
-        if (!active) return;
-        if (user) setAuthUser(user);
-      })
-      .finally(() => {
+    (async () => {
+      // 1. Handle Google OAuth redirect callback (#access_token=... or #error=...)
+      try {
+        const rawHash = window.location.hash ? window.location.hash.slice(1) : '';
+        if (rawHash) {
+          const hashParams = new URLSearchParams(rawHash);
+          const googleAccessToken = hashParams.get('access_token');
+          const googleErr = hashParams.get('error');
+          const returnedState = hashParams.get('state');
+
+          if (googleAccessToken || googleErr) {
+            // Immediately strip sensitive token from address bar
+            window.history.replaceState(
+              {},
+              document.title,
+              window.location.pathname + window.location.search
+            );
+
+            if (googleErr) {
+              if (active) {
+                setAuthError(
+                  googleErr === 'access_denied'
+                    ? 'Login Google dibatalkan.'
+                    : `Login Google gagal (${googleErr}).`
+                );
+                setIsCheckingSession(false);
+              }
+              return;
+            }
+
+            if (googleAccessToken) {
+              const expectedState = sessionStorage.getItem('kasatune_google_oauth_state');
+              try {
+                sessionStorage.removeItem('kasatune_google_oauth_state');
+              } catch {}
+              if (expectedState && returnedState && expectedState !== returnedState) {
+                if (active) {
+                  setAuthError('Sesi login Google tidak valid. Silakan coba lagi.');
+                  setIsCheckingSession(false);
+                }
+                return;
+              }
+
+              const result = await loginWithGoogleAccessToken(googleAccessToken);
+              if (!active) return;
+              if (result.user) {
+                setAuthUser(result.user);
+                setAuthError(null);
+              } else {
+                setAuthError(result.error || 'Gagal memverifikasi akun Google.');
+              }
+              setIsCheckingSession(false);
+              return;
+            }
+          }
+        }
+      } catch {}
+
+      // 2. Otherwise restore existing session from local storage or server cookie
+      try {
+        const user = await restoreAuthSession();
+        if (active && user) {
+          setAuthUser(user);
+        }
+      } finally {
         if (active) setIsCheckingSession(false);
-      });
+      }
+    })();
+
     return () => {
       active = false;
     };
@@ -1847,7 +1913,15 @@ export const App: React.FC = () => {
   }
 
   if (!authUser) {
-    return <AuthScreen onAuthenticated={(u) => setAuthUser(u)} />;
+    return (
+      <AuthScreen
+        initialError={authError}
+        onAuthenticated={(u) => {
+          setAuthError(null);
+          setAuthUser(u);
+        }}
+      />
+    );
   }
 
   return (
