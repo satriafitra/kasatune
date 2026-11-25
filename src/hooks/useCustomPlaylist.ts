@@ -34,10 +34,14 @@ const DEFAULT_PLAYLIST: CustomPlaylistData = {
   updatedAt: Date.now(),
 };
 
-export function useCustomPlaylist(allLibraryTracks: BackendRadioheadTrack[]) {
-  const [playlist, setPlaylist] = useState<CustomPlaylistData>(() => {
+export function useCustomPlaylist(allLibraryTracks: BackendRadioheadTrack[], accountKey?: string | null) {
+  const storageKey = accountKey
+    ? `${STORAGE_KEY}_${accountKey.trim().toLowerCase()}`
+    : STORAGE_KEY;
+
+  const readPlaylistForKey = useCallback((key: string): CustomPlaylistData => {
     try {
-      const saved = localStorage.getItem(STORAGE_KEY);
+      const saved = localStorage.getItem(key) || (key !== STORAGE_KEY ? localStorage.getItem(STORAGE_KEY) : null);
       if (saved) {
         const parsed = JSON.parse(saved);
         return {
@@ -51,16 +55,23 @@ export function useCustomPlaylist(allLibraryTracks: BackendRadioheadTrack[]) {
       console.warn('Failed to parse saved custom playlist:', e);
     }
     return DEFAULT_PLAYLIST;
-  });
+  }, []);
+
+  const [playlist, setPlaylist] = useState<CustomPlaylistData>(() => readPlaylistForKey(storageKey));
+
+  // Reload playlist when switching accounts
+  useEffect(() => {
+    setPlaylist(readPlaylistForKey(storageKey));
+  }, [storageKey, readPlaylistForKey]);
 
   // Save to localStorage whenever playlist state changes
   useEffect(() => {
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(playlist));
+      localStorage.setItem(storageKey, JSON.stringify(playlist));
     } catch (e) {
       console.warn('Failed to save custom playlist to localStorage:', e);
     }
-  }, [playlist]);
+  }, [playlist, storageKey]);
 
   // Check if a track is liked
   const isLiked = useCallback(

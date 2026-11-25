@@ -19,9 +19,11 @@ import {
   Globe,
   Loader2,
   ListPlus,
+  LogOut,
 } from 'lucide-react';
 import { KasatuneLogoIcon } from './KasatuneLogo';
 import type { BackendRadioheadTrack } from '../api/backend';
+import type { AuthUser } from '../utils/authStore';
 import { isSameTrack } from '../api/liveSearch';
 
 interface NavbarProps {
@@ -49,6 +51,8 @@ interface NavbarProps {
   isLikedTrack?: (trackId: string) => boolean;
   onToggleLikeTrack?: (track: BackendRadioheadTrack) => void;
   onAddToQueue?: (track: BackendRadioheadTrack) => void;
+  authUser?: AuthUser | null;
+  onAccountLogout?: () => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -76,6 +80,8 @@ export const Navbar: React.FC<NavbarProps> = ({
   isLikedTrack,
   onToggleLikeTrack,
   onAddToQueue,
+  authUser,
+  onAccountLogout,
 }) => {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [tempClientId, setTempClientId] = useState(clientId);
@@ -570,7 +576,7 @@ export const Navbar: React.FC<NavbarProps> = ({
         </div>
       )}
 
-      {/* Right Controls: Live Sync & Settings (Desktop only) */}
+      {/* Right Controls: Live Sync, Account & Settings (Desktop only) */}
       <div className="hidden md:flex items-center gap-2">
         <button
           onClick={onConnectFriendSpotify}
@@ -586,10 +592,42 @@ export const Navbar: React.FC<NavbarProps> = ({
               isFriendConnected ? 'bg-[#607938]' : 'bg-[#68625B]'
             }`}
           />
-          <span className="truncate max-w-[130px]">
+          <span className="truncate max-w-[120px]">
             {friendTrackTitle ? friendTrackTitle : 'Live Sync'}
           </span>
         </button>
+
+        {authUser && (
+          <div className="flex items-center gap-2 pl-1.5 pr-2 py-1 rounded-lg bg-[#121213] border border-white/[0.08]">
+            <div className="w-6 h-6 rounded-md overflow-hidden bg-[#53341A] flex items-center justify-center flex-shrink-0">
+              {authUser.avatarUrl ? (
+                <img
+                  src={authUser.avatarUrl}
+                  alt={authUser.name}
+                  referrerPolicy="no-referrer"
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <span className="text-[10px] font-semibold text-[#EEDFC7] uppercase">
+                  {authUser.name.slice(0, 2)}
+                </span>
+              )}
+            </div>
+            <span className="text-xs font-medium text-[#EEDFC7] max-w-[100px] truncate">
+              {authUser.name}
+            </span>
+            {onAccountLogout && (
+              <button
+                onClick={onAccountLogout}
+                className="p-1 rounded text-[#9A9288]"
+                title={`Keluar (${authUser.email})`}
+                aria-label="Keluar akun"
+              >
+                <LogOut className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
+        )}
 
         {isAuthenticated ? (
           <button
@@ -622,6 +660,44 @@ export const Navbar: React.FC<NavbarProps> = ({
                 &times;
               </button>
             </div>
+
+            {authUser && (
+              <div className="p-3 rounded-lg bg-[#19191B] border border-white/[0.07] flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <div className="w-9 h-9 rounded-lg overflow-hidden bg-[#53341A] flex items-center justify-center flex-shrink-0">
+                    {authUser.avatarUrl ? (
+                      <img
+                        src={authUser.avatarUrl}
+                        alt={authUser.name}
+                        referrerPolicy="no-referrer"
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <span className="text-xs font-semibold text-[#EEDFC7] uppercase">
+                        {authUser.name.slice(0, 2)}
+                      </span>
+                    )}
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-xs font-semibold text-[#EEDFC7] truncate">{authUser.name}</p>
+                    <p className="text-[11px] text-[#9A9288] truncate">{authUser.email}</p>
+                  </div>
+                </div>
+                {onAccountLogout && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsSettingsOpen(false);
+                      onAccountLogout();
+                    }}
+                    className="h-8 px-3 rounded-lg border border-white/[0.1] text-xs font-medium text-[#EEDFC7] flex items-center gap-1.5 flex-shrink-0"
+                  >
+                    <LogOut className="w-3.5 h-3.5 text-[#CE7F20]" />
+                    <span>Keluar</span>
+                  </button>
+                )}
+              </div>
+            )}
 
             <form onSubmit={handleSaveSettings} className="space-y-4 text-xs">
               <div>

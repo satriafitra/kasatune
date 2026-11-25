@@ -5,6 +5,9 @@
   "functions": {
     "api/stream.ts": {
       "maxDuration": 30
+    },
+    "api/auth.ts": {
+      "maxDuration": 15
     }
   },
   "rewrites": [

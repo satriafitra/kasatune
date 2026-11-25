@@ -9,8 +9,17 @@
  */
 
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import { Plus, Heart, Radio, X, Disc3, Mic2, Library, ListMusic } from 'lucide-react';
+import { Plus, Heart, Radio, X, Disc3, Mic2, Library, ListMusic, LogOut } from 'lucide-react';
 import { Navbar } from './components/Navbar';
+import { AuthScreen } from './components/AuthScreen';
+import {
+  getSavedSessionUser,
+  restoreAuthSession,
+  logoutAccount,
+  loadAccountDataSnapshot,
+  saveAccountDataSnapshot,
+  type AuthUser,
+} from './utils/authStore';
 import { DiscordServerRail, type AlbumFilterType } from './components/DiscordServerRail';
 import { matchesAlbumFilter } from './components/TrackListSidebar';
 import { AlbumShowcase } from './components/AlbumShowcase';
@@ -48,7 +57,10 @@ function resolvePlayableUrl(track: BackendRadioheadTrack): string {
   return url;
 }
 
-export const App: React.FC = () => {
+const AuthenticatedApp: React.FC<{
+  authUser: AuthUser;
+  onAccountLogout: () => void;
+}> = ({ authUser, onAccountLogout }) => {
   const [rightPanelMode, setRightPanelMode] = useState<'lyrics' | 'queue' | null>('lyrics');
   const showLyrics = rightPanelMode === 'lyrics';
   const showQueue = rightPanelMode === 'queue';
@@ -60,6 +72,8 @@ export const App: React.FC = () => {
   const [, setCacheTick] = useState(0);
   const [manualQueue, setManualQueue] = useState<BackendRadioheadTrack[]>(() => {
     try {
+      const snap = loadAccountDataSnapshot(authUser.email);
+      if (snap && Array.isArray(snap.manualQueue)) return snap.manualQueue;
       const saved = localStorage.getItem('kasatune_queue_v1');
       if (saved) {
         const parsed = JSON.parse(saved);
@@ -73,6 +87,8 @@ export const App: React.FC = () => {
   const [isAddArtistModalOpen, setIsAddArtistModalOpen] = useState(false);
   const [pinnedServers, setPinnedServers] = useState<PinnedServerItem[]>(() => {
     try {
+      const snap = loadAccountDataSnapshot(authUser.email);
+      if (snap && Array.isArray(snap.pinnedServers)) return snap.pinnedServers;
       const saved = localStorage.getItem('kasatune_pinned_artists_v4');
       if (saved) {
         const parsed = JSON.parse(saved);
@@ -297,7 +313,7 @@ export const App: React.FC = () => {
     refetchTracks,
   } = useMusicSync();
 
-  // 2.1 User Custom Playlist & Liked Songs Hub
+  // 2.1 User Custom Playlist & Liked Songs Hub (scoped per logged-in account)
   const {
     playlist: customPlaylist,
     likedTracks,
@@ -305,7 +321,16 @@ export const App: React.FC = () => {
     isLiked,
     toggleLike,
     updatePlaylist,
-  } = useCustomPlaylist(tracks);
+  } = useCustomPlaylist(tracks, authUser.email);
+
+  // Persist per-account pinned artists & queue automatically
+  useEffect(() => {
+    saveAccountDataSnapshot(authUser.email, {
+      pinnedServers,
+      manualQueue: manualQueue.slice(0, 100),
+      updatedAt: Date.now(),
+    });
+  }, [authUser.email, pinnedServers, manualQueue]);
 
   // 3. Dynamic Color Extraction from Album Art via ColorThief
   const albumColors = useAlbumColor(activeTrack.coverUrl);
@@ -1341,6 +1366,11 @@ export const App: React.FC = () => {
         isLikedTrack={isLiked}
         onToggleLikeTrack={toggleLike}
         onAddToQueue={handleAddToQueue}
+        authUser={authUser}
+        onAccountLogout={() => {
+          pause();
+          onAccountLogout();
+        }}
       />
 
       {/* 2. Clean 3-Card Dark Matte Workspace */}
@@ -1381,6 +1411,41 @@ export const App: React.FC = () => {
         {/* Mobile Collections View (Clean Matte Koleksi) */}
         {mobileView === 'sidebar' && (
           <div className="flex-1 md:hidden h-full overflow-y-auto overflow-x-hidden bg-[#0B0B0C] px-3.5 py-3.5 space-y-5 custom-scrollbar">
+            {/* Logged-in Account Strip */}
+            <div className="p-2.5 rounded-xl bg-[#121213] border border-white/[0.07] flex items-center justify-between gap-2.5">
+              <div className="flex items-center gap-2.5 min-w-0">
+                <div className="w-9 h-9 rounded-lg overflow-hidden bg-[#53341A] flex items-center justify-center flex-shrink-0">
+                  {authUser.avatarUrl ? (
+                    <img
+                      src={authUser.avatarUrl}
+                      alt={authUser.name}
+                      referrerPolicy="no-referrer"
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <span className="text-xs font-semibold text-[#EEDFC7] uppercase">
+                      {authUser.name.slice(0, 2)}
+                    </span>
+                  )}
+                </div>
+                <div className="min-w-0">
+                  <p className="text-xs font-semibold text-[#EEDFC7] truncate">{authUser.name}</p>
+                  <p className="text-[11px] text-[#9A9288] truncate">{authUser.email}</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  pause();
+                  onAccountLogout();
+                }}
+                className="h-8 px-2.5 rounded-lg border border-white/[0.09] text-xs font-medium text-[#EEDFC7] flex items-center gap-1.5 flex-shrink-0"
+              >
+                <LogOut className="w-3.5 h-3.5 text-[#CE7F20]" />
+                <span>Keluar</span>
+              </button>
+            </div>
+
             <div className="flex items-center justify-between gap-2">
               <div>
                 <h2 className="text-lg font-bold text-[#EEDFC7] tracking-tight">Koleksi</h2>
@@ -1746,5 +1811,50 @@ export const App: React.FC = () => {
         }}
       />
     </div>
+  );
+};
+
+export const App: React.FC = () => {
+  const [authUser, setAuthUser] = useState<AuthUser | null>(() => getSavedSessionUser());
+  const [isCheckingSession, setIsCheckingSession] = useState<boolean>(() => !getSavedSessionUser());
+
+  useEffect(() => {
+    let active = true;
+    restoreAuthSession()
+      .then((user) => {
+        if (!active) return;
+        if (user) setAuthUser(user);
+      })
+      .finally(() => {
+        if (active) setIsCheckingSession(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const handleAccountLogout = useCallback(async () => {
+    await logoutAccount();
+    setAuthUser(null);
+  }, []);
+
+  if (isCheckingSession) {
+    return (
+      <div className="h-[100dvh] w-full bg-[#0B0B0C] text-[#9A9288] flex items-center justify-center text-xs">
+        Memuat sesi...
+      </div>
+    );
+  }
+
+  if (!authUser) {
+    return <AuthScreen onAuthenticated={(u) => setAuthUser(u)} />;
+  }
+
+  return (
+    <AuthenticatedApp
+      key={authUser.email}
+      authUser={authUser}
+      onAccountLogout={handleAccountLogout}
+    />
   );
 };
